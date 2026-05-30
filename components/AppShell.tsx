@@ -100,6 +100,8 @@ export default function AppShell() {
   const currentProfileId = currentProfile?.id ?? "";
   const isAppLocked = authState !== "signed_in" || isBooting;
 
+  useStableKeyboardViewport();
+
   const allVisibleQuests = useMemo(() => {
     const questsById = new Map<string, Quest>();
 
@@ -792,7 +794,10 @@ export default function AppShell() {
   }
 
   return (
-    <main className="app-viewport flex flex-col bg-white text-zinc-950">
+    <main
+      className="app-viewport flex flex-col bg-white text-zinc-950"
+      style={STABLE_VIEWPORT_STYLE}
+    >
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         <header className="flex items-center border-b border-zinc-200 bg-white/85 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+14px)] backdrop-blur-xl">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
@@ -897,9 +902,118 @@ export default function AppShell() {
   );
 }
 
+const KEYBOARD_HEIGHT_GAP = 120;
+const STABLE_VIEWPORT_STYLE = { height: "var(--plus1-app-height, 100vh)" };
+
+function useStableKeyboardViewport() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const root = document.documentElement;
+    const visualViewport = window.visualViewport;
+    let stableHeight = readViewportHeight();
+    let stableWidth = readViewportWidth();
+    let rafId = 0;
+    let focusOutTimer: number | undefined;
+
+    function readViewportHeight() {
+      return Math.round(
+        Math.max(
+          window.innerHeight,
+          visualViewport?.height ?? 0,
+          root.clientHeight,
+        ),
+      );
+    }
+
+    function readViewportWidth() {
+      return Math.round(visualViewport?.width ?? window.innerWidth);
+    }
+
+    function hasFocusedTextField() {
+      const activeElement = document.activeElement;
+
+      return (
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement instanceof HTMLSelectElement ||
+        (activeElement instanceof HTMLElement &&
+          activeElement.isContentEditable)
+      );
+    }
+
+    function applyViewportHeight() {
+      rafId = 0;
+
+      const currentHeight = readViewportHeight();
+      const currentWidth = readViewportWidth();
+      const widthChanged = Math.abs(currentWidth - stableWidth) > 48;
+      const focusedTextField = hasFocusedTextField();
+      const keyboardLooksOpen =
+        focusedTextField && stableHeight - currentHeight > KEYBOARD_HEIGHT_GAP;
+
+      if (widthChanged) {
+        stableWidth = currentWidth;
+        stableHeight = currentHeight;
+      } else if (!keyboardLooksOpen) {
+        const heightDelta = Math.abs(currentHeight - stableHeight);
+        const isLikelyBrowserChrome = heightDelta <= KEYBOARD_HEIGHT_GAP;
+
+        if (currentHeight > stableHeight || isLikelyBrowserChrome) {
+          stableHeight = currentHeight;
+        }
+      }
+
+      root.style.setProperty("--plus1-app-height", `${stableHeight}px`);
+      root.classList.toggle("plus1-keyboard-open", keyboardLooksOpen);
+    }
+
+    function scheduleApply() {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+
+      rafId = window.requestAnimationFrame(applyViewportHeight);
+    }
+
+    function handleFocusOut() {
+      window.clearTimeout(focusOutTimer);
+      focusOutTimer = window.setTimeout(scheduleApply, 80);
+    }
+
+    scheduleApply();
+    window.addEventListener("resize", scheduleApply);
+    window.addEventListener("orientationchange", scheduleApply);
+    window.addEventListener("focusin", scheduleApply);
+    window.addEventListener("focusout", handleFocusOut);
+    visualViewport?.addEventListener("resize", scheduleApply);
+    visualViewport?.addEventListener("scroll", scheduleApply);
+
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.clearTimeout(focusOutTimer);
+      root.classList.remove("plus1-keyboard-open");
+      root.style.removeProperty("--plus1-app-height");
+      window.removeEventListener("resize", scheduleApply);
+      window.removeEventListener("orientationchange", scheduleApply);
+      window.removeEventListener("focusin", scheduleApply);
+      window.removeEventListener("focusout", handleFocusOut);
+      visualViewport?.removeEventListener("resize", scheduleApply);
+      visualViewport?.removeEventListener("scroll", scheduleApply);
+    };
+  }, []);
+}
+
 function SplashScreen() {
   return (
-    <main className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950">
+    <main
+      className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950"
+      style={STABLE_VIEWPORT_STYLE}
+    >
       <h1 className="text-[2.75rem] font-bold tracking-tight">plus1</h1>
       <div className="mt-6 h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
     </main>
@@ -956,7 +1070,10 @@ function AuthScreen({
   }
 
   return (
-    <main className="app-viewport flex flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+    <main
+      className="app-viewport flex flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950"
+      style={STABLE_VIEWPORT_STYLE}
+    >
       <div className="flex flex-1 flex-col justify-center">
         <div className="mx-auto w-full max-w-sm">
           <div className="text-center">
@@ -1136,7 +1253,10 @@ function ProfileSetupScreen({
   }
 
   return (
-    <main className="app-viewport flex flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+    <main
+      className="app-viewport flex flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950"
+      style={STABLE_VIEWPORT_STYLE}
+    >
       <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-center">
         <div className="text-center">
           <h1 className="text-[2.5rem] font-bold leading-none tracking-tight">
