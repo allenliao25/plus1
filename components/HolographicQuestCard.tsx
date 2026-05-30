@@ -1,7 +1,6 @@
 "use client";
 
-import { CalendarDays, MapPin, Sparkles, Users } from "lucide-react";
-import type { PointerEvent } from "react";
+import { CalendarDays, MapPin, Users } from "lucide-react";
 import type { Quest } from "@/types/quest";
 
 type HolographicQuestCardProps = {
@@ -29,13 +28,12 @@ export default function HolographicQuestCard({
   const isShare = variant === "share";
   const status = statusLabel(quest, isFull);
   const when = quest.startTimeRelative ?? quest.startTime;
+  const hasImage = Boolean(quest.cardImageUrl);
 
   return (
     <article
       data-category={quest.category}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      className={`holo-card holo-card--${variant} group relative overflow-hidden rounded-[1.75rem] border border-white/30 bg-zinc-950 text-white shadow-[0_20px_70px_rgba(15,23,42,0.22)]`}
+      className="event-card group relative overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-zinc-950 text-white shadow-[0_16px_44px_rgba(15,23,42,0.14)]"
     >
       <div
         className={`relative flex flex-col justify-between ${
@@ -57,48 +55,50 @@ export default function HolographicQuestCard({
           ) : (
             <div className="holo-card-fallback h-full w-full" />
           )}
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,10,18,0.10),rgba(7,10,18,0.32)_38%,rgba(7,10,18,0.88))]" />
-          <div className="holo-card-foil absolute inset-0" />
+          <div
+            className={`absolute inset-0 ${
+              hasImage
+                ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.10),transparent_28%,rgba(0,0,0,0.18)_52%,rgba(0,0,0,0.82))]"
+                : "bg-[linear-gradient(180deg,rgba(7,10,18,0.08),rgba(7,10,18,0.24)_42%,rgba(7,10,18,0.82))]"
+            }`}
+          />
         </div>
 
         <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-white backdrop-blur-md">
+            <span className="rounded-full border border-white/25 bg-black/25 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-md">
               {quest.category}
             </span>
             {isPersonalMatch ? (
-              <span className="rounded-full border border-emerald-200/30 bg-emerald-300/20 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-emerald-50 backdrop-blur-md">
+              <span className="rounded-full border border-white/25 bg-black/25 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-md">
                 For you
               </span>
             ) : null}
             {status ? (
-              <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-white backdrop-blur-md">
+              <span className="rounded-full border border-white/25 bg-black/25 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-md">
                 {status}
               </span>
             ) : null}
           </div>
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-md">
-            <Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />
-          </span>
         </div>
 
-        <div className="relative z-10 mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/65">
+        <div className="relative z-10 mt-10 max-w-full">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/75 drop-shadow">
             Hosted by {quest.creator}
           </p>
           <h3
-            className={`mt-2 font-semibold leading-[1.03] tracking-normal text-white drop-shadow-sm ${
+            className={`mt-2 font-semibold leading-[1.04] tracking-normal text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)] ${
               isImmersive
-                ? "text-[2.65rem]"
+                ? "text-[2.45rem]"
                 : isShare
-                  ? "text-[2.15rem]"
-                  : "text-[1.75rem]"
+                  ? "text-[2rem]"
+                  : "text-[1.65rem]"
             }`}
           >
             <span className="break-words">{quest.title}</span>
           </h3>
 
-          <dl className="mt-5 grid gap-2 text-sm font-semibold text-white/90">
+          <dl className="mt-5 grid gap-2 text-sm font-semibold text-white/92 drop-shadow">
             <div className="flex items-center gap-2">
               <dt className="sr-only">Where</dt>
               <MapPin size={17} strokeWidth={1.9} aria-hidden="true" />
@@ -119,7 +119,7 @@ export default function HolographicQuestCard({
           </dl>
 
           {isImmersive || isShare ? (
-            <p className="mt-4 line-clamp-3 text-sm leading-6 text-white/78">
+            <p className="mt-4 line-clamp-3 text-sm leading-6 text-white/82 drop-shadow">
               {quest.description}
             </p>
           ) : null}
@@ -130,7 +130,7 @@ export default function HolographicQuestCard({
                 <button
                   type="button"
                   onClick={() => onOpen(quest.id)}
-                  className="min-h-11 rounded-full border border-white/25 bg-white/12 px-4 py-2.5 text-sm font-bold text-white backdrop-blur-md transition hover:bg-white/20"
+                  className="min-h-11 rounded-full border border-white/30 bg-white/18 px-4 py-2.5 text-sm font-bold text-white shadow-sm backdrop-blur-md transition hover:bg-white/25"
                 >
                   Details
                 </button>
@@ -142,10 +142,10 @@ export default function HolographicQuestCard({
                   disabled={!isJoinable || isFull || isJoined || isJoining}
                   className={`min-h-11 flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition ${
                     isJoined
-                      ? "bg-emerald-300 text-emerald-950"
+                      ? "bg-white text-zinc-950 shadow-sm"
                       : !isJoinable || isFull
                         ? "bg-white/18 text-white/55"
-                        : isJoining
+                      : isJoining
                           ? "bg-white/25 text-white/70"
                           : "bg-white text-zinc-950 hover:bg-white/90"
                   }`}
@@ -155,7 +155,7 @@ export default function HolographicQuestCard({
               ) : null}
             </div>
           ) : (
-            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-white/62">
               Tap to join this event on plus1
             </p>
           )}
@@ -163,32 +163,6 @@ export default function HolographicQuestCard({
       </div>
     </article>
   );
-}
-
-function handlePointerMove(event: PointerEvent<HTMLElement>) {
-  if (event.pointerType === "touch") {
-    return;
-  }
-
-  const target = event.currentTarget;
-  const rect = target.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * 100;
-  const y = ((event.clientY - rect.top) / rect.height) * 100;
-  const rotateY = (x - 50) / 10;
-  const rotateX = (50 - y) / 12;
-
-  target.style.setProperty("--holo-x", `${x}%`);
-  target.style.setProperty("--holo-y", `${y}%`);
-  target.style.setProperty("--holo-rotate-x", `${rotateX}deg`);
-  target.style.setProperty("--holo-rotate-y", `${rotateY}deg`);
-}
-
-function handlePointerLeave(event: PointerEvent<HTMLElement>) {
-  const target = event.currentTarget;
-  target.style.removeProperty("--holo-x");
-  target.style.removeProperty("--holo-y");
-  target.style.removeProperty("--holo-rotate-x");
-  target.style.removeProperty("--holo-rotate-y");
 }
 
 function statusLabel(quest: Quest, isFull: boolean) {

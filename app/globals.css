@@ -46,6 +46,7 @@ textarea {
 }
 
 .holo-card,
+.event-card,
 .holo-thumb {
   --holo-x: 50%;
   --holo-y: 45%;
@@ -99,36 +100,6 @@ textarea {
   --holo-c: #22d3ee;
 }
 
-.holo-card {
-  transform: perspective(900px) rotateX(var(--holo-rotate-x))
-    rotateY(var(--holo-rotate-y));
-  transform-style: preserve-3d;
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.holo-card::after {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  z-index: 2;
-  pointer-events: none;
-  background: linear-gradient(
-    112deg,
-    transparent 34%,
-    rgba(255, 255, 255, 0.52) 44%,
-    rgba(255, 255, 255, 0.08) 50%,
-    transparent 60%
-  );
-  mix-blend-mode: screen;
-  opacity: 0.36;
-  transform: translateX(-24%) rotate(10deg);
-  transition:
-    opacity 180ms ease,
-    transform 380ms ease;
-}
-
 .holo-card-fallback,
 .holo-thumb-fallback {
   background:
@@ -142,54 +113,12 @@ textarea {
     linear-gradient(135deg, var(--holo-a), #111827 72%);
 }
 
-.holo-card-foil {
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle at var(--holo-x) var(--holo-y),
-      rgba(255, 255, 255, 0.72),
-      rgba(255, 255, 255, 0.12) 18%,
-      transparent 34%
-    ),
-    conic-gradient(
-      from 120deg at var(--holo-x) var(--holo-y),
-      transparent,
-      color-mix(in srgb, var(--holo-a) 78%, transparent),
-      color-mix(in srgb, var(--holo-b) 65%, transparent),
-      color-mix(in srgb, var(--holo-c) 60%, transparent),
-      transparent
-    );
-  mix-blend-mode: screen;
-  opacity: 0.55;
-}
-
 .holo-thumb::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.38), transparent 56%),
-    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.4), transparent 24%);
+  background: radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.22), transparent 24%);
   mix-blend-mode: screen;
-  opacity: 0.44;
-}
-
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .holo-card:hover {
-    box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28);
-  }
-
-  .holo-card:hover::after {
-    opacity: 0.62;
-    transform: translateX(22%) rotate(10deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .holo-card,
-  .holo-card::after {
-    transform: none !important;
-    transition: none !important;
-  }
+  opacity: 0.18;
 }

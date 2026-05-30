@@ -172,18 +172,18 @@ export async function updateQuest(
     })
     .eq("id", questId)
     .eq("creator_id", currentUserId)
-    .eq("status", "open")
-    .select("*")
-    .single();
+    .select("*");
 
-  if (error || !data) {
+  const quest = data?.[0] ?? null;
+
+  if (error || !quest) {
     throw new Error(
       `Could not update event: ${error?.message ?? "Event not found."}`,
     );
   }
 
-  const [quest] = await hydrateQuests([data], currentUserId);
-  return quest;
+  const [hydratedQuest] = await hydrateQuests([quest], currentUserId);
+  return hydratedQuest;
 }
 
 export async function joinQuest(questId: string, currentUserId: string) {
@@ -280,11 +280,9 @@ export async function closeQuest(questId: string, currentUserId: string) {
     .update({ status: "closed" })
     .eq("id", questId)
     .eq("creator_id", currentUserId)
-    .eq("status", "open")
-    .select("*")
-    .single();
+    .select("*");
 
-  if (error || !data) {
+  if (error || !data?.[0]) {
     throw new Error(
       `Could not close event: ${error?.message ?? "Event not found."}`,
     );
