@@ -6,16 +6,29 @@ export type QuestCategory =
   | "Outdoors"
   | "Social";
 
+export type QuestStatus = "open" | "closed" | "past";
+
+export type QuestAttendee = {
+  id: string;
+  displayName: string;
+  avatarInitials: string;
+  isHost: boolean;
+};
+
 export type Quest = {
   id: string;
   title: string;
   category: QuestCategory;
+  status: QuestStatus;
   location: string;
+  startTimeISO: string | null;
   startTime: string;
+  startTimeRelative: string | null;
   description: string;
   creator: string;
   goingCount: number;
   maxPeople: number;
+  attendees: QuestAttendee[];
   createdByCurrentUser?: boolean;
   joinedByCurrentUser?: boolean;
 };
@@ -35,3 +48,5 @@ export type NewQuestInput = {
   description: string;
   maxPeople: number;
 };
+
+export type UpdateQuestInput = NewQuestInput;

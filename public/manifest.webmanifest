@@ -1,0 +1,22 @@
+{
+  "name": "plus1",
+  "short_name": "plus1",
+  "description": "Find low-pressure campus plans with people nearby.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#f6f4ef",
+  "icons": [
+    {
+      "src": "/window.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/file.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml"
+    }
+  ]
+}

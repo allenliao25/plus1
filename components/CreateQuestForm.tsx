@@ -4,6 +4,8 @@ import type { NewQuestInput, QuestCategory } from "@/types/quest";
 
 type CreateQuestFormProps = {
   isSubmitting: boolean;
+  submitLabel?: string;
+  submittingLabel?: string;
   onCreateQuest: (quest: NewQuestInput) => Promise<void>;
 };
 
@@ -18,6 +20,8 @@ const defaultForm: NewQuestInput = {
 
 export default function CreateQuestForm({
   isSubmitting,
+  submitLabel = "Post quest",
+  submittingLabel = "Posting...",
   onCreateQuest,
 }: CreateQuestFormProps) {
   const [form, setForm] = useState<NewQuestInput>(defaultForm);
@@ -60,12 +64,9 @@ export default function CreateQuestForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-zinc-950">Create quest</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Post a casual plan for people nearby to join.
-        </p>
-      </div>
+      <p className="text-sm leading-6 text-zinc-500">
+        Post a casual plan for people nearby to join.
+      </p>
 
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -94,7 +95,7 @@ export default function CreateQuestForm({
                 key={category}
                 type="button"
                 onClick={() => updateForm("category", category as QuestCategory)}
-                className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
+                className={`min-h-11 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
                   isSelected
                     ? "border-zinc-950 bg-zinc-950 text-white"
                     : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
@@ -155,9 +156,9 @@ export default function CreateQuestForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
-        {isSubmitting ? "Posting..." : "Post quest"}
+        {isSubmitting ? submittingLabel : submitLabel}
       </button>
     </form>
   );

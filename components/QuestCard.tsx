@@ -1,3 +1,4 @@
+import QuestStatusBadge from "@/components/QuestStatusBadge";
 import type { Quest } from "@/types/quest";
 
 type QuestCardProps = {
@@ -15,7 +16,8 @@ export default function QuestCard({
   onOpen,
   compact = false,
 }: QuestCardProps) {
-  const isFull = quest.goingCount >= quest.maxPeople;
+  const isJoinable = quest.status === "open";
+  const isFull = isJoinable && quest.goingCount >= quest.maxPeople;
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
 
   return (
@@ -26,8 +28,9 @@ export default function QuestCard({
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-600">
               {quest.category}
             </span>
+            <QuestStatusBadge quest={quest} />
             <span className="text-xs font-medium text-zinc-500">
-              {quest.startTime}
+              {quest.startTimeRelative ?? quest.startTime}
             </span>
           </div>
           <h3 className="mt-3 text-lg font-semibold leading-snug text-zinc-950">
@@ -55,17 +58,19 @@ export default function QuestCard({
         <button
           type="button"
           onClick={() => onOpen(quest.id)}
-          className="rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
+          className="min-h-11 rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
         >
           Details
         </button>
         <button
           type="button"
           onClick={() => onJoin(quest.id)}
-          disabled={isFull || isJoined || isJoining}
-          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+          disabled={!isJoinable || isFull || isJoined || isJoining}
+          className={`min-h-11 flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
             isJoined
               ? "bg-emerald-50 text-emerald-700"
+              : !isJoinable
+                ? "bg-zinc-100 text-zinc-500"
               : isJoining
                 ? "bg-zinc-200 text-zinc-500"
               : isFull
@@ -75,6 +80,10 @@ export default function QuestCard({
         >
           {isJoined
             ? "You're in"
+            : !isJoinable
+              ? quest.status === "closed"
+                ? "Closed"
+                : "Past"
             : isJoining
               ? "Joining..."
               : isFull

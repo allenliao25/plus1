@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# plus1
 
-## Getting Started
+Campus hangouts, without the group text.
 
-First, run the development server:
+plus1 is a mobile-first Next.js app where students can post low-pressure quests (dinner, study, walks), join each other, and manage their plans in one feed.
+
+## Stack
+
+- Next.js 16 (App Router) + React 19 + TypeScript
+- Tailwind CSS 4
+- Supabase (Auth + Postgres + Realtime)
+- Capacitor iOS wrapper for mobile testing
+
+## Local setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy environment variables:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Fill `.env.local` with your Supabase project values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL` (for auth redirect; default `http://localhost:3000`)
+- `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` (for Tier 2 push sender)
+
+4. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Canonical schema: `supabase/schema.sql`
+- Migration snapshot for auth + RLS hardening: `supabase/migrations/20260529_auth_rls_upgrade.sql`
+- Migration snapshot for push tokens: `supabase/migrations/20260529_push_tokens.sql`
 
-## Learn More
+Core tables:
 
-To learn more about Next.js, take a look at the following resources:
+- `profiles` (linked to `auth.users`)
+- `quests`
+- `quest_joins`
+- `push_tokens`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Current product scope
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Email link auth
+- Feed with category filtering
+- Create quest
+- Join / leave quest
+- Host close quest
+- Host edit quest
+- Attendee list + status badges
+- My quests grouped by hosting / going / closed / past
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `npm run dev` - run dev server on LAN
+- `npm run build` - production build
+- `npm run lint` - lint
+- `npm run cap:sync:ios` - sync Capacitor iOS project
+- `npm run cap:open:ios` - open iOS project in Xcode
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+
+- Realtime notifications are wired through Supabase changes and Capacitor local notifications on native iOS builds.
+- RLS policies are auth-scoped for profile, quest, and join operations.
+- Tier 2 push infrastructure includes `push_tokens` storage and a Firebase Admin sender utility in `lib/pushSender.ts`.
