@@ -11,8 +11,11 @@ import ExploreScreen from "@/components/screens/ExploreScreen";
 import HomeScreen from "@/components/screens/HomeScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import {
+  completeProfileSetup,
   ensureProfile,
   getAuthenticatedUser,
+  isLikelyAutoDisplayName,
+  normalizePhoneNumber,
   sendPhoneOtp,
   signOutCurrentUser,
   subscribeToAuthChanges,
@@ -40,6 +43,7 @@ import {
   requestLocalNotificationPermission,
 } from "@/lib/notifications";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { questCategories } from "@/data/demoQuests";
 import type {
   ActivityEvent,
   NewQuestInput,
@@ -70,6 +74,10 @@ export default function AppShell() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [isCompletingProfileSetup, setIsCompletingProfileSetup] =
+    useState(false);
+  const [profileSetupError, setProfileSetupError] = useState("");
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const [joiningQuestId, setJoiningQuestId] = useState<string | null>(null);
   const [leavingQuestId, setLeavingQuestId] = useState<string | null>(null);
   const [closingQuestId, setClosingQuestId] = useState<string | null>(null);
@@ -135,11 +143,18 @@ export default function AppShell() {
         setActivityEvents([]);
         setSelectedQuestId(null);
         setEditingQuestId(null);
+        setNeedsProfileSetup(false);
+        setProfileSetupError("");
         return;
       }
 
       const profile = await ensureProfile(user);
+      const shouldCompleteProfileSetup = isLikelyAutoDisplayName(
+        profile.displayName,
+      );
       setCurrentProfile(profile);
+      setNeedsProfileSetup(shouldCompleteProfileSetup);
+      setProfileSetupError("");
       setAuthState("signed_in");
       setAuthError("");
       setAuthMessage("");
@@ -160,6 +175,8 @@ export default function AppShell() {
       setError(readErrorMessage(syncError));
       setAuthState("signed_out");
       setCurrentProfile(null);
+      setNeedsProfileSetup(false);
+      setProfileSetupError("");
     } finally {
       setIsBooting(false);
     }
@@ -309,7 +326,7 @@ export default function AppShell() {
       setIsSigningIn(true);
       setAuthError("");
       setAuthMessage("");
-      const normalizedPhone = normalizePhone(phone);
+      const normalizedPhone = normalizePhoneNumber(phone);
       await sendPhoneOtp(normalizedPhone);
       setAuthMessage(`Code sent to ${normalizedPhone}.`);
       return true;
@@ -363,6 +380,27 @@ export default function AppShell() {
       setProfileError(readErrorMessage(saveError));
     } finally {
       setIsSavingProfile(false);
+    }
+  }
+
+  async function handleCompleteProfile(changes: {
+    displayName: string;
+    interests: string[];
+  }) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setIsCompletingProfileSetup(true);
+      setProfileSetupError("");
+      const updated = await completeProfileSetup(currentProfile.id, changes);
+      setCurrentProfile(updated);
+      setNeedsProfileSetup(false);
+    } catch (setupError) {
+      setProfileSetupError(readErrorMessage(setupError));
+    } finally {
+      setIsCompletingProfileSetup(false);
     }
   }
 
@@ -553,6 +591,18 @@ export default function AppShell() {
     );
   }
 
+  if (needsProfileSetup && currentProfile) {
+    return (
+      <ProfileSetupScreen
+        initialDisplayName={currentProfile.displayName}
+        initialInterests={currentProfile.interests}
+        isSubmitting={isCompletingProfileSetup}
+        error={profileSetupError}
+        onComplete={handleCompleteProfile}
+      />
+    );
+  }
+
   return (
     <main className="flex h-dvh flex-col bg-white text-zinc-950">
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
@@ -686,7 +736,7 @@ function AuthScreen({
     event.preventDefault();
 
     if (!isVerifying) {
-      const normalizedPhone = normalizePhone(phone);
+      const normalizedPhone = normalizePhoneNumber(phone);
       const didSendCode = await onSendCode(normalizedPhone);
 
       if (didSendCode) {
@@ -806,6 +856,127 @@ function AuthScreen({
   );
 }
 
+function ProfileSetupScreen({
+  initialDisplayName,
+  initialInterests,
+  isSubmitting,
+  error,
+  onComplete,
+}: {
+  initialDisplayName: string;
+  initialInterests: string[];
+  isSubmitting: boolean;
+  error: string;
+  onComplete: (changes: {
+    displayName: string;
+    interests: string[];
+  }) => Promise<void> | void;
+}) {
+  const [displayName, setDisplayName] = useState(() =>
+    isLikelyAutoDisplayName(initialDisplayName) ? "" : initialDisplayName,
+  );
+  const [interests, setInterests] = useState<string[]>(initialInterests);
+
+  const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
+  const isValidDisplayName = normalizedDisplayName.length >= 2;
+
+  function toggleInterest(category: string) {
+    setInterests((current) =>
+      current.includes(category)
+        ? current.filter((value) => value !== category)
+        : [...current, category],
+    );
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isValidDisplayName || isSubmitting) {
+      return;
+    }
+
+    await onComplete({
+      displayName: normalizedDisplayName,
+      interests,
+    });
+  }
+
+  return (
+    <main className="flex h-dvh flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+      <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-center">
+        <div className="text-center">
+          <h1 className="text-[2.5rem] font-semibold leading-none tracking-tight">
+            plus1
+          </h1>
+          <h2 className="mt-4 text-2xl font-semibold text-zinc-950">
+            Finish your profile
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            Pick your display name and interests to personalize your first
+            feed.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-zinc-700">
+              Display name
+            </span>
+            <input
+              type="text"
+              required
+              maxLength={32}
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Your name"
+              className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+            />
+          </label>
+
+          <div>
+            <p className="text-sm font-semibold text-zinc-700">
+              Interests (optional)
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {questCategories.map((category) => {
+                const isSelected = interests.includes(category);
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => toggleInterest(category)}
+                    className={`min-h-10 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      isSelected
+                        ? "border-zinc-950 bg-zinc-950 text-white"
+                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={!isValidDisplayName || isSubmitting}
+            className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+          >
+            {isSubmitting ? "Saving..." : "Continue"}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
+
 function LoadingState({ label }: { label: string }) {
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-6 text-center">
@@ -847,20 +1018,4 @@ function ActionError({ message }: { message: string }) {
 
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
-}
-
-function normalizePhone(phone: string) {
-  const trimmed = phone.trim();
-  const digits = trimmed.replace(/\D+/g, "");
-
-  if (trimmed.startsWith("+")) {
-    return `+${digits}`;
-  }
-  if (digits.length === 10) {
-    return `+1${digits}`;
-  }
-  if (digits.length === 11 && digits.startsWith("1")) {
-    return `+${digits}`;
-  }
-  return `+${digits}`;
 }

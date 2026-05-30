@@ -17,7 +17,7 @@ export async function getAuthenticatedUser() {
 }
 
 export async function sendPhoneOtp(phone: string) {
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = normalizePhoneNumber(phone);
 
   if (!normalizedPhone) {
     throw new Error("Enter your phone number with country code.");
@@ -34,7 +34,7 @@ export async function sendPhoneOtp(phone: string) {
 }
 
 export async function verifyPhoneOtp(phone: string, token: string) {
-  const normalizedPhone = normalizePhone(phone);
+  const normalizedPhone = normalizePhoneNumber(phone);
   const normalizedToken = token.trim();
 
   if (!normalizedPhone) {
@@ -124,6 +124,53 @@ export async function ensureProfile(user: User): Promise<Profile> {
   };
 }
 
+export async function completeProfileSetup(
+  userId: string,
+  changes: { displayName: string; interests: string[] },
+): Promise<Profile> {
+  const nextDisplayName = normalizeDisplayName(changes.displayName);
+
+  if (nextDisplayName.length < 2) {
+    throw new Error("Display name must be at least 2 characters.");
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      display_name: nextDisplayName,
+      interests: changes.interests,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select(
+      "id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at",
+    )
+    .single();
+
+  const duplicateDisplayName =
+    error?.code === "23505" && error.message.includes("profiles_display_name");
+  if (duplicateDisplayName) {
+    throw new Error("That display name is already taken. Try another.");
+  }
+
+  if (error || !data) {
+    throw new Error(
+      `Could not finish profile setup: ${error?.message ?? "Profile not found."}`,
+    );
+  }
+
+  return {
+    id: data.id,
+    displayName: data.display_name ?? "plus1 user",
+    email: data.email,
+    phone: data.phone,
+    avatarInitials: data.avatar_initials ?? initials(data.display_name),
+    bio: data.bio,
+    interests: data.interests ?? [],
+  };
+}
+
 export async function updateProfile(
   userId: string,
   changes: { bio: string | null; interests: string[] },
@@ -158,6 +205,31 @@ export async function updateProfile(
     bio: data.bio,
     interests: data.interests ?? [],
   };
+}
+
+export function isLikelyAutoDisplayName(displayName: string) {
+  const normalized = displayName.trim().toLowerCase();
+  return /^plus1(?:\s+\d{4}| user)(?:-[a-z0-9]{6})?$/.test(normalized);
+}
+
+export function normalizePhoneNumber(phone: string) {
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D+/g, "");
+
+  if (!digits) {
+    return "";
+  }
+  if (trimmed.startsWith("+")) {
+    return `+${digits}`;
+  }
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+
+  return `+${digits}`;
 }
 
 function upsertProfile(input: {
@@ -211,12 +283,12 @@ function initials(name: string | null) {
     .toUpperCase();
 }
 
-function normalizePhone(phone: string) {
-  return phone.trim().replace(/\s+/g, "");
+function normalizeDisplayName(value: string) {
+  return value.trim().replace(/\s+/g, " ").slice(0, 32);
 }
 
 function formatPhoneDisplayName(phone?: string | null) {
-  const normalized = normalizePhone(phone ?? "");
+  const normalized = normalizePhoneNumber(phone ?? "").replace(/\D+/g, "");
 
   if (normalized.length >= 4) {
     return `plus1 ${normalized.slice(-4)}`;
