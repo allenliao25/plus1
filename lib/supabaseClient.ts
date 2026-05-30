@@ -8,20 +8,32 @@ export type Database = {
           id: string;
           display_name: string | null;
           email: string | null;
+          phone: string | null;
           avatar_initials: string | null;
+          bio: string | null;
+          interests: string[] | null;
           created_at: string | null;
+          updated_at: string | null;
         };
         Insert: {
           id?: string;
           display_name?: string | null;
           email?: string | null;
+          phone?: string | null;
           avatar_initials?: string | null;
+          bio?: string | null;
+          interests?: string[] | null;
           created_at?: string | null;
+          updated_at?: string | null;
         };
         Update: {
           display_name?: string | null;
           email?: string | null;
+          phone?: string | null;
           avatar_initials?: string | null;
+          bio?: string | null;
+          interests?: string[] | null;
+          updated_at?: string | null;
         };
         Relationships: [];
       };
@@ -131,6 +143,49 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      activity_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          actor_id: string | null;
+          quest_id: string | null;
+          type: string;
+          title: string;
+          body: string | null;
+          read_at: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          actor_id?: string | null;
+          quest_id?: string | null;
+          type: string;
+          title: string;
+          body?: string | null;
+          read_at?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          read_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "activity_events_quest_id_fkey";
+            columns: ["quest_id"];
+            isOneToOne: false;
+            referencedRelation: "quests";
             referencedColumns: ["id"];
           },
         ];

@@ -8,8 +8,12 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null unique,
   email text unique,
+  phone text unique,
   avatar_initials text,
-  created_at timestamp default now()
+  bio text,
+  interests text[] not null default '{}',
+  created_at timestamp default now(),
+  updated_at timestamp default now()
 );
 
 create table if not exists quests (
@@ -42,6 +46,18 @@ create table if not exists push_tokens (
   updated_at timestamp default now()
 );
 
+create table if not exists activity_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  actor_id uuid references profiles(id),
+  quest_id uuid references quests(id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text,
+  read_at timestamp,
+  created_at timestamp default now()
+);
+
 create unique index if not exists profiles_display_name_unique
   on profiles (display_name);
 
@@ -49,16 +65,24 @@ create unique index if not exists profiles_email_unique
   on profiles (email)
   where email is not null;
 
+create unique index if not exists profiles_phone_unique
+  on profiles (phone)
+  where phone is not null;
+
 create unique index if not exists quest_joins_quest_id_user_id_unique
   on quest_joins (quest_id, user_id);
 
 create unique index if not exists push_tokens_user_id_token_unique
   on push_tokens (user_id, token);
 
+create index if not exists activity_events_user_id_created_at_idx
+  on activity_events (user_id, created_at desc);
+
 alter table profiles enable row level security;
 alter table quests enable row level security;
 alter table quest_joins enable row level security;
 alter table push_tokens enable row level security;
+alter table activity_events enable row level security;
 
 drop policy if exists "demo read profiles" on profiles;
 create policy "demo read profiles"
@@ -151,6 +175,25 @@ create policy "users delete own push tokens"
   on push_tokens for delete
   to authenticated
   using (auth.uid() = user_id);
+
+drop policy if exists "users read own activity" on activity_events;
+create policy "users read own activity"
+  on activity_events for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "actors create activity" on activity_events;
+create policy "actors create activity"
+  on activity_events for insert
+  to authenticated
+  with check (auth.uid() = actor_id);
+
+drop policy if exists "users update own activity" on activity_events;
+create policy "users update own activity"
+  on activity_events for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.

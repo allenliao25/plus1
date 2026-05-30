@@ -1,4 +1,5 @@
 import type { Quest } from "@/types/quest";
+import QuestShareCard from "@/components/QuestShareCard";
 import QuestStatusBadge from "@/components/QuestStatusBadge";
 
 type QuestDetailProps = {
@@ -166,6 +167,8 @@ export default function QuestDetail({
           </button>
         ) : null}
       </section>
+
+      <QuestShareCard quest={quest} />
     </div>
   );
 }

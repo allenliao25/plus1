@@ -6,6 +6,11 @@ type CreateQuestFormProps = {
   isSubmitting: boolean;
   submitLabel?: string;
   submittingLabel?: string;
+  /**
+   * Seeds the form once on mount. Remount the form with a new `key` to apply
+   * an AI draft; the draft is never auto-posted.
+   */
+  initialValues?: NewQuestInput;
   onCreateQuest: (quest: NewQuestInput) => Promise<void>;
 };
 
@@ -22,9 +27,10 @@ export default function CreateQuestForm({
   isSubmitting,
   submitLabel = "Post quest",
   submittingLabel = "Posting...",
+  initialValues,
   onCreateQuest,
 }: CreateQuestFormProps) {
-  const [form, setForm] = useState<NewQuestInput>(defaultForm);
+  const [form, setForm] = useState<NewQuestInput>(initialValues ?? defaultForm);
   const [error, setError] = useState("");
 
   function updateForm<Value extends keyof NewQuestInput>(

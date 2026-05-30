@@ -1,18 +1,23 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
 import EditQuestModal from "@/components/EditQuestModal";
-import EmptyState from "@/components/EmptyState";
-import QuestCard from "@/components/QuestCard";
 import QuestDetail from "@/components/QuestDetail";
+import ActivityScreen from "@/components/screens/ActivityScreen";
+import ExploreScreen from "@/components/screens/ExploreScreen";
+import HomeScreen from "@/components/screens/HomeScreen";
+import ProfileScreen from "@/components/screens/ProfileScreen";
 import {
   ensureProfile,
   getAuthenticatedUser,
-  signInWithEmailLink,
+  sendPhoneOtp,
   signOutCurrentUser,
   subscribeToAuthChanges,
+  updateProfile,
+  verifyPhoneOtp,
 } from "@/lib/authService";
 import {
   closeQuest,
@@ -25,32 +30,46 @@ import {
   updateQuest,
 } from "@/lib/questService";
 import {
+  fetchActivityEvents,
+  markActivityRead,
+  recordActivityEvents,
+} from "@/lib/activityService";
+import {
   notifyLocalEvent,
   registerPushToken,
   requestLocalNotificationPermission,
 } from "@/lib/notifications";
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import type { NewQuestInput, Profile, Quest } from "@/types/quest";
+import type {
+  ActivityEvent,
+  NewQuestInput,
+  Profile,
+  Quest,
+} from "@/types/quest";
 
 type AuthState = "loading" | "signed_out" | "signed_in";
-type FeedCategory = Quest["category"] | "All";
 
 export default function AppShell() {
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<AppTab>("feed");
+  const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [feedQuests, setFeedQuests] = useState<Quest[]>([]);
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
   const [editingQuestId, setEditingQuestId] = useState<string | null>(null);
-  const [feedCategoryFilter, setFeedCategoryFilter] = useState<FeedCategory>("All");
+  const [createInitialValues, setCreateInitialValues] =
+    useState<NewQuestInput | null>(null);
+  const [createFormKey, setCreateFormKey] = useState(0);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingQuests, setIsLoadingQuests] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const [joiningQuestId, setJoiningQuestId] = useState<string | null>(null);
   const [leavingQuestId, setLeavingQuestId] = useState<string | null>(null);
   const [closingQuestId, setClosingQuestId] = useState<string | null>(null);
@@ -82,56 +101,38 @@ export default function AppShell() {
     [allVisibleQuests, editingQuestId],
   );
 
-  const feedCategories = useMemo<FeedCategory[]>(
-    () => ["All", ...new Set(feedQuests.map((quest) => quest.category))],
-    [feedQuests],
+  const unreadActivityCount = useMemo(
+    () => activityEvents.filter((event) => !event.isRead).length,
+    [activityEvents],
   );
 
-  const filteredFeedQuests = useMemo(() => {
-    if (feedCategoryFilter === "All") {
-      return feedQuests;
-    }
-
-    return feedQuests.filter((quest) => quest.category === feedCategoryFilter);
-  }, [feedCategoryFilter, feedQuests]);
-
-  const myQuestSections = useMemo(() => {
-    const hosting = myQuests.filter(
-      (quest) => quest.createdByCurrentUser && quest.status === "open",
-    );
-    const going = myQuests.filter(
-      (quest) =>
-        quest.joinedByCurrentUser &&
-        !quest.createdByCurrentUser &&
-        quest.status === "open",
-    );
-    const closed = myQuests.filter((quest) => quest.status === "closed");
-    const past = myQuests.filter((quest) => quest.status === "past");
-
-    return { hosting, going, closed, past };
-  }, [myQuests]);
-
-  const refreshQuests = useCallback(async (userId: string) => {
-    const [nextFeedQuests, nextMyQuests] = await Promise.all([
+  const refreshData = useCallback(async (userId: string) => {
+    const [nextFeedQuests, nextMyQuests, nextActivity] = await Promise.all([
       fetchFeedQuests(userId),
       fetchMyQuests(userId),
+      fetchActivityEvents(userId),
     ]);
 
     setFeedQuests(nextFeedQuests);
     setMyQuests(nextMyQuests);
+    setActivityEvents(nextActivity);
   }, []);
 
   const syncAuthAndData = useCallback(async () => {
+    setIsBooting(true);
+    setError("");
+
     try {
-      setIsBooting(true);
-      setError("");
       const user = await getAuthenticatedUser();
 
       if (!user) {
         setAuthState("signed_out");
+        setAuthError("");
+        setAuthMessage("");
         setCurrentProfile(null);
         setFeedQuests([]);
         setMyQuests([]);
+        setActivityEvents([]);
         setSelectedQuestId(null);
         setEditingQuestId(null);
         return;
@@ -140,19 +141,28 @@ export default function AppShell() {
       const profile = await ensureProfile(user);
       setCurrentProfile(profile);
       setAuthState("signed_in");
+      setAuthError("");
+      setAuthMessage("");
       await registerPushToken(profile.id).catch(() => {
         // Push token registration can fail silently during development.
       });
-      setIsLoadingQuests(true);
-      await refreshQuests(profile.id);
+
+      try {
+        setIsLoadingQuests(true);
+        await refreshData(profile.id);
+      } catch (refreshError) {
+        setError(readErrorMessage(refreshError));
+      } finally {
+        setIsLoadingQuests(false);
+      }
     } catch (syncError) {
       setError(readErrorMessage(syncError));
       setAuthState("signed_out");
+      setCurrentProfile(null);
     } finally {
       setIsBooting(false);
-      setIsLoadingQuests(false);
     }
-  }, [refreshQuests]);
+  }, [refreshData]);
 
   useEffect(() => {
     requestLocalNotificationPermission().catch(() => {
@@ -243,6 +253,25 @@ export default function AppShell() {
       },
     );
 
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "activity_events",
+        filter: `user_id=eq.${currentProfileId}`,
+      },
+      async () => {
+        const nextActivity = await fetchActivityEvents(currentProfileId).catch(
+          () => null,
+        );
+
+        if (nextActivity) {
+          setActivityEvents(nextActivity);
+        }
+      },
+    );
+
     channel.subscribe();
 
     return () => {
@@ -258,17 +287,50 @@ export default function AppShell() {
     setSelectedQuestId(null);
     setActionError("");
     setActiveTab(tab);
+
+    if (tab === "activity" && currentProfileId && unreadActivityCount > 0) {
+      void markActivityRead(currentProfileId).catch(() => {
+        // Marking read is best-effort; the feed still renders.
+      });
+      setActivityEvents((events) =>
+        events.map((event) => ({ ...event, isRead: true })),
+      );
+    }
   }
 
-  async function handleSendSignInLink(email: string) {
+  function handleApplyDraft(draft: NewQuestInput) {
+    setCreateInitialValues(draft);
+    setCreateFormKey((key) => key + 1);
+  }
+
+  async function handleSendPhoneCode(phone: string) {
     try {
       setIsSigningIn(true);
       setAuthError("");
       setAuthMessage("");
-      await signInWithEmailLink(email);
-      setAuthMessage("Check your email for the sign-in link.");
+      const normalizedPhone = normalizePhone(phone);
+      await sendPhoneOtp(normalizedPhone);
+      setAuthMessage(`Code sent to ${normalizedPhone}.`);
+      return true;
     } catch (signInError) {
       setAuthError(readErrorMessage(signInError));
+      return false;
+    } finally {
+      setIsSigningIn(false);
+    }
+  }
+
+  async function handleVerifyPhoneCode(phone: string, token: string) {
+    try {
+      setIsSigningIn(true);
+      setAuthError("");
+      setAuthMessage("");
+      await verifyPhoneOtp(phone, token);
+      setAuthMessage("Code verified. Signing you in...");
+      return true;
+    } catch (verifyError) {
+      setAuthError(readErrorMessage(verifyError));
+      return false;
     } finally {
       setIsSigningIn(false);
     }
@@ -283,6 +345,26 @@ export default function AppShell() {
     }
   }
 
+  async function handleSaveProfile(changes: {
+    bio: string | null;
+    interests: string[];
+  }) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      setProfileError("");
+      const updated = await updateProfile(currentProfile.id, changes);
+      setCurrentProfile(updated);
+    } catch (saveError) {
+      setProfileError(readErrorMessage(saveError));
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
   async function handleJoinQuest(questId: string) {
     if (!currentProfile) {
       setActionError("Sign in before joining a quest.");
@@ -293,7 +375,8 @@ export default function AppShell() {
       setJoiningQuestId(questId);
       setActionError("");
       await joinQuest(questId, currentProfile.id);
-      await refreshQuests(currentProfile.id);
+      await recordJoinActivity(questId, currentProfile);
+      await refreshData(currentProfile.id);
     } catch (joinError) {
       setActionError(readErrorMessage(joinError));
     } finally {
@@ -311,7 +394,7 @@ export default function AppShell() {
       setLeavingQuestId(questId);
       setActionError("");
       await leaveQuest(questId, currentProfile.id);
-      await refreshQuests(currentProfile.id);
+      await refreshData(currentProfile.id);
       setSelectedQuestId(null);
     } catch (leaveError) {
       setActionError(readErrorMessage(leaveError));
@@ -329,8 +412,12 @@ export default function AppShell() {
     try {
       setClosingQuestId(questId);
       setActionError("");
+      const quest = allVisibleQuests.find((item) => item.id === questId);
       await closeQuest(questId, currentProfile.id);
-      await refreshQuests(currentProfile.id);
+      if (quest) {
+        await recordQuestUpdateActivity(quest, currentProfile, "close");
+      }
+      await refreshData(currentProfile.id);
       setSelectedQuestId(null);
     } catch (closeError) {
       setActionError(readErrorMessage(closeError));
@@ -348,9 +435,11 @@ export default function AppShell() {
       setIsCreating(true);
       setActionError("");
       const newQuest = await createQuest(input, currentProfile.id);
-      await refreshQuests(currentProfile.id);
+      await refreshData(currentProfile.id);
+      setCreateInitialValues(null);
+      setCreateFormKey((key) => key + 1);
       setSelectedQuestId(newQuest.id);
-      setActiveTab("mine");
+      setActiveTab("home");
     } finally {
       setIsCreating(false);
     }
@@ -364,12 +453,66 @@ export default function AppShell() {
     try {
       setIsEditing(true);
       setActionError("");
-      await updateQuest(editingQuest.id, input, currentProfile.id);
-      await refreshQuests(currentProfile.id);
+      const quest = editingQuest;
+      await updateQuest(quest.id, input, currentProfile.id);
+      await recordQuestUpdateActivity(quest, currentProfile, "edit");
+      await refreshData(currentProfile.id);
       setEditingQuestId(null);
     } finally {
       setIsEditing(false);
     }
+  }
+
+  function recordJoinActivity(questId: string, profile: Profile) {
+    const quest = allVisibleQuests.find((item) => item.id === questId);
+    const host = quest?.attendees.find((attendee) => attendee.isHost);
+
+    if (!quest || !host || host.id === profile.id) {
+      return Promise.resolve();
+    }
+
+    return recordActivityEvents([
+      {
+        userId: host.id,
+        actorId: profile.id,
+        questId: quest.id,
+        type: "join",
+        title: `${profile.displayName} joined ${quest.title}`,
+      },
+    ]).catch(() => {
+      // Activity is a best-effort feed.
+    });
+  }
+
+  function recordQuestUpdateActivity(
+    quest: Quest,
+    profile: Profile,
+    type: "edit" | "close",
+  ) {
+    const recipients = quest.attendees
+      .filter((attendee) => !attendee.isHost && attendee.id !== profile.id)
+      .map((attendee) => attendee.id);
+
+    if (recipients.length === 0) {
+      return Promise.resolve();
+    }
+
+    const title =
+      type === "close"
+        ? `${quest.title} was closed`
+        : `${quest.title} was updated`;
+
+    return recordActivityEvents(
+      recipients.map((userId) => ({
+        userId,
+        actorId: profile.id,
+        questId: quest.id,
+        type,
+        title,
+      })),
+    ).catch(() => {
+      // Activity is a best-effort feed.
+    });
   }
 
   async function handleRetry() {
@@ -383,7 +526,7 @@ export default function AppShell() {
       }
 
       setIsLoadingQuests(true);
-      await refreshQuests(currentProfileId);
+      await refreshData(currentProfileId);
     } catch (retryError) {
       setError(readErrorMessage(retryError));
     } finally {
@@ -391,41 +534,20 @@ export default function AppShell() {
     }
   }
 
-  const screenTitle =
-    activeTab === "feed"
-      ? "Open quests"
-      : activeTab === "create"
-        ? "New quest"
-        : "My quests";
+  const showLoading = isLoadingQuests && activeTab !== "create";
 
   return (
     <main className="min-h-dvh bg-[#f6f4ef] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-[calc(env(safe-area-inset-top,0px)+16px)] text-zinc-950 sm:px-6 sm:pb-6 sm:pt-6">
       <section className="mx-auto flex min-h-[calc(100dvh-(env(safe-area-inset-top,0px)+env(safe-area-inset-bottom,0px)+32px))] w-full max-w-[430px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#fbfaf7] shadow-xl shadow-zinc-900/10 sm:min-h-[840px]">
         <header className="border-b border-zinc-200 bg-white px-5 pb-4 pt-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-zinc-500">
-                Campus hangouts, without the group text.
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
-                plus1
-              </h1>
-            </div>
-            {authState === "signed_in" ? (
-              <button
-                type="button"
-                disabled={isAppLocked}
-                onClick={() => handleTabChange("create")}
-                className="min-h-11 rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Create
-              </button>
-            ) : null}
+          <div>
+            <p className="text-sm font-medium text-zinc-500">
+              Campus hangouts, without the group text.
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
+              plus1
+            </h1>
           </div>
-
-          {authState === "signed_in" && currentProfile ? (
-            <AccountBar profile={currentProfile} onSignOut={handleSignOut} />
-          ) : null}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
@@ -439,10 +561,11 @@ export default function AppShell() {
               error={authError}
               isSubmitting={isSigningIn}
               message={authMessage}
-              onSubmit={handleSendSignInLink}
+              onSendCode={handleSendPhoneCode}
+              onVerifyCode={handleVerifyPhoneCode}
             />
           ) : isBooting ? (
-            <LoadingState label="Connecting to Supabase..." />
+            <LoadingState label="Loading your account..." />
           ) : selectedQuest ? (
             <QuestDetail
               isClosing={closingQuestId === selectedQuest.id}
@@ -455,98 +578,66 @@ export default function AppShell() {
               onJoin={handleJoinQuest}
               onLeave={handleLeaveQuest}
             />
-          ) : (
+          ) : showLoading ? (
+            <LoadingState label="Loading quests..." />
+          ) : activeTab === "home" ? (
+            <HomeScreen
+              quests={feedQuests}
+              joiningQuestId={joiningQuestId}
+              onCreate={() => handleTabChange("create")}
+              onJoin={handleJoinQuest}
+              onOpen={setSelectedQuestId}
+            />
+          ) : activeTab === "explore" ? (
+            <ExploreScreen
+              quests={feedQuests}
+              joiningQuestId={joiningQuestId}
+              onJoin={handleJoinQuest}
+              onOpen={setSelectedQuestId}
+            />
+          ) : activeTab === "create" ? (
             <div className="space-y-5">
-              <ScreenHeading
-                title={screenTitle}
-                description={getScreenDescription(activeTab)}
+              <div>
+                <h2 className="text-xl font-semibold text-zinc-950">
+                  New quest
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-zinc-500">
+                  Start with the plan. People can decide if they are in.
+                </p>
+              </div>
+              <AiQuestDraft onApplyDraft={handleApplyDraft} />
+              <CreateQuestForm
+                key={createFormKey}
+                initialValues={createInitialValues ?? undefined}
+                isSubmitting={isCreating}
+                onCreateQuest={handleCreateQuest}
               />
-
-              {isLoadingQuests ? (
-                <LoadingState label="Loading quests..." />
-              ) : null}
-
-              {!isLoadingQuests && activeTab === "feed" ? (
-                <div className="space-y-3">
-                  <CategoryFilter
-                    activeCategory={feedCategoryFilter}
-                    categories={feedCategories}
-                    onSelect={setFeedCategoryFilter}
-                  />
-                  <QuestList
-                    joiningQuestId={joiningQuestId}
-                    quests={filteredFeedQuests}
-                    emptyActionLabel="Create a quest"
-                    emptyBody="Create one and it will appear here for people nearby."
-                    emptyTitle="No open quests right now"
-                    onEmptyAction={() => handleTabChange("create")}
-                    onJoin={handleJoinQuest}
-                    onOpen={setSelectedQuestId}
-                  />
-                </div>
-              ) : null}
-
-              {activeTab === "create" ? (
-                <CreateQuestForm
-                  isSubmitting={isCreating}
-                  onCreateQuest={handleCreateQuest}
-                />
-              ) : null}
-
-              {!isLoadingQuests && activeTab === "mine" ? (
-                <div className="space-y-5">
-                  {myQuests.length === 0 ? (
-                    <EmptyState
-                      title="Nothing yet"
-                      body="Join a quest or create one to start your list."
-                      actionLabel="Browse feed"
-                      onAction={() => handleTabChange("feed")}
-                    />
-                  ) : (
-                    <>
-                      <QuestSection
-                        title="Hosting"
-                        quests={myQuestSections.hosting}
-                        joiningQuestId={joiningQuestId}
-                        onJoin={handleJoinQuest}
-                        onOpen={setSelectedQuestId}
-                        compact
-                      />
-                      <QuestSection
-                        title="Going"
-                        quests={myQuestSections.going}
-                        joiningQuestId={joiningQuestId}
-                        onJoin={handleJoinQuest}
-                        onOpen={setSelectedQuestId}
-                        compact
-                      />
-                      <QuestSection
-                        title="Closed"
-                        quests={myQuestSections.closed}
-                        joiningQuestId={joiningQuestId}
-                        onJoin={handleJoinQuest}
-                        onOpen={setSelectedQuestId}
-                        compact
-                      />
-                      <QuestSection
-                        title="Past"
-                        quests={myQuestSections.past}
-                        joiningQuestId={joiningQuestId}
-                        onJoin={handleJoinQuest}
-                        onOpen={setSelectedQuestId}
-                        compact
-                      />
-                    </>
-                  )}
-                </div>
-              ) : null}
             </div>
-          )}
+          ) : activeTab === "activity" ? (
+            <ActivityScreen
+              events={activityEvents}
+              onBrowse={() => handleTabChange("home")}
+              onOpenQuest={setSelectedQuestId}
+            />
+          ) : currentProfile ? (
+            <ProfileScreen
+              profile={currentProfile}
+              myQuests={myQuests}
+              joiningQuestId={joiningQuestId}
+              isSaving={isSavingProfile}
+              saveError={profileError}
+              onJoin={handleJoinQuest}
+              onOpen={setSelectedQuestId}
+              onSaveProfile={handleSaveProfile}
+              onSignOut={handleSignOut}
+            />
+          ) : null}
         </div>
 
         <BottomNav
           activeTab={activeTab}
           isDisabled={isAppLocked}
+          unreadActivityCount={unreadActivityCount}
           onTabChange={handleTabChange}
         />
       </section>
@@ -566,38 +657,89 @@ function AuthGate({
   isSubmitting,
   message,
   error,
-  onSubmit,
+  onSendCode,
+  onVerifyCode,
 }: {
   isSubmitting: boolean;
   message: string;
   error: string;
-  onSubmit: (email: string) => Promise<void>;
+  onSendCode: (phone: string) => Promise<boolean>;
+  onVerifyCode: (phone: string, token: string) => Promise<boolean>;
 }) {
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [pendingPhone, setPendingPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const isVerifying = Boolean(pendingPhone);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onSubmit(email.trim());
+
+    if (!isVerifying) {
+      const normalizedPhone = normalizePhone(phone);
+      const didSendCode = await onSendCode(normalizedPhone);
+
+      if (didSendCode) {
+        setPendingPhone(normalizedPhone);
+        setOtpCode("");
+      }
+
+      return;
+    }
+
+    const didVerifyCode = await onVerifyCode(pendingPhone, otpCode.trim());
+
+    if (didVerifyCode) {
+      setOtpCode("");
+    }
+  }
+
+  function handleUseDifferentPhone() {
+    setPendingPhone("");
+    setOtpCode("");
   }
 
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-6">
       <h2 className="text-xl font-semibold text-zinc-950">Sign in to plus1</h2>
       <p className="mt-1 text-sm leading-6 text-zinc-500">
-        Use your email to get a magic link.
+        We&apos;ll text you a sign-in code.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        <label className="block">
-          <span className="text-sm font-semibold text-zinc-700">Email</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@stanford.edu"
-            className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
-          />
-        </label>
+        {!isVerifying ? (
+          <label className="block">
+            <span className="text-sm font-semibold text-zinc-700">Phone number</span>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="+1 650 555 1234"
+              autoComplete="tel"
+              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+            />
+          </label>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-zinc-500">
+              Enter the 6-digit code sent to <span className="font-semibold">{pendingPhone}</span>.
+            </p>
+            <label className="block">
+              <span className="text-sm font-semibold text-zinc-700">Verification code</span>
+              <input
+                type="text"
+                required
+                value={otpCode}
+                onChange={(event) =>
+                  setOtpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))
+                }
+                placeholder="123456"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base tracking-[0.25em] text-zinc-950 outline-none transition placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-400"
+              />
+            </label>
+          </div>
+        )}
         {error ? (
           <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {error}
@@ -610,176 +752,28 @@ function AuthGate({
         ) : null}
         <button
           type="submit"
-          disabled={isSubmitting || !email.trim()}
+          disabled={isSubmitting || (!isVerifying && !phone.trim()) || (isVerifying && !otpCode.trim())}
           className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
         >
-          {isSubmitting ? "Sending link..." : "Send sign-in link"}
+          {isSubmitting
+            ? isVerifying
+              ? "Verifying..."
+              : "Sending code..."
+            : isVerifying
+              ? "Verify code"
+              : "Text me a code"}
         </button>
-      </form>
-    </div>
-  );
-}
-
-function AccountBar({
-  profile,
-  onSignOut,
-}: {
-  profile: Profile;
-  onSignOut: () => void | Promise<void>;
-}) {
-  return (
-    <div className="mt-4 flex items-center justify-between rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700">
-          {profile.avatarInitials}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-zinc-900">
-            {profile.displayName}
-          </p>
-          <p className="truncate text-xs text-zinc-500">{profile.email}</p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => onSignOut()}
-        className="min-h-11 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-      >
-        Sign out
-      </button>
-    </div>
-  );
-}
-
-function ScreenHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold text-zinc-950">{title}</h2>
-      <p className="mt-1 text-sm leading-6 text-zinc-500">{description}</p>
-    </div>
-  );
-}
-
-function QuestList({
-  joiningQuestId,
-  quests,
-  emptyTitle,
-  emptyBody,
-  emptyActionLabel,
-  onJoin,
-  onOpen,
-  onEmptyAction,
-  compact = false,
-}: {
-  joiningQuestId: string | null;
-  quests: Quest[];
-  emptyTitle: string;
-  emptyBody: string;
-  emptyActionLabel?: string;
-  onJoin: (questId: string) => void | Promise<void>;
-  onOpen: (questId: string) => void;
-  onEmptyAction?: () => void;
-  compact?: boolean;
-}) {
-  if (quests.length === 0) {
-    return (
-      <EmptyState
-        title={emptyTitle}
-        body={emptyBody}
-        actionLabel={emptyActionLabel}
-        onAction={onEmptyAction}
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {quests.map((quest) => (
-        <QuestCard
-          key={quest.id}
-          isJoining={joiningQuestId === quest.id}
-          quest={quest}
-          onJoin={onJoin}
-          onOpen={onOpen}
-          compact={compact}
-        />
-      ))}
-    </div>
-  );
-}
-
-function QuestSection({
-  title,
-  quests,
-  joiningQuestId,
-  onJoin,
-  onOpen,
-  compact = false,
-}: {
-  title: string;
-  quests: Quest[];
-  joiningQuestId: string | null;
-  onJoin: (questId: string) => void | Promise<void>;
-  onOpen: (questId: string) => void;
-  compact?: boolean;
-}) {
-  if (quests.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="space-y-3">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-zinc-500">
-        {title}
-      </h3>
-      <QuestList
-        compact={compact}
-        joiningQuestId={joiningQuestId}
-        quests={quests}
-        emptyBody=""
-        emptyTitle=""
-        onJoin={onJoin}
-        onOpen={onOpen}
-      />
-    </section>
-  );
-}
-
-function CategoryFilter({
-  activeCategory,
-  categories,
-  onSelect,
-}: {
-  activeCategory: FeedCategory;
-  categories: FeedCategory[];
-  onSelect: (category: FeedCategory) => void;
-}) {
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
-      {categories.map((category) => {
-        const isActive = activeCategory === category;
-
-        return (
+        {isVerifying ? (
           <button
-            key={category}
             type="button"
-            onClick={() => onSelect(category)}
-            className={`min-h-11 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition ${
-              isActive
-                ? "border-zinc-950 bg-zinc-950 text-white"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
-            }`}
+            disabled={isSubmitting}
+            onClick={handleUseDifferentPhone}
+            className="min-h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {category}
+            Use a different phone number
           </button>
-        );
-      })}
+        ) : null}
+      </form>
     </div>
   );
 }
@@ -823,18 +817,10 @@ function ActionError({ message }: { message: string }) {
   );
 }
 
-function getScreenDescription(tab: AppTab) {
-  if (tab === "feed") {
-    return "Find something low-pressure to do with people nearby.";
-  }
-
-  if (tab === "create") {
-    return "Start with the plan. People can decide if they are in.";
-  }
-
-  return "Quests you are hosting or joining from this account.";
-}
-
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
+}
+
+function normalizePhone(phone: string) {
+  return phone.trim().replace(/\s+/g, "");
 }

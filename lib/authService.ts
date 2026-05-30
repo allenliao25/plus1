@@ -16,21 +16,44 @@ export async function getAuthenticatedUser() {
   return session?.user ?? null;
 }
 
-export async function signInWithEmailLink(email: string) {
-  if (!email) {
-    throw new Error("Enter an email address.");
+export async function sendPhoneOtp(phone: string) {
+  const normalizedPhone = normalizePhone(phone);
+
+  if (!normalizedPhone) {
+    throw new Error("Enter your phone number with country code.");
   }
 
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: getAuthRedirectUrl(),
-    },
+    phone: normalizedPhone,
   });
 
   if (error) {
-    throw new Error(`Could not send sign-in link: ${error.message}`);
+    throw new Error(`Could not send sign-in code: ${error.message}`);
+  }
+}
+
+export async function verifyPhoneOtp(phone: string, token: string) {
+  const normalizedPhone = normalizePhone(phone);
+  const normalizedToken = token.trim();
+
+  if (!normalizedPhone) {
+    throw new Error("Enter your phone number with country code.");
+  }
+
+  if (!normalizedToken) {
+    throw new Error("Enter the 6-digit code.");
+  }
+
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.verifyOtp({
+    phone: normalizedPhone,
+    token: normalizedToken,
+    type: "sms",
+  });
+
+  if (error) {
+    throw new Error(`Could not verify sign-in code: ${error.message}`);
   }
 }
 
@@ -58,13 +81,15 @@ export function subscribeToAuthChanges(onChange: () => void) {
 
 export async function ensureProfile(user: User): Promise<Profile> {
   const fallbackName = resolveDisplayName(user);
-  const fallbackEmail = user.email ?? `${user.id}@plus1.local`;
+  const fallbackEmail = user.email ?? null;
+  const fallbackPhone = user.phone ?? null;
   const fallbackInitials = initials(fallbackName);
 
   const { data, error } = await upsertProfile({
     id: user.id,
     displayName: fallbackName,
     email: fallbackEmail,
+    phone: fallbackPhone,
     avatarInitials: fallbackInitials,
   });
 
@@ -76,6 +101,7 @@ export async function ensureProfile(user: User): Promise<Profile> {
         id: user.id,
         displayName: `${fallbackName}-${user.id.slice(0, 6)}`,
         email: fallbackEmail,
+        phone: fallbackPhone,
         avatarInitials: fallbackInitials,
       })
     : null;
@@ -91,14 +117,54 @@ export async function ensureProfile(user: User): Promise<Profile> {
     id: profile.id,
     displayName: profile.display_name ?? fallbackName,
     email: profile.email,
+    phone: profile.phone,
     avatarInitials: profile.avatar_initials ?? initials(profile.display_name),
+    bio: profile.bio,
+    interests: profile.interests ?? [],
+  };
+}
+
+export async function updateProfile(
+  userId: string,
+  changes: { bio: string | null; interests: string[] },
+): Promise<Profile> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      bio: changes.bio,
+      interests: changes.interests,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select(
+      "id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at",
+    )
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      `Could not update profile: ${error?.message ?? "Profile not found."}`,
+    );
+  }
+
+  return {
+    id: data.id,
+    displayName: data.display_name ?? "plus1 user",
+    email: data.email,
+    phone: data.phone,
+    avatarInitials: data.avatar_initials ?? initials(data.display_name),
+    bio: data.bio,
+    interests: data.interests ?? [],
   };
 }
 
 function upsertProfile(input: {
   id: string;
   displayName: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   avatarInitials: string;
 }) {
   const supabase = getSupabaseClient();
@@ -110,17 +176,19 @@ function upsertProfile(input: {
         id: input.id,
         display_name: input.displayName,
         email: input.email,
+        phone: input.phone,
         avatar_initials: input.avatarInitials,
       },
       {
         onConflict: "id",
       },
     )
-    .select("id, display_name, email, avatar_initials, created_at")
+    .select("id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at")
     .single();
 }
 
 function resolveDisplayName(user: User) {
+  const fromPhone = formatPhoneDisplayName(user.phone);
   const fromMetadata =
     typeof user.user_metadata?.full_name === "string"
       ? user.user_metadata.full_name
@@ -128,21 +196,9 @@ function resolveDisplayName(user: User) {
         ? user.user_metadata.name
         : typeof user.email === "string"
           ? user.email.split("@")[0]
-          : "plus1 user";
+          : fromPhone;
 
-  return fromMetadata.trim() || "plus1 user";
-}
-
-function getAuthRedirectUrl() {
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/`;
-  }
-
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL;
-  }
-
-  return "http://localhost:3000/";
+  return fromMetadata.trim() || fromPhone;
 }
 
 function initials(name: string | null) {
@@ -153,4 +209,18 @@ function initials(name: string | null) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function normalizePhone(phone: string) {
+  return phone.trim().replace(/\s+/g, "");
+}
+
+function formatPhoneDisplayName(phone?: string | null) {
+  const normalized = normalizePhone(phone ?? "");
+
+  if (normalized.length >= 4) {
+    return `plus1 ${normalized.slice(-4)}`;
+  }
+
+  return "plus1 user";
 }

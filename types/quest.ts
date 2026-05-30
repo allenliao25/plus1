@@ -37,7 +37,23 @@ export type Profile = {
   id: string;
   displayName: string;
   email: string | null;
+  phone: string | null;
   avatarInitials: string;
+  bio: string | null;
+  interests: string[];
+};
+
+export type ActivityEventType = "join" | "edit" | "close" | "reminder";
+
+export type ActivityEvent = {
+  id: string;
+  type: ActivityEventType;
+  title: string;
+  body: string | null;
+  questId: string | null;
+  createdAtISO: string | null;
+  createdAtRelative: string | null;
+  isRead: boolean;
 };
 
 export type NewQuestInput = {
