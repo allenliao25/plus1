@@ -1,15 +1,16 @@
--- Demo schema for the plus1 CS153 MVP.
--- This is intentionally permissive so the app can work with demo users before auth.
--- Replace these policies with real Supabase Auth + stricter RLS before production.
+-- Schema for the plus1 CS153 MVP.
+-- The app uses Supabase Auth-backed profiles and authenticated RLS policies.
 
 create extension if not exists pgcrypto;
 
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null unique,
+  display_name text not null,
+  handle text not null,
   email text unique,
   phone text unique,
   avatar_initials text,
+  website_url text,
   bio text,
   interests text[] not null default '{}',
   created_at timestamp default now(),
@@ -58,8 +59,15 @@ create table if not exists activity_events (
   created_at timestamp default now()
 );
 
-create unique index if not exists profiles_display_name_unique
-  on profiles (display_name);
+create unique index if not exists profiles_handle_unique
+  on profiles (handle);
+
+alter table profiles
+  drop constraint if exists profiles_handle_format_check;
+
+alter table profiles
+  add constraint profiles_handle_format_check
+  check (handle ~ '^[a-z0-9._]{3,30}$');
 
 create unique index if not exists profiles_email_unique
   on profiles (email)

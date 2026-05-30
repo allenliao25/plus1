@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useState } from "react";
 import type { NewQuestInput } from "@/types/quest";
 
 type AiQuestDraftProps = {
+  isAvailable: boolean | null;
   /** Called when the user accepts a generated draft (e.g. to prefill the create form). */
   onApplyDraft: (draft: NewQuestInput) => void;
 };
@@ -25,7 +26,10 @@ async function readDraft(response: Response): Promise<NewQuestInput> {
   return payload.draft;
 }
 
-export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
+export default function AiQuestDraft({
+  isAvailable,
+  onApplyDraft,
+}: AiQuestDraftProps) {
   const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +38,7 @@ export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
 
   async function handleTextSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!prompt.trim() || isLoading) {
+    if (!prompt.trim() || isLoading || isAvailable === false) {
       return;
     }
 
@@ -61,7 +65,7 @@ export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
   async function handleFlyerChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || isLoading) {
+    if (!file || isLoading || isAvailable === false) {
       return;
     }
 
@@ -103,6 +107,13 @@ export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
         </p>
       </div>
 
+      {isAvailable === false ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800">
+          AI drafting is wired up, but OPENAI_API_KEY is not set in this
+          environment. Add it to .env.local to demo this tab.
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2">
         {(["text", "flyer"] as Mode[]).map((value) => (
           <button
@@ -134,10 +145,14 @@ export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
           />
           <button
             type="submit"
-            disabled={isLoading || !prompt.trim()}
+            disabled={isLoading || !prompt.trim() || isAvailable === false}
             className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
-            {isLoading ? "Drafting..." : "Draft quest"}
+            {isAvailable === false
+              ? "AI unavailable"
+              : isLoading
+                ? "Drafting..."
+                : "Draft quest"}
           </button>
         </form>
       ) : (
@@ -146,10 +161,14 @@ export default function AiQuestDraft({ onApplyDraft }: AiQuestDraftProps) {
             type="file"
             accept="image/*"
             onChange={handleFlyerChange}
-            disabled={isLoading}
+            disabled={isLoading || isAvailable === false}
             className="hidden"
           />
-          {isLoading ? "Reading flyer..." : "Upload a flyer image"}
+          {isAvailable === false
+            ? "AI unavailable"
+            : isLoading
+              ? "Reading flyer..."
+              : "Upload a flyer image"}
         </label>
       )}
 

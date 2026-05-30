@@ -20,7 +20,7 @@ Most campus coordination happens in fragmented group chats. plus1 tries to reduc
 - Phone-only OTP authentication (Supabase Auth)
 - Session persistence across refresh and native app relaunch
 - Automatic profile bootstrap on first sign-in
-- Profile editing (display name, bio, interests)
+- Profile editing (display name, unique @handle, bio)
 
 ### Quests
 
@@ -102,6 +102,8 @@ Minimum migrations for current feature set:
 - `supabase/migrations/20260530045200_phone_auth_profiles.sql`
 - `supabase/migrations/20260530045300_profile_bio_interests.sql`
 - `supabase/migrations/20260530045400_activity_events.sql`
+- `supabase/migrations/20260530054500_profile_website_url.sql`
+- `supabase/migrations/20260530053000_profile_handles.sql`
 
 ### 4) Enable Realtime for activity feed
 

@@ -19,6 +19,7 @@ export default function QuestCard({
   const isJoinable = quest.status === "open";
   const isFull = isJoinable && quest.goingCount >= quest.maxPeople;
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
+  const isPersonalMatch = Boolean(quest.matchesCurrentUserInterests);
 
   return (
     <article className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -28,6 +29,11 @@ export default function QuestCard({
             <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-600">
               {quest.category}
             </span>
+            {isPersonalMatch ? (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                For you
+              </span>
+            ) : null}
             <QuestStatusBadge quest={quest} />
             <span className="text-xs font-medium text-zinc-500">
               {quest.startTimeRelative ?? quest.startTime}

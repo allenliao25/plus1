@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { buildQuestShareUrl } from "@/lib/questLinks";
 import type { Quest } from "@/types/quest";
 
 type QuestShareCardProps = {
   quest: Quest;
 };
 
-function buildShareText(quest: Quest): string {
+function buildShareText(quest: Quest, shareUrl: string | null): string {
   const when = quest.startTimeRelative ?? quest.startTime;
   return [
     `${quest.title} — plus1`,
@@ -15,6 +16,7 @@ function buildShareText(quest: Quest): string {
     when ? `When: ${when}` : null,
     `Spots: ${quest.goingCount}/${quest.maxPeople} going`,
     quest.description,
+    shareUrl,
   ]
     .filter(Boolean)
     .join("\n");
@@ -23,12 +25,20 @@ function buildShareText(quest: Quest): string {
 export default function QuestShareCard({ quest }: QuestShareCardProps) {
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
   const when = quest.startTimeRelative ?? quest.startTime;
+  const shareUrl =
+    typeof window === "undefined"
+      ? null
+      : buildQuestShareUrl(quest.id, window.location.href);
 
   async function handleShare() {
-    const text = buildShareText(quest);
+    const text = buildShareText(quest, shareUrl);
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: quest.title, text });
+        await navigator.share({
+          title: quest.title,
+          text,
+          url: shareUrl ?? undefined,
+        });
         return;
       }
       if (typeof navigator !== "undefined" && navigator.clipboard) {

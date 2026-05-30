@@ -31,14 +31,17 @@ export type Quest = {
   attendees: QuestAttendee[];
   createdByCurrentUser?: boolean;
   joinedByCurrentUser?: boolean;
+  matchesCurrentUserInterests?: boolean;
 };
 
 export type Profile = {
   id: string;
   displayName: string;
+  handle: string;
   email: string | null;
   phone: string | null;
   avatarInitials: string;
+  websiteUrl: string | null;
   bio: string | null;
   interests: string[];
 };

@@ -7,9 +7,11 @@ export type Database = {
         Row: {
           id: string;
           display_name: string | null;
+          handle: string;
           email: string | null;
           phone: string | null;
           avatar_initials: string | null;
+          website_url: string | null;
           bio: string | null;
           interests: string[] | null;
           created_at: string | null;
@@ -18,9 +20,11 @@ export type Database = {
         Insert: {
           id?: string;
           display_name?: string | null;
+          handle?: string;
           email?: string | null;
           phone?: string | null;
           avatar_initials?: string | null;
+          website_url?: string | null;
           bio?: string | null;
           interests?: string[] | null;
           created_at?: string | null;
@@ -28,9 +32,11 @@ export type Database = {
         };
         Update: {
           display_name?: string | null;
+          handle?: string;
           email?: string | null;
           phone?: string | null;
           avatar_initials?: string | null;
+          website_url?: string | null;
           bio?: string | null;
           interests?: string[] | null;
           updated_at?: string | null;

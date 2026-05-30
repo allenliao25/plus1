@@ -84,74 +84,64 @@ export async function ensureProfile(user: User): Promise<Profile> {
   const fallbackEmail = user.email ?? null;
   const fallbackPhone = user.phone ?? null;
   const fallbackInitials = initials(fallbackName);
+  const supabase = getSupabaseClient();
+  const { data: existingProfile, error: loadError } = await supabase
+    .from("profiles")
+    .select(profileSelect)
+    .eq("id", user.id)
+    .maybeSingle();
 
-  const { data, error } = await upsertProfile({
+  if (loadError) {
+    throw new Error(`Could not load profile: ${loadError.message}`);
+  }
+
+  if (existingProfile) {
+    return mapProfileRow(existingProfile, fallbackName);
+  }
+
+  const { data, error } = await insertProfile({
     id: user.id,
     displayName: fallbackName,
+    handle: createFallbackHandle(fallbackName, user.id),
     email: fallbackEmail,
     phone: fallbackPhone,
     avatarInitials: fallbackInitials,
   });
 
-  const shouldRetryWithUniqueName =
-    error?.code === "23505" && error.message.includes("profiles_display_name");
-
-  const retryResult = shouldRetryWithUniqueName
-    ? await upsertProfile({
-        id: user.id,
-        displayName: `${fallbackName}-${user.id.slice(0, 6)}`,
-        email: fallbackEmail,
-        phone: fallbackPhone,
-        avatarInitials: fallbackInitials,
-      })
-    : null;
-
-  const profile = retryResult?.data ?? data;
-  const profileError = retryResult?.error ?? error;
-
-  if (profileError || !profile) {
-    throw new Error(`Could not load profile: ${profileError?.message ?? "Not found."}`);
+  if (error || !data) {
+    throw new Error(`Could not load profile: ${error?.message ?? "Not found."}`);
   }
 
-  return {
-    id: profile.id,
-    displayName: profile.display_name ?? fallbackName,
-    email: profile.email,
-    phone: profile.phone,
-    avatarInitials: profile.avatar_initials ?? initials(profile.display_name),
-    bio: profile.bio,
-    interests: profile.interests ?? [],
-  };
+  return mapProfileRow(data, fallbackName);
 }
 
 export async function completeProfileSetup(
   userId: string,
-  changes: { displayName: string; interests: string[] },
+  changes: { displayName: string; handle: string; interests?: string[] },
 ): Promise<Profile> {
   const nextDisplayName = normalizeDisplayName(changes.displayName);
+  const nextHandle = normalizeHandle(changes.handle);
 
   if (nextDisplayName.length < 2) {
     throw new Error("Display name must be at least 2 characters.");
   }
+  validateHandle(nextHandle);
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
     .update({
       display_name: nextDisplayName,
-      interests: changes.interests,
+      handle: nextHandle,
+      interests: changes.interests ?? [],
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId)
-    .select(
-      "id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at",
-    )
+    .select(profileSelect)
     .single();
 
-  const duplicateDisplayName =
-    error?.code === "23505" && error.message.includes("profiles_display_name");
-  if (duplicateDisplayName) {
-    throw new Error("That display name is already taken. Try another.");
+  if (isDuplicateHandleError(error)) {
+    throw new Error("That handle is already taken. Try another.");
   }
 
   if (error || !data) {
@@ -160,35 +150,50 @@ export async function completeProfileSetup(
     );
   }
 
-  return {
-    id: data.id,
-    displayName: data.display_name ?? "plus1 user",
-    email: data.email,
-    phone: data.phone,
-    avatarInitials: data.avatar_initials ?? initials(data.display_name),
-    bio: data.bio,
-    interests: data.interests ?? [],
-  };
+  return mapProfileRow(data, "plus1 user");
 }
 
 export async function updateProfile(
   userId: string,
-  changes: { bio: string | null; interests: string[] },
+  changes: {
+    displayName: string;
+    handle: string;
+    bio: string | null;
+    websiteUrl?: string | null;
+    interests?: string[];
+  },
 ): Promise<Profile> {
+  const nextDisplayName = normalizeDisplayName(changes.displayName);
+  const nextHandle = normalizeHandle(changes.handle);
+  const nextWebsiteUrl =
+    changes.websiteUrl === undefined
+      ? undefined
+      : normalizeWebsiteUrl(changes.websiteUrl);
+
+  if (nextDisplayName.length < 2) {
+    throw new Error("Display name must be at least 2 characters.");
+  }
+  validateHandle(nextHandle);
+
   const supabase = getSupabaseClient();
 
   const { data, error } = await supabase
     .from("profiles")
     .update({
-      bio: changes.bio,
-      interests: changes.interests,
+      display_name: nextDisplayName,
+      handle: nextHandle,
+      ...(nextWebsiteUrl !== undefined ? { website_url: nextWebsiteUrl } : {}),
+      bio: normalizeBio(changes.bio),
+      ...(changes.interests ? { interests: changes.interests } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId)
-    .select(
-      "id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at",
-    )
+    .select(profileSelect)
     .single();
+
+  if (isDuplicateHandleError(error)) {
+    throw new Error("That handle is already taken. Try another.");
+  }
 
   if (error || !data) {
     throw new Error(
@@ -196,15 +201,7 @@ export async function updateProfile(
     );
   }
 
-  return {
-    id: data.id,
-    displayName: data.display_name ?? "plus1 user",
-    email: data.email,
-    phone: data.phone,
-    avatarInitials: data.avatar_initials ?? initials(data.display_name),
-    bio: data.bio,
-    interests: data.interests ?? [],
-  };
+  return mapProfileRow(data, "plus1 user");
 }
 
 export function isLikelyAutoDisplayName(displayName: string) {
@@ -232,9 +229,53 @@ export function normalizePhoneNumber(phone: string) {
   return `+${digits}`;
 }
 
-function upsertProfile(input: {
+export function normalizeHandle(handle: string) {
+  return handle.trim().replace(/^@+/, "").toLowerCase();
+}
+
+export function isValidHandle(handle: string) {
+  return /^[a-z0-9._]{3,30}$/.test(handle);
+}
+
+export function normalizeWebsiteUrl(value: string | null) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const withProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  try {
+    const url = new URL(withProtocol);
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("Unsupported protocol");
+    }
+
+    return url.toString().slice(0, 255);
+  } catch {
+    throw new Error("Enter a valid website link.");
+  }
+}
+
+function validateHandle(handle: string) {
+  if (!isValidHandle(handle)) {
+    throw new Error(
+      "Handle must be 3-30 characters using letters, numbers, periods, or underscores.",
+    );
+  }
+}
+
+const profileSelect =
+  "id, display_name, handle, email, phone, avatar_initials, website_url, bio, interests, created_at, updated_at";
+
+function insertProfile(input: {
   id: string;
   displayName: string;
+  handle: string;
   email: string | null;
   phone: string | null;
   avatarInitials: string;
@@ -243,20 +284,45 @@ function upsertProfile(input: {
 
   return supabase
     .from("profiles")
-    .upsert(
-      {
-        id: input.id,
-        display_name: input.displayName,
-        email: input.email,
-        phone: input.phone,
-        avatar_initials: input.avatarInitials,
-      },
-      {
-        onConflict: "id",
-      },
-    )
-    .select("id, display_name, email, phone, avatar_initials, bio, interests, created_at, updated_at")
+    .insert({
+      id: input.id,
+      display_name: input.displayName,
+      handle: input.handle,
+      email: input.email,
+      phone: input.phone,
+      avatar_initials: input.avatarInitials,
+    })
+    .select(profileSelect)
     .single();
+}
+
+function mapProfileRow(
+  profile: {
+    id: string;
+    display_name: string | null;
+    handle: string | null;
+    email: string | null;
+    phone: string | null;
+    avatar_initials: string | null;
+    website_url: string | null;
+    bio: string | null;
+    interests: string[] | null;
+  },
+  fallbackName: string,
+): Profile {
+  const displayName = profile.display_name ?? fallbackName;
+
+  return {
+    id: profile.id,
+    displayName,
+    handle: profile.handle ?? createFallbackHandle(displayName, profile.id),
+    email: profile.email,
+    phone: profile.phone,
+    avatarInitials: profile.avatar_initials ?? initials(displayName),
+    websiteUrl: profile.website_url,
+    bio: profile.bio,
+    interests: profile.interests ?? [],
+  };
 }
 
 function resolveDisplayName(user: User) {
@@ -287,6 +353,11 @@ function normalizeDisplayName(value: string) {
   return value.trim().replace(/\s+/g, " ").slice(0, 32);
 }
 
+function normalizeBio(value: string | null) {
+  const nextBio = value?.trim() ?? "";
+  return nextBio ? nextBio.slice(0, 150) : null;
+}
+
 function formatPhoneDisplayName(phone?: string | null) {
   const normalized = normalizePhoneNumber(phone ?? "").replace(/\D+/g, "");
 
@@ -295,4 +366,22 @@ function formatPhoneDisplayName(phone?: string | null) {
   }
 
   return "plus1 user";
+}
+
+function createFallbackHandle(displayName: string, userId: string) {
+  const base =
+    normalizeHandle(displayName)
+      .replace(/[^a-z0-9._]+/g, ".")
+      .replace(/[._]{2,}/g, ".")
+      .replace(/^[._]+|[._]+$/g, "")
+      .slice(0, 20) || "plus1";
+  const suffix = userId.replace(/-/g, "").slice(0, 8).toLowerCase();
+  return `${base}.${suffix}`.slice(0, 30);
+}
+
+function isDuplicateHandleError(error: { code?: string; message?: string } | null) {
+  return (
+    error?.code === "23505" &&
+    (error.message?.includes("profiles_handle") ?? false)
+  );
 }

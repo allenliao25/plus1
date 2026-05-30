@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AtSign, UserRound } from "lucide-react";
 import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
@@ -15,6 +16,8 @@ import {
   ensureProfile,
   getAuthenticatedUser,
   isLikelyAutoDisplayName,
+  isValidHandle,
+  normalizeHandle,
   normalizePhoneNumber,
   sendPhoneOtp,
   signOutCurrentUser,
@@ -42,8 +45,8 @@ import {
   registerPushToken,
   requestLocalNotificationPermission,
 } from "@/lib/notifications";
+import { getQuestIdFromSearch } from "@/lib/questLinks";
 import { getSupabaseClient } from "@/lib/supabaseClient";
-import { questCategories } from "@/data/demoQuests";
 import type {
   ActivityEvent,
   NewQuestInput,
@@ -68,6 +71,10 @@ export default function AppShell() {
   const [createInitialValues, setCreateInitialValues] =
     useState<NewQuestInput | null>(null);
   const [createFormKey, setCreateFormKey] = useState(0);
+  const [openedQuestLinkId, setOpenedQuestLinkId] = useState<string | null>(
+    null,
+  );
+  const [isAiAvailable, setIsAiAvailable] = useState<boolean | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingQuests, setIsLoadingQuests] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -115,11 +122,26 @@ export default function AppShell() {
   );
 
   const refreshData = useCallback(async (userId: string) => {
-    const [nextFeedQuests, nextMyQuests, nextActivity] = await Promise.all([
+    const [nextFeedQuests, nextMyQuests, loadedActivity] = await Promise.all([
       fetchFeedQuests(userId),
       fetchMyQuests(userId),
       fetchActivityEvents(userId).catch(() => [] as ActivityEvent[]),
     ]);
+    const reminderEvents = buildQuestReminderEvents(
+      userId,
+      nextMyQuests,
+      loadedActivity,
+    );
+    let nextActivity = loadedActivity;
+
+    if (reminderEvents.length > 0) {
+      await recordActivityEvents(reminderEvents).catch(() => {
+        // Reminders are a polish layer; the core feed should still render.
+      });
+      nextActivity = await fetchActivityEvents(userId).catch(
+        () => loadedActivity,
+      );
+    }
 
     setFeedQuests(nextFeedQuests);
     setMyQuests(nextMyQuests);
@@ -143,6 +165,7 @@ export default function AppShell() {
         setActivityEvents([]);
         setSelectedQuestId(null);
         setEditingQuestId(null);
+        setOpenedQuestLinkId(null);
         setNeedsProfileSetup(false);
         setProfileSetupError("");
         return;
@@ -186,6 +209,30 @@ export default function AppShell() {
     requestLocalNotificationPermission().catch(() => {
       // Ignore permission prompt failures on unsupported platforms.
     });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/ai/status")
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as {
+          configured?: unknown;
+        } | null;
+
+        if (isMounted) {
+          setIsAiAvailable(Boolean(payload?.configured));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsAiAvailable(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -297,6 +344,53 @@ export default function AppShell() {
     };
   }, [currentProfileId, myQuests]);
 
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      authState !== "signed_in" ||
+      isBooting ||
+      isLoadingQuests
+    ) {
+      return;
+    }
+
+    const questId = getQuestIdFromSearch(window.location.search);
+
+    if (!questId || openedQuestLinkId === questId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const linkedQuest = allVisibleQuests.find(
+        (quest) => quest.id === questId,
+      );
+
+      if (!linkedQuest) {
+        setOpenedQuestLinkId(questId);
+        setActionError("That shared quest is not available in your feed.");
+        return;
+      }
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete("quest");
+      window.history.replaceState({}, "", url.toString());
+      setOpenedQuestLinkId(questId);
+      setActionError("");
+      setSelectedQuestId(linkedQuest.id);
+      setActiveTab("home");
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    allVisibleQuests,
+    authState,
+    isBooting,
+    isLoadingQuests,
+    openedQuestLinkId,
+  ]);
+
   function handleTabChange(tab: AppTab) {
     if (isAppLocked) {
       return;
@@ -364,6 +458,9 @@ export default function AppShell() {
   }
 
   async function handleSaveProfile(changes: {
+    displayName: string;
+    handle: string;
+    websiteUrl: string | null;
     bio: string | null;
     interests: string[];
   }) {
@@ -377,7 +474,9 @@ export default function AppShell() {
       const updated = await updateProfile(currentProfile.id, changes);
       setCurrentProfile(updated);
     } catch (saveError) {
-      setProfileError(readErrorMessage(saveError));
+      const message = readErrorMessage(saveError);
+      setProfileError(message);
+      throw new Error(message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -385,7 +484,7 @@ export default function AppShell() {
 
   async function handleCompleteProfile(changes: {
     displayName: string;
-    interests: string[];
+    handle: string;
   }) {
     if (!currentProfile) {
       return;
@@ -595,7 +694,7 @@ export default function AppShell() {
     return (
       <ProfileSetupScreen
         initialDisplayName={currentProfile.displayName}
-        initialInterests={currentProfile.interests}
+        initialHandle={currentProfile.handle}
         isSubmitting={isCompletingProfileSetup}
         error={profileSetupError}
         onComplete={handleCompleteProfile}
@@ -635,6 +734,7 @@ export default function AppShell() {
           ) : activeTab === "home" ? (
             <HomeScreen
               quests={feedQuests}
+              profile={currentProfile!}
               joiningQuestId={joiningQuestId}
               onCreate={() => handleTabChange("create")}
               onJoin={handleJoinQuest}
@@ -657,7 +757,10 @@ export default function AppShell() {
                   Start with the plan. People can decide if they are in.
                 </p>
               </div>
-              <AiQuestDraft onApplyDraft={handleApplyDraft} />
+              <AiQuestDraft
+                isAvailable={isAiAvailable}
+                onApplyDraft={handleApplyDraft}
+              />
               <CreateQuestForm
                 key={createFormKey}
                 initialValues={createInitialValues ?? undefined}
@@ -858,46 +961,41 @@ function AuthScreen({
 
 function ProfileSetupScreen({
   initialDisplayName,
-  initialInterests,
+  initialHandle,
   isSubmitting,
   error,
   onComplete,
 }: {
   initialDisplayName: string;
-  initialInterests: string[];
+  initialHandle: string;
   isSubmitting: boolean;
   error: string;
   onComplete: (changes: {
     displayName: string;
-    interests: string[];
+    handle: string;
   }) => Promise<void> | void;
 }) {
   const [displayName, setDisplayName] = useState(() =>
     isLikelyAutoDisplayName(initialDisplayName) ? "" : initialDisplayName,
   );
-  const [interests, setInterests] = useState<string[]>(initialInterests);
+  const [handle, setHandle] = useState(initialHandle);
 
   const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
+  const normalizedHandle = normalizeHandle(handle);
   const isValidDisplayName = normalizedDisplayName.length >= 2;
-
-  function toggleInterest(category: string) {
-    setInterests((current) =>
-      current.includes(category)
-        ? current.filter((value) => value !== category)
-        : [...current, category],
-    );
-  }
+  const canSubmit =
+    isValidDisplayName && isValidHandle(normalizedHandle) && !isSubmitting;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!isValidDisplayName || isSubmitting) {
+    if (!canSubmit) {
       return;
     }
 
     await onComplete({
       displayName: normalizedDisplayName,
-      interests,
+      handle: normalizedHandle,
     });
   }
 
@@ -912,8 +1010,7 @@ function ProfileSetupScreen({
             Finish your profile
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Pick your display name and interests to personalize your first
-            feed.
+            Pick the name people see and the @handle they can recognize.
           </p>
         </div>
 
@@ -922,41 +1019,50 @@ function ProfileSetupScreen({
             <span className="text-sm font-semibold text-zinc-700">
               Display name
             </span>
-            <input
-              type="text"
-              required
-              maxLength={32}
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Your name"
-              className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
-            />
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+              <UserRound
+                size={18}
+                strokeWidth={1.9}
+                className="shrink-0 text-zinc-400"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                required
+                maxLength={32}
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Your name"
+                className="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
+            </div>
           </label>
 
-          <div>
-            <p className="text-sm font-semibold text-zinc-700">
-              Interests (optional)
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {questCategories.map((category) => {
-                const isSelected = interests.includes(category);
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => toggleInterest(category)}
-                    className={`min-h-10 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                      isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
-                    }`}
-                  >
-                    {category}
-                  </button>
-                );
-              })}
+          <label className="block">
+            <span className="text-sm font-semibold text-zinc-700">Handle</span>
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+              <AtSign
+                size={18}
+                strokeWidth={1.9}
+                className="shrink-0 text-zinc-400"
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                required
+                maxLength={31}
+                value={handle}
+                onChange={(event) => setHandle(event.target.value)}
+                placeholder="your.handle"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+              />
             </div>
-          </div>
+            <span className="mt-1 block text-xs font-medium text-zinc-400">
+              3-30 characters. Letters, numbers, periods, and underscores.
+            </span>
+          </label>
 
           {error ? (
             <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -966,7 +1072,7 @@ function ProfileSetupScreen({
 
           <button
             type="submit"
-            disabled={!isValidDisplayName || isSubmitting}
+            disabled={!canSubmit}
             className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             {isSubmitting ? "Saving..." : "Continue"}
@@ -975,6 +1081,46 @@ function ProfileSetupScreen({
       </div>
     </main>
   );
+}
+
+function buildQuestReminderEvents(
+  userId: string,
+  quests: Quest[],
+  activityEvents: ActivityEvent[],
+) {
+  const now = Date.now();
+  const reminderWindowMs = 2 * 60 * 60 * 1000;
+  const existingReminderQuestIds = new Set(
+    activityEvents
+      .filter((event) => event.type === "reminder" && event.questId)
+      .map((event) => event.questId),
+  );
+
+  return quests
+    .filter((quest) => {
+      if (
+        quest.status !== "open" ||
+        !quest.startTimeISO ||
+        existingReminderQuestIds.has(quest.id)
+      ) {
+        return false;
+      }
+
+      const startMs = new Date(quest.startTimeISO).getTime();
+      return (
+        Number.isFinite(startMs) &&
+        startMs > now &&
+        startMs - now <= reminderWindowMs
+      );
+    })
+    .map((quest) => ({
+      userId,
+      actorId: userId,
+      questId: quest.id,
+      type: "reminder" as const,
+      title: `${quest.title} starts soon`,
+      body: `${quest.startTimeRelative ?? quest.startTime} at ${quest.location}.`,
+    }));
 }
 
 function LoadingState({ label }: { label: string }) {

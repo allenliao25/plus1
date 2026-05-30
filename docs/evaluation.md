@@ -28,6 +28,7 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 ### Product capabilities implemented
 
 - Phone OTP auth and persistent sessions
+- Unique @handle setup and profile editing
 - Instagram-style 5-tab app shell (Home, Explore, Create, Activity, Profile)
 - Quest lifecycle (create, join, leave, edit, close)
 - Activity feed with unread indicators
@@ -101,6 +102,7 @@ Capture one clean screenshot for each of these states (device frame optional):
 - Quest detail + attendee list
 - Activity feed with unread indicator
 - Profile screen with updated bio/interests
+- Profile screen with handle, bio, and quest tabs
 
 ## 4) Limitations and failure analysis
 
