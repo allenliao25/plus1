@@ -4,13 +4,16 @@ import type { Profile } from "@/types/quest";
 
 export async function getAuthenticatedUser() {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
 
   if (error) {
     throw new Error(`Could not read current session: ${error.message}`);
   }
 
-  return data.user;
+  return session?.user ?? null;
 }
 
 export async function signInWithEmailLink(email: string) {
@@ -54,18 +57,60 @@ export function subscribeToAuthChanges(onChange: () => void) {
 }
 
 export async function ensureProfile(user: User): Promise<Profile> {
-  const supabase = getSupabaseClient();
   const fallbackName = resolveDisplayName(user);
   const fallbackEmail = user.email ?? `${user.id}@plus1.local`;
+  const fallbackInitials = initials(fallbackName);
 
-  const { data, error } = await supabase
+  const { data, error } = await upsertProfile({
+    id: user.id,
+    displayName: fallbackName,
+    email: fallbackEmail,
+    avatarInitials: fallbackInitials,
+  });
+
+  const shouldRetryWithUniqueName =
+    error?.code === "23505" && error.message.includes("profiles_display_name");
+
+  const retryResult = shouldRetryWithUniqueName
+    ? await upsertProfile({
+        id: user.id,
+        displayName: `${fallbackName}-${user.id.slice(0, 6)}`,
+        email: fallbackEmail,
+        avatarInitials: fallbackInitials,
+      })
+    : null;
+
+  const profile = retryResult?.data ?? data;
+  const profileError = retryResult?.error ?? error;
+
+  if (profileError || !profile) {
+    throw new Error(`Could not load profile: ${profileError?.message ?? "Not found."}`);
+  }
+
+  return {
+    id: profile.id,
+    displayName: profile.display_name ?? fallbackName,
+    email: profile.email,
+    avatarInitials: profile.avatar_initials ?? initials(profile.display_name),
+  };
+}
+
+function upsertProfile(input: {
+  id: string;
+  displayName: string;
+  email: string;
+  avatarInitials: string;
+}) {
+  const supabase = getSupabaseClient();
+
+  return supabase
     .from("profiles")
     .upsert(
       {
-        id: user.id,
-        display_name: fallbackName,
-        email: fallbackEmail,
-        avatar_initials: initials(fallbackName),
+        id: input.id,
+        display_name: input.displayName,
+        email: input.email,
+        avatar_initials: input.avatarInitials,
       },
       {
         onConflict: "id",
@@ -73,17 +118,6 @@ export async function ensureProfile(user: User): Promise<Profile> {
     )
     .select("id, display_name, email, avatar_initials, created_at")
     .single();
-
-  if (error || !data) {
-    throw new Error(`Could not load profile: ${error?.message ?? "Not found."}`);
-  }
-
-  return {
-    id: data.id,
-    displayName: data.display_name ?? fallbackName,
-    email: data.email,
-    avatarInitials: data.avatar_initials ?? initials(data.display_name),
-  };
 }
 
 function resolveDisplayName(user: User) {
