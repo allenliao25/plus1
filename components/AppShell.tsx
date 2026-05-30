@@ -792,7 +792,7 @@ export default function AppShell() {
   }
 
   return (
-    <main className="flex h-dvh flex-col bg-white text-zinc-950">
+    <main className="app-viewport flex flex-col bg-white text-zinc-950">
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         <header className="flex items-center border-b border-zinc-200 bg-white/85 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+14px)] backdrop-blur-xl">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
@@ -800,7 +800,7 @@ export default function AppShell() {
           </h1>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 py-5">
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
           {actionError ? <ActionError message={actionError} /> : null}
 
@@ -899,7 +899,7 @@ export default function AppShell() {
 
 function SplashScreen() {
   return (
-    <main className="flex h-dvh flex-col items-center justify-center bg-white text-zinc-950">
+    <main className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950">
       <h1 className="text-[2.75rem] font-semibold tracking-tight">plus1</h1>
       <div className="mt-6 h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
     </main>
@@ -956,7 +956,7 @@ function AuthScreen({
   }
 
   return (
-    <main className="flex h-dvh flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+    <main className="app-viewport flex flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
       <div className="flex flex-1 flex-col justify-center">
         <div className="mx-auto w-full max-w-sm">
           <div className="text-center">
@@ -1136,7 +1136,7 @@ function ProfileSetupScreen({
   }
 
   return (
-    <main className="flex h-dvh flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+    <main className="app-viewport flex flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
       <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-center">
         <div className="text-center">
           <h1 className="text-[2.5rem] font-semibold leading-none tracking-tight">

@@ -21,10 +21,28 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 button,
 input,
 textarea {
   font: inherit;
+}
+
+.app-viewport {
+  height: 100vh;
+  height: 100lvh;
+  overflow: hidden;
+}
+
+.app-scroll {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .holo-card,

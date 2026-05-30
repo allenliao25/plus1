@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
     url: "https://plus1-livid.vercel.app",
     cleartext: false,
   },
+  plugins: {
+    Keyboard: {
+      resize: "none",
+    },
+  },
 };
 
 export default config;

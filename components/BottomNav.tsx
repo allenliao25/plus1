@@ -87,7 +87,7 @@ export default function BottomNav({
   return (
     <nav
       aria-busy={isDisabled}
-      className="flex items-stretch justify-between border-t border-zinc-200 bg-white/85 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2.5 backdrop-blur-xl"
+      className="relative z-20 flex shrink-0 touch-none select-none items-stretch justify-between border-t border-zinc-200 bg-white/85 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2.5 backdrop-blur-xl"
     >
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
