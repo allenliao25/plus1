@@ -537,17 +537,12 @@ export default function AppShell() {
   const showLoading = isLoadingQuests && activeTab !== "create";
 
   return (
-    <main className="min-h-dvh bg-[#f6f4ef] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-[calc(env(safe-area-inset-top,0px)+16px)] text-zinc-950 sm:px-6 sm:pb-6 sm:pt-6">
-      <section className="mx-auto flex min-h-[calc(100dvh-(env(safe-area-inset-top,0px)+env(safe-area-inset-bottom,0px)+32px))] w-full max-w-[430px] flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#fbfaf7] shadow-xl shadow-zinc-900/10 sm:min-h-[840px]">
-        <header className="border-b border-zinc-200 bg-white px-5 pb-4 pt-5">
-          <div>
-            <p className="text-sm font-medium text-zinc-500">
-              Campus hangouts, without the group text.
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
-              plus1
-            </h1>
-          </div>
+    <main className="flex h-dvh flex-col bg-white text-zinc-950">
+      <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
+        <header className="flex items-center border-b border-zinc-200 bg-white/85 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+14px)] backdrop-blur-xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+            plus1
+          </h1>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
@@ -700,7 +695,10 @@ function AuthGate({
 
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-6">
-      <h2 className="text-xl font-semibold text-zinc-950">Sign in to plus1</h2>
+      <p className="text-sm font-medium text-zinc-500">
+        Campus hangouts, without the group text.
+      </p>
+      <h2 className="mt-1 text-xl font-semibold text-zinc-950">Sign in to plus1</h2>
       <p className="mt-1 text-sm leading-6 text-zinc-500">
         We&apos;ll text you a sign-in code.
       </p>

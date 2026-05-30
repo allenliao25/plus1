@@ -9,12 +9,12 @@ type NavItem = {
 };
 
 const iconProps = {
-  width: 24,
-  height: 24,
+  width: 26,
+  height: 26,
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.8,
+  strokeWidth: 1.9,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
@@ -87,7 +87,7 @@ export default function BottomNav({
   return (
     <nav
       aria-busy={isDisabled}
-      className="flex items-stretch justify-between border-t border-zinc-200 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-2"
+      className="flex items-stretch justify-between border-t border-zinc-200 bg-white/85 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2.5 backdrop-blur-xl"
     >
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
@@ -102,13 +102,7 @@ export default function BottomNav({
               aria-label="Create"
               className="flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span
-                className={`grid h-12 w-12 place-items-center rounded-2xl shadow-sm transition ${
-                  isActive
-                    ? "bg-zinc-950 text-white"
-                    : "bg-zinc-950 text-white hover:bg-zinc-800"
-                }`}
-              >
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-zinc-950 text-white transition active:scale-95">
                 {item.icon}
               </span>
             </button>
@@ -125,21 +119,18 @@ export default function BottomNav({
             onClick={() => onTabChange(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            className={`relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[0.65rem] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-              isActive
-                ? "text-zinc-950"
-                : "text-zinc-400 hover:text-zinc-700"
+            className={`relative flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+              isActive ? "text-zinc-950" : "text-zinc-300 hover:text-zinc-500"
             }`}
           >
             <span className="relative">
               {item.icon}
               {showBadge ? (
-                <span className="absolute -right-1.5 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">
+                <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">
                   {unreadActivityCount > 9 ? "9+" : unreadActivityCount}
                 </span>
               ) : null}
             </span>
-            {item.label}
           </button>
         );
       })}
