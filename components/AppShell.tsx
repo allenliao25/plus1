@@ -195,7 +195,10 @@ export default function AppShell() {
         // Push token registration is best-effort during development.
       });
     } catch (syncError) {
-      setError(readErrorMessage(syncError));
+      const message = readErrorMessage(syncError);
+      setError(message);
+      setAuthError(message);
+      setAuthMessage("");
       setAuthState("signed_out");
       setCurrentProfile(null);
       setNeedsProfileSetup(false);
