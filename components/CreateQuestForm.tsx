@@ -42,6 +42,7 @@ export default function CreateQuestForm({
     null,
   );
   const [cardImageError, setCardImageError] = useState("");
+  const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
@@ -59,6 +60,18 @@ export default function CreateQuestForm({
       return;
     }
 
+    const startTime = new Date(form.startTime);
+    if (Number.isNaN(startTime.getTime()) || startTime.getTime() <= Date.now()) {
+      setError("Choose a future start time.");
+      return;
+    }
+
+    const maxPeople = Number(form.maxPeople);
+    if (!Number.isInteger(maxPeople) || maxPeople < 2 || maxPeople > 12) {
+      setError("Max people must be a whole number from 2 to 12.");
+      return;
+    }
+
     try {
       await onCreateQuest(
         {
@@ -66,13 +79,14 @@ export default function CreateQuestForm({
           title: form.title.trim(),
           location: form.location.trim(),
           startTime: form.startTime.trim(),
+          maxPeople,
           description:
             form.description.trim() || "No extra details yet. Just show up.",
         },
         cardImageFile,
       );
       setForm(defaultForm);
-      setCardImageFile(null);
+      clearCardImage();
       setError("");
       setCardImageError("");
     } catch (error) {
@@ -94,7 +108,13 @@ export default function CreateQuestForm({
 
     try {
       validateQuestCardImageFile(file);
+      if (cardImageObjectUrlRef.current) {
+        URL.revokeObjectURL(cardImageObjectUrlRef.current);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      cardImageObjectUrlRef.current = objectUrl;
       setCardImageFile(file);
+      setCardImagePreviewUrl(objectUrl);
       setCardImageError("");
     } catch (caught) {
       setCardImageError(
@@ -105,19 +125,22 @@ export default function CreateQuestForm({
     }
   }
 
-  useEffect(() => {
-    if (!cardImageFile) {
-      setCardImagePreviewUrl(null);
-      return;
+  function clearCardImage() {
+    if (cardImageObjectUrlRef.current) {
+      URL.revokeObjectURL(cardImageObjectUrlRef.current);
+      cardImageObjectUrlRef.current = null;
     }
+    setCardImageFile(null);
+    setCardImagePreviewUrl(null);
+  }
 
-    const objectUrl = URL.createObjectURL(cardImageFile);
-    setCardImagePreviewUrl(objectUrl);
-
+  useEffect(() => {
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (cardImageObjectUrlRef.current) {
+        URL.revokeObjectURL(cardImageObjectUrlRef.current);
+      }
     };
-  }, [cardImageFile]);
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -173,7 +196,7 @@ export default function CreateQuestForm({
               type="button"
               disabled={isSubmitting}
               onClick={() => {
-                setCardImageFile(null);
+                clearCardImage();
                 setCardImageError("");
               }}
               className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50"
@@ -190,6 +213,7 @@ export default function CreateQuestForm({
           className="mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-left transition hover:border-zinc-400 hover:bg-white disabled:opacity-50"
         >
           {cardImagePreviewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cardImagePreviewUrl}
               alt=""

@@ -45,11 +45,11 @@ export default function ProfileEditSheet({
   const [bio, setBio] = useState(profile.bio ?? "");
   const [selectedInterests, setSelectedInterests] = useState(profile.interests);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(profile.avatarUrl);
   const [avatarError, setAvatarError] = useState("");
   const objectUrlRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const avatarPreviewUrl = objectUrlRef.current ?? profile.avatarUrl;
   const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
   const normalizedHandle = normalizeHandle(handle);
   const normalizedWebsiteUrl = websiteUrl.trim();
@@ -116,6 +116,7 @@ export default function ProfileEditSheet({
 
     const objectUrl = URL.createObjectURL(file);
     objectUrlRef.current = objectUrl;
+    setAvatarPreviewUrl(objectUrl);
     setAvatarError("");
     setAvatarFile(file);
   }

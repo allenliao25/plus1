@@ -290,6 +290,7 @@ function QuestTile({
       aria-label={`Open ${quest.title}`}
     >
       {quest.cardImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={quest.cardImageUrl}
           alt=""

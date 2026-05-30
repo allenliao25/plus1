@@ -48,6 +48,7 @@ export default function QuestDetail({
           className="holo-thumb relative mb-5 aspect-[16/10] overflow-hidden rounded-[1.5rem] bg-zinc-100"
         >
           {quest.cardImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={quest.cardImageUrl}
               alt=""

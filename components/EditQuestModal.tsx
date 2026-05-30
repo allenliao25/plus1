@@ -60,6 +60,7 @@ export default function EditQuestModal({
   );
   const [removeCardImage, setRemoveCardImage] = useState(false);
   const [cardImageError, setCardImageError] = useState("");
+  const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
@@ -77,7 +78,19 @@ export default function EditQuestModal({
       return;
     }
 
-    if (form.maxPeople < quest.goingCount) {
+    const startTime = new Date(form.startTime);
+    if (Number.isNaN(startTime.getTime()) || startTime.getTime() <= Date.now()) {
+      setError("Choose a future start time.");
+      return;
+    }
+
+    const maxPeople = Number(form.maxPeople);
+    if (!Number.isInteger(maxPeople) || maxPeople > 12) {
+      setError("Max people must be a whole number up to 12.");
+      return;
+    }
+
+    if (maxPeople < quest.goingCount) {
       setError(`Max people cannot be less than current going (${quest.goingCount}).`);
       return;
     }
@@ -90,6 +103,7 @@ export default function EditQuestModal({
           title: form.title.trim(),
           location: form.location.trim(),
           startTime: form.startTime.trim(),
+          maxPeople,
           description: form.description.trim() || "No extra details yet. Just show up.",
         },
         { cardImageFile, removeCardImage },
@@ -113,7 +127,13 @@ export default function EditQuestModal({
 
     try {
       validateQuestCardImageFile(file);
+      if (cardImageObjectUrlRef.current) {
+        URL.revokeObjectURL(cardImageObjectUrlRef.current);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      cardImageObjectUrlRef.current = objectUrl;
       setCardImageFile(file);
+      setCardImagePreviewUrl(objectUrl);
       setRemoveCardImage(false);
       setCardImageError("");
     } catch (caught) {
@@ -126,18 +146,12 @@ export default function EditQuestModal({
   }
 
   useEffect(() => {
-    if (!cardImageFile) {
-      setCardImagePreviewUrl(removeCardImage ? null : quest.cardImageUrl);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(cardImageFile);
-    setCardImagePreviewUrl(objectUrl);
-
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (cardImageObjectUrlRef.current) {
+        URL.revokeObjectURL(cardImageObjectUrlRef.current);
+      }
     };
-  }, [cardImageFile, quest.cardImageUrl, removeCardImage]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-zinc-950/45 p-4">
@@ -201,7 +215,12 @@ export default function EditQuestModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => {
+                    if (cardImageObjectUrlRef.current) {
+                      URL.revokeObjectURL(cardImageObjectUrlRef.current);
+                      cardImageObjectUrlRef.current = null;
+                    }
                     setCardImageFile(null);
+                    setCardImagePreviewUrl(null);
                     setRemoveCardImage(true);
                     setCardImageError("");
                   }}
@@ -219,6 +238,7 @@ export default function EditQuestModal({
               className="mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
             >
               {cardImagePreviewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={cardImagePreviewUrl}
                   alt=""

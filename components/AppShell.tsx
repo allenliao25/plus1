@@ -266,6 +266,19 @@ export default function AppShell() {
 
     const supabase = getSupabaseClient();
     const channel = supabase.channel(`plus1-mobile-events-${currentProfileId}`);
+    let refreshTimer: number | undefined;
+
+    function scheduleFeedRefresh() {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = window.setTimeout(() => {
+        void refreshData(currentProfileId).catch(() => {
+          // Realtime refresh is best-effort; manual Retry remains available.
+        });
+      }, 250);
+    }
 
     channel.on(
       "postgres_changes",
@@ -279,6 +292,8 @@ export default function AppShell() {
           title?: string | null;
           creator_id?: string | null;
         };
+
+        scheduleFeedRefresh();
 
         if (!quest.creator_id || quest.creator_id === currentProfileId) {
           return;
@@ -296,6 +311,18 @@ export default function AppShell() {
     channel.on(
       "postgres_changes",
       {
+        event: "UPDATE",
+        schema: "public",
+        table: "quests",
+      },
+      () => {
+        scheduleFeedRefresh();
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
         event: "INSERT",
         schema: "public",
         table: "quest_joins",
@@ -305,6 +332,8 @@ export default function AppShell() {
           quest_id?: string | null;
           user_id?: string | null;
         };
+
+        scheduleFeedRefresh();
 
         if (!join.quest_id || !join.user_id || join.user_id === currentProfileId) {
           return;
@@ -330,6 +359,18 @@ export default function AppShell() {
     channel.on(
       "postgres_changes",
       {
+        event: "DELETE",
+        schema: "public",
+        table: "quest_joins",
+      },
+      () => {
+        scheduleFeedRefresh();
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
         event: "INSERT",
         schema: "public",
         table: "activity_events",
@@ -349,9 +390,12 @@ export default function AppShell() {
     channel.subscribe();
 
     return () => {
+      if (refreshTimer) {
+        window.clearTimeout(refreshTimer);
+      }
       supabase.removeChannel(channel);
     };
-  }, [currentProfileId, myQuests]);
+  }, [currentProfileId, myQuests, refreshData]);
 
   useEffect(() => {
     if (

@@ -48,6 +48,7 @@ export default function HolographicQuestCard({
       >
         <div className="absolute inset-0">
           {quest.cardImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={quest.cardImageUrl}
               alt=""
