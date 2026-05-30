@@ -68,7 +68,7 @@ export default function ProfileScreen({
     <div className="space-y-5 pb-3">
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-zinc-950">
+          <h2 className="min-w-0 truncate text-2xl font-bold tracking-tight text-zinc-950">
             {profile.handle}
           </h2>
           <button
@@ -92,7 +92,7 @@ export default function ProfileScreen({
         </div>
 
         <div>
-          <p className="text-base font-semibold text-zinc-950">
+          <p className="text-base font-bold text-zinc-950">
             {profile.displayName}
           </p>
           {profile.bio ? (
@@ -104,7 +104,7 @@ export default function ProfileScreen({
               No bio yet.
             </p>
           )}
-          <p className="mt-1 text-sm font-medium text-zinc-400">
+          <p className="mt-1 text-sm font-semibold text-zinc-400">
             @{profile.handle}
           </p>
           {profile.websiteUrl ? (
@@ -112,7 +112,7 @@ export default function ProfileScreen({
               href={profile.websiteUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate text-sm font-semibold text-zinc-950"
+              className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate text-sm font-bold text-zinc-950"
             >
               <Link2 size={15} strokeWidth={1.9} aria-hidden="true" />
               <span className="truncate">{formatWebsite(profile.websiteUrl)}</span>
@@ -123,7 +123,7 @@ export default function ProfileScreen({
               {profile.interests.map((interest) => (
                 <span
                   key={interest}
-                  className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600"
+                  className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700"
                 >
                   {interest}
                 </span>
@@ -136,7 +136,7 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
           >
             <Edit3 size={16} strokeWidth={1.9} aria-hidden="true" />
             Edit profile
@@ -144,7 +144,7 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
           >
             <Copy size={16} strokeWidth={1.9} aria-hidden="true" />
             Copy profile
@@ -185,7 +185,7 @@ export default function ProfileScreen({
           </div>
         ) : (
           <div className="py-14 text-center">
-            <p className="text-sm font-semibold text-zinc-700">
+            <p className="text-sm font-bold text-zinc-800">
               No {activeTab} events yet.
             </p>
             <p className="mt-1 text-sm text-zinc-400">
@@ -225,7 +225,7 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
   }
 
   return (
-    <span className="grid h-28 w-28 place-items-center rounded-full bg-zinc-950 text-3xl font-semibold text-white shadow-sm">
+    <span className="grid h-28 w-28 place-items-center rounded-full bg-zinc-950 text-3xl font-bold text-white shadow-sm">
       {profile.avatarInitials}
     </span>
   );
@@ -234,8 +234,8 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <p className="text-xl font-semibold text-zinc-950">{value}</p>
-      <p className="mt-0.5 text-xs font-medium text-zinc-500">{label}</p>
+      <p className="text-xl font-bold text-zinc-950">{value}</p>
+      <p className="mt-0.5 text-xs font-bold text-zinc-500">{label}</p>
     </div>
   );
 }
@@ -303,10 +303,10 @@ function QuestTile({
         {quest.category}
       </span>
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-2">
-        <p className="line-clamp-2 text-xs font-semibold leading-4 text-white">
+        <p className="line-clamp-2 text-xs font-bold leading-4 text-white">
           {quest.title}
         </p>
-        <p className="mt-1 truncate text-[0.65rem] font-medium text-white/70">
+        <p className="mt-1 truncate text-[0.65rem] font-semibold text-white/70">
           {quest.startTimeRelative ?? quest.startTime} / {quest.goingCount}/{quest.maxPeople}
         </p>
       </div>

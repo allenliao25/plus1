@@ -36,9 +36,9 @@ export default function HomeScreen({
     <div className="space-y-5">
       <div>
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold text-zinc-950">For you</h2>
+          <h2 className="text-xl font-bold tracking-tight text-zinc-950">For you</h2>
           {interestMatches.length > 0 ? (
-            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+            <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">
               {interestMatches.length} for you
             </span>
           ) : null}

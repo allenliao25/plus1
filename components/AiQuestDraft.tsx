@@ -98,9 +98,7 @@ export default function AiQuestDraft({
   return (
     <section className="space-y-4 rounded-3xl border border-zinc-200 bg-white/70 p-5">
       <div className="space-y-1">
-        <h3 className="text-base font-semibold text-zinc-900">
-          Draft with AI
-        </h3>
+        <h3 className="text-base font-bold text-zinc-900">Draft with AI</h3>
         <p className="text-sm leading-6 text-zinc-500">
           Describe your plan or upload a flyer. You can edit everything before
           posting.
@@ -108,7 +106,7 @@ export default function AiQuestDraft({
       </div>
 
       {isAvailable === false ? (
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800">
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">
           AI drafting is wired up, but OPENAI_API_KEY is not set in this
           environment. Add it to .env.local to demo this tab.
         </p>
@@ -123,7 +121,7 @@ export default function AiQuestDraft({
               setMode(value);
               setError("");
             }}
-            className={`min-h-11 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
+            className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
               mode === value
                 ? "border-zinc-950 bg-zinc-950 text-white"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
@@ -146,7 +144,7 @@ export default function AiQuestDraft({
           <button
             type="submit"
             disabled={isLoading || !prompt.trim() || isAvailable === false}
-            className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="min-h-11 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             {isAvailable === false
               ? "AI unavailable"
@@ -156,7 +154,7 @@ export default function AiQuestDraft({
           </button>
         </form>
       ) : (
-        <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-6 text-sm font-semibold text-zinc-600 transition hover:border-zinc-400">
+        <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-6 text-sm font-bold text-zinc-600 transition hover:border-zinc-400">
           <input
             type="file"
             accept="image/*"
@@ -173,7 +171,7 @@ export default function AiQuestDraft({
       )}
 
       {error ? (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
         </p>
       ) : null}
@@ -182,24 +180,24 @@ export default function AiQuestDraft({
         <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
           <dl className="space-y-1 text-sm text-zinc-700">
             <div className="flex gap-2">
-              <dt className="font-semibold text-zinc-500">Title</dt>
-              <dd>{draft.title || "—"}</dd>
+              <dt className="font-bold text-zinc-500">Title</dt>
+              <dd className="font-semibold">{draft.title || "—"}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-zinc-500">Category</dt>
-              <dd>{draft.category}</dd>
+              <dt className="font-bold text-zinc-500">Category</dt>
+              <dd className="font-semibold">{draft.category}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-zinc-500">Location</dt>
-              <dd>{draft.location || "—"}</dd>
+              <dt className="font-bold text-zinc-500">Location</dt>
+              <dd className="font-semibold">{draft.location || "—"}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-zinc-500">Start</dt>
-              <dd>{draft.startTime || "—"}</dd>
+              <dt className="font-bold text-zinc-500">Start</dt>
+              <dd className="font-semibold">{draft.startTime || "—"}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="font-semibold text-zinc-500">Max</dt>
-              <dd>{draft.maxPeople}</dd>
+              <dt className="font-bold text-zinc-500">Max</dt>
+              <dd className="font-semibold">{draft.maxPeople}</dd>
             </div>
             {draft.description ? (
               <p className="pt-1 text-zinc-600">{draft.description}</p>
@@ -208,7 +206,7 @@ export default function AiQuestDraft({
           <button
             type="button"
             onClick={() => onApplyDraft(draft)}
-            className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="min-h-11 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800"
           >
             Use this draft
           </button>

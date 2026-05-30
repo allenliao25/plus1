@@ -795,7 +795,7 @@ export default function AppShell() {
     <main className="app-viewport flex flex-col bg-white text-zinc-950">
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         <header className="flex items-center border-b border-zinc-200 bg-white/85 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+14px)] backdrop-blur-xl">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
             plus1
           </h1>
         </header>
@@ -839,7 +839,7 @@ export default function AppShell() {
           ) : activeTab === "create" ? (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-semibold text-zinc-950">
+                <h2 className="text-xl font-bold tracking-tight text-zinc-950">
                   New event
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">
@@ -900,7 +900,7 @@ export default function AppShell() {
 function SplashScreen() {
   return (
     <main className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950">
-      <h1 className="text-[2.75rem] font-semibold tracking-tight">plus1</h1>
+      <h1 className="text-[2.75rem] font-bold tracking-tight">plus1</h1>
       <div className="mt-6 h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
     </main>
   );
@@ -960,7 +960,7 @@ function AuthScreen({
       <div className="flex flex-1 flex-col justify-center">
         <div className="mx-auto w-full max-w-sm">
           <div className="text-center">
-            <h1 className="text-[2.75rem] font-semibold leading-none tracking-tight">
+            <h1 className="text-[2.75rem] font-bold leading-none tracking-tight">
               plus1
             </h1>
             <p className="mt-3 text-sm text-zinc-500">
@@ -1005,15 +1005,15 @@ function AuthScreen({
                 </div>
                 <p className="text-center text-xs leading-5 text-zinc-400">
                   US numbers: 3-digit area code, then 7-digit number. Demo:{" "}
-                  <span className="font-medium text-zinc-500">800</span> +{" "}
-                  <span className="font-medium text-zinc-500">5550123</span>.
+                  <span className="font-semibold text-zinc-500">800</span> +{" "}
+                  <span className="font-semibold text-zinc-500">5550123</span>.
                 </p>
               </>
             ) : (
               <>
                 <p className="text-center text-sm text-zinc-500">
                   Enter the 6-digit code sent to{" "}
-                  <span className="font-semibold text-zinc-700">{pendingPhone}</span>.
+                  <span className="font-bold text-zinc-700">{pendingPhone}</span>.
                 </p>
                 <input
                   type="text"
@@ -1031,12 +1031,12 @@ function AuthScreen({
             )}
 
             {error ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                 {error}
               </p>
             ) : null}
             {message ? (
-              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
                 {message}
               </p>
             ) : null}
@@ -1048,7 +1048,7 @@ function AuthScreen({
                 (!isVerifying && !phonePartsAreValid) ||
                 (isVerifying && !otpCode.trim())
               }
-              className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               {isSubmitting
                 ? isVerifying
@@ -1064,7 +1064,7 @@ function AuthScreen({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleUseDifferentPhone}
-                className="min-h-11 w-full text-center text-sm font-semibold text-zinc-500 transition hover:text-zinc-800 disabled:opacity-50"
+                className="min-h-11 w-full text-center text-sm font-bold text-zinc-500 transition hover:text-zinc-800 disabled:opacity-50"
               >
                 Use a different number
               </button>
@@ -1139,10 +1139,10 @@ function ProfileSetupScreen({
     <main className="app-viewport flex flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
       <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-center">
         <div className="text-center">
-          <h1 className="text-[2.5rem] font-semibold leading-none tracking-tight">
+          <h1 className="text-[2.5rem] font-bold leading-none tracking-tight">
             plus1
           </h1>
-          <h2 className="mt-4 text-2xl font-semibold text-zinc-950">
+          <h2 className="mt-4 text-2xl font-bold tracking-tight text-zinc-950">
             Finish your profile
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
@@ -1152,7 +1152,7 @@ function ProfileSetupScreen({
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <label className="block">
-            <span className="text-sm font-semibold text-zinc-700">
+            <span className="text-sm font-bold text-zinc-800">
               Display name
             </span>
             <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
@@ -1175,7 +1175,7 @@ function ProfileSetupScreen({
           </label>
 
           <label className="block">
-            <span className="text-sm font-semibold text-zinc-700">Handle</span>
+            <span className="text-sm font-bold text-zinc-800">Handle</span>
             <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
               <AtSign
                 size={18}
@@ -1195,13 +1195,13 @@ function ProfileSetupScreen({
                 className="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </div>
-            <span className="mt-1 block text-xs font-medium text-zinc-400">
+            <span className="mt-1 block text-xs font-semibold text-zinc-400">
               3-30 characters. Letters, numbers, periods, and underscores.
             </span>
           </label>
 
           <div>
-            <p className="text-sm font-semibold text-zinc-700">Interests</p>
+            <p className="text-sm font-bold text-zinc-800">Interests</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {questCategories.map((interest) => {
                 const isSelected = selectedInterests.includes(interest);
@@ -1212,7 +1212,7 @@ function ProfileSetupScreen({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => toggleInterest(interest)}
-                    className={`min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                    className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
                       isSelected
                         ? "border-zinc-950 bg-zinc-950 text-white"
                         : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:bg-white"
@@ -1223,13 +1223,13 @@ function ProfileSetupScreen({
                 );
               })}
             </div>
-            <span className="mt-1 block text-xs font-medium text-zinc-400">
+            <span className="mt-1 block text-xs font-semibold text-zinc-400">
               Choose a few so plus1 can float matching events first.
             </span>
           </div>
 
           {error ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {error}
             </p>
           ) : null}
@@ -1237,7 +1237,7 @@ function ProfileSetupScreen({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             {isSubmitting ? "Saving..." : "Continue"}
           </button>
@@ -1291,7 +1291,7 @@ function LoadingState({ label }: { label: string }) {
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-6 text-center">
       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
-      <p className="mt-3 text-sm font-medium text-zinc-500">{label}</p>
+      <p className="mt-3 text-sm font-semibold text-zinc-500">{label}</p>
     </div>
   );
 }
@@ -1320,7 +1320,7 @@ function ErrorState({
 
 function ActionError({ message }: { message: string }) {
   return (
-    <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+    <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
       {message}
     </p>
   );

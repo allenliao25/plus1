@@ -149,13 +149,13 @@ export default function CreateQuestForm({
       </p>
 
       {error ? (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
         </p>
       ) : null}
 
       <label className="block">
-        <span className="text-sm font-semibold text-zinc-700">Title</span>
+        <span className="text-sm font-bold text-zinc-800">Title</span>
         <input
           value={form.title}
           onChange={(event) => updateForm("title", event.target.value)}
@@ -165,7 +165,7 @@ export default function CreateQuestForm({
       </label>
 
       <div>
-        <p className="text-sm font-semibold text-zinc-700">Category</p>
+        <p className="text-sm font-bold text-zinc-800">Category</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {questCategories.map((category) => {
             const isSelected = form.category === category;
@@ -175,7 +175,7 @@ export default function CreateQuestForm({
                 key={category}
                 type="button"
                 onClick={() => updateForm("category", category as QuestCategory)}
-                className={`min-h-11 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
+                className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
                   isSelected
                     ? "border-zinc-950 bg-zinc-950 text-white"
                     : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
@@ -190,7 +190,7 @@ export default function CreateQuestForm({
 
       <div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-zinc-700">Card photo</p>
+          <p className="text-sm font-bold text-zinc-800">Card photo</p>
           {cardImageFile ? (
             <button
               type="button"
@@ -199,7 +199,7 @@ export default function CreateQuestForm({
                 clearCardImage();
                 setCardImageError("");
               }}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
             >
               <X size={14} strokeWidth={2} aria-hidden="true" />
               Remove
@@ -224,7 +224,7 @@ export default function CreateQuestForm({
               <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-zinc-700 shadow-sm">
                 <ImagePlus size={21} strokeWidth={1.9} aria-hidden="true" />
               </span>
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              <span className="inline-flex items-center gap-2 text-sm font-bold text-zinc-700">
                 <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
                 Add photo
               </span>
@@ -240,14 +240,14 @@ export default function CreateQuestForm({
           className="sr-only"
         />
         {cardImageError ? (
-          <p className="mt-2 text-sm font-medium text-red-600">
+          <p className="mt-2 text-sm font-bold text-red-600">
             {cardImageError}
           </p>
         ) : null}
       </div>
 
       <label className="block">
-        <span className="text-sm font-semibold text-zinc-700">Location</span>
+        <span className="text-sm font-bold text-zinc-800">Location</span>
         <input
           value={form.location}
           onChange={(event) => updateForm("location", event.target.value)}
@@ -257,7 +257,7 @@ export default function CreateQuestForm({
       </label>
 
       <label className="block">
-        <span className="text-sm font-semibold text-zinc-700">Start time</span>
+        <span className="text-sm font-bold text-zinc-800">Start time</span>
         <input
           type="datetime-local"
           value={form.startTime}
@@ -267,7 +267,7 @@ export default function CreateQuestForm({
       </label>
 
       <label className="block">
-        <span className="text-sm font-semibold text-zinc-700">Description</span>
+        <span className="text-sm font-bold text-zinc-800">Description</span>
         <textarea
           value={form.description}
           onChange={(event) => updateForm("description", event.target.value)}
@@ -278,7 +278,7 @@ export default function CreateQuestForm({
       </label>
 
       <label className="block">
-        <span className="text-sm font-semibold text-zinc-700">Max people</span>
+        <span className="text-sm font-bold text-zinc-800">Max people</span>
         <input
           type="number"
           min={2}
@@ -294,7 +294,7 @@ export default function CreateQuestForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
         {isSubmitting ? submittingLabel : submitLabel}
       </button>

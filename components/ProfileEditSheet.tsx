@@ -145,7 +145,7 @@ export default function ProfileEditSheet({
           >
             <X size={19} strokeWidth={1.9} aria-hidden="true" />
           </button>
-          <h3 className="text-base font-semibold text-zinc-950">
+          <h3 className="text-base font-bold text-zinc-950">
             Edit profile
           </h3>
           <button
@@ -192,7 +192,7 @@ export default function ProfileEditSheet({
             </div>
           </div>
           {avatarError ? (
-            <p className="mt-3 text-center text-sm font-medium text-red-600">
+            <p className="mt-3 text-center text-sm font-bold text-red-600">
               {avatarError}
             </p>
           ) : null}
@@ -255,7 +255,7 @@ export default function ProfileEditSheet({
           </div>
 
           <div className="mt-5">
-            <p className="text-sm font-semibold text-zinc-700">Interests</p>
+            <p className="text-sm font-bold text-zinc-800">Interests</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {questCategories.map((interest) => {
                 const isSelected = selectedInterests.includes(interest);
@@ -266,7 +266,7 @@ export default function ProfileEditSheet({
                     type="button"
                     disabled={isSaving}
                     onClick={() => toggleInterest(interest)}
-                    className={`min-h-11 rounded-2xl border px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                    className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
                       isSelected
                         ? "border-zinc-950 bg-zinc-950 text-white"
                         : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
@@ -280,7 +280,7 @@ export default function ProfileEditSheet({
           </div>
 
           {saveError ? (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {saveError}
             </p>
           ) : null}
@@ -304,7 +304,7 @@ function ProfileField({
       <span className="pt-0.5 text-zinc-400" aria-hidden="true">
         {icon}
       </span>
-      <span className="pt-0.5 text-sm font-semibold text-zinc-500">{label}</span>
+      <span className="pt-0.5 text-sm font-bold text-zinc-700">{label}</span>
       {children}
     </label>
   );

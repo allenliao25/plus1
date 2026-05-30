@@ -87,7 +87,7 @@ export default function HolographicQuestCard({
             Hosted by {quest.creator}
           </p>
           <h3
-            className={`mt-2 font-semibold leading-[1.04] tracking-normal text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)] ${
+            className={`mt-2 font-bold leading-[1.04] tracking-normal text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)] ${
               isImmersive
                 ? "text-[2.45rem]"
                 : isShare
@@ -145,7 +145,7 @@ export default function HolographicQuestCard({
                       ? "bg-white text-zinc-950 shadow-sm"
                       : !isJoinable || isFull
                         ? "bg-white/18 text-white/55"
-                      : isJoining
+                        : isJoining
                           ? "bg-white/25 text-white/70"
                           : "bg-white text-zinc-950 hover:bg-white/90"
                   }`}

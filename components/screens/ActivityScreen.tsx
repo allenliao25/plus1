@@ -22,7 +22,7 @@ export default function ActivityScreen({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-zinc-950">Activity</h2>
+        <h2 className="text-xl font-bold tracking-tight text-zinc-950">Activity</h2>
         <p className="mt-1 text-sm leading-6 text-zinc-500">
           Joins, edits, and reminders for events you care about.
         </p>
@@ -53,7 +53,7 @@ export default function ActivityScreen({
                   {!event.isRead ? (
                     <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />
                   ) : null}
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-600">
+                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">
                     {typeLabels[event.type]}
                   </span>
                   {event.createdAtRelative ? (
@@ -62,7 +62,7 @@ export default function ActivityScreen({
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 text-sm font-semibold text-zinc-900">
+                <p className="mt-2 text-sm font-bold text-zinc-950">
                   {event.title}
                 </p>
                 {event.body ? (

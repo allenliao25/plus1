@@ -13,7 +13,7 @@ export default function QuestStatusBadge({ quest }: { quest: Quest }) {
   }
 
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${badge.className}`}>
       {badge.label}
     </span>
   );

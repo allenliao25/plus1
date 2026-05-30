@@ -45,7 +45,7 @@ export default function ExploreScreen({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-zinc-950">Explore</h2>
+        <h2 className="text-xl font-bold tracking-tight text-zinc-950">Explore</h2>
         <p className="mt-1 text-sm leading-6 text-zinc-500">
           Search and filter events by category, place, or vibe.
         </p>
@@ -56,7 +56,7 @@ export default function ExploreScreen({
         value={search}
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search events, places, keywords"
-        className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+        className="w-full rounded-full border border-transparent bg-zinc-100 px-5 py-3.5 text-[15px] font-medium text-zinc-950 outline-none transition placeholder:text-zinc-500 focus:border-zinc-300 focus:bg-white"
       />
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -68,7 +68,7 @@ export default function ExploreScreen({
               key={option}
               type="button"
               onClick={() => setCategory(option)}
-              className={`min-h-11 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`min-h-11 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-bold transition ${
                 isActive
                   ? "border-zinc-950 bg-zinc-950 text-white"
                   : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
