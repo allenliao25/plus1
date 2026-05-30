@@ -26,3 +26,152 @@ input,
 textarea {
   font: inherit;
 }
+
+.holo-card,
+.holo-thumb {
+  --holo-x: 50%;
+  --holo-y: 45%;
+  --holo-rotate-x: 0deg;
+  --holo-rotate-y: 0deg;
+  --holo-a: #22d3ee;
+  --holo-b: #f472b6;
+  --holo-c: #facc15;
+  isolation: isolate;
+}
+
+.holo-card[data-category="Food"],
+.holo-thumb[data-category="Food"] {
+  --holo-a: #fb923c;
+  --holo-b: #f43f5e;
+  --holo-c: #fde047;
+}
+
+.holo-card[data-category="Study"],
+.holo-thumb[data-category="Study"] {
+  --holo-a: #38bdf8;
+  --holo-b: #2dd4bf;
+  --holo-c: #a78bfa;
+}
+
+.holo-card[data-category="Fitness"],
+.holo-thumb[data-category="Fitness"] {
+  --holo-a: #4ade80;
+  --holo-b: #bef264;
+  --holo-c: #22d3ee;
+}
+
+.holo-card[data-category="Outdoors"],
+.holo-thumb[data-category="Outdoors"] {
+  --holo-a: #2dd4bf;
+  --holo-b: #84cc16;
+  --holo-c: #facc15;
+}
+
+.holo-card[data-category="Social"],
+.holo-thumb[data-category="Social"] {
+  --holo-a: #f472b6;
+  --holo-b: #8b5cf6;
+  --holo-c: #38bdf8;
+}
+
+.holo-card[data-category="Sidequest"],
+.holo-thumb[data-category="Sidequest"] {
+  --holo-a: #94a3b8;
+  --holo-b: #f59e0b;
+  --holo-c: #22d3ee;
+}
+
+.holo-card {
+  transform: perspective(900px) rotateX(var(--holo-rotate-x))
+    rotateY(var(--holo-rotate-y));
+  transform-style: preserve-3d;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.holo-card::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.52) 44%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 60%
+  );
+  mix-blend-mode: screen;
+  opacity: 0.36;
+  transform: translateX(-24%) rotate(10deg);
+  transition:
+    opacity 180ms ease,
+    transform 380ms ease;
+}
+
+.holo-card-fallback,
+.holo-thumb-fallback {
+  background:
+    radial-gradient(
+      circle at 20% 18%,
+      rgba(255, 255, 255, 0.95),
+      transparent 20%
+    ),
+    radial-gradient(circle at 78% 22%, var(--holo-c), transparent 28%),
+    radial-gradient(circle at 30% 78%, var(--holo-b), transparent 35%),
+    linear-gradient(135deg, var(--holo-a), #111827 72%);
+}
+
+.holo-card-foil {
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at var(--holo-x) var(--holo-y),
+      rgba(255, 255, 255, 0.72),
+      rgba(255, 255, 255, 0.12) 18%,
+      transparent 34%
+    ),
+    conic-gradient(
+      from 120deg at var(--holo-x) var(--holo-y),
+      transparent,
+      color-mix(in srgb, var(--holo-a) 78%, transparent),
+      color-mix(in srgb, var(--holo-b) 65%, transparent),
+      color-mix(in srgb, var(--holo-c) 60%, transparent),
+      transparent
+    );
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+
+.holo-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.38), transparent 56%),
+    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.4), transparent 24%);
+  mix-blend-mode: screen;
+  opacity: 0.44;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .holo-card:hover {
+    box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28);
+  }
+
+  .holo-card:hover::after {
+    opacity: 0.62;
+    transform: translateX(22%) rotate(10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-card,
+  .holo-card::after {
+    transform: none !important;
+    transition: none !important;
+  }
+}

@@ -18,16 +18,16 @@ All generated or suggested code was reviewed, edited, and validated through lint
 
 plus1 includes explicit end-user AI functionality:
 
-- Text prompt to structured quest draft:
+- Text prompt to structured event draft:
   - `app/api/ai/quest-draft/route.ts`
-- Flyer image to structured quest draft:
+- Flyer image to structured event draft:
   - `app/api/ai/flyer-to-quest/route.ts`
 - Shared server-side parsing/validation layer:
   - `lib/aiQuestDraft.ts`
 
 Important guardrail:
 
-- Model output is treated as untrusted and normalized into a constrained quest schema before use.
+- Model output is treated as untrusted and normalized into a constrained event schema before use.
 
 ## 3) Human-authored technical work
 

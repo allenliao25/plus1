@@ -36,23 +36,21 @@ export default function HomeScreen({
     <div className="space-y-5">
       <div>
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold text-zinc-950">Open quests</h2>
+          <h2 className="text-xl font-semibold text-zinc-950">For you</h2>
           {interestMatches.length > 0 ? (
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
               {interestMatches.length} for you
             </span>
           ) : null}
         </div>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Find something low-pressure to do with people nearby.
-        </p>
       </div>
       <QuestList
         joiningQuestId={joiningQuestId}
         quests={sortedQuests}
-        emptyActionLabel="Create a quest"
+        variant="immersive"
+        emptyActionLabel="Create an event"
         emptyBody="Create one and it will appear here for people nearby."
-        emptyTitle="No open quests right now"
+        emptyTitle="No open events right now"
         onEmptyAction={onCreate}
         onJoin={onJoin}
         onOpen={onOpen}

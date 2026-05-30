@@ -2,22 +2,64 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isLikelyAutoDisplayName,
+  isValidE164PhoneNumber,
   isValidHandle,
+  isValidUsPhoneParts,
   normalizeHandle,
   normalizePhoneNumber,
+  normalizeProfileEmail,
+  normalizeUsPhoneParts,
   normalizeWebsiteUrl,
 } from "@/lib/authService";
 
+test("normalizeProfileEmail treats empty phone-auth email as null", () => {
+  assert.equal(normalizeProfileEmail(""), null);
+  assert.equal(normalizeProfileEmail("   "), null);
+  assert.equal(normalizeProfileEmail(null), null);
+  assert.equal(normalizeProfileEmail(undefined), null);
+  assert.equal(normalizeProfileEmail("user@example.com"), "user@example.com");
+});
+
+test("normalizeUsPhoneParts builds +1 E.164 from area code and local number", () => {
+  assert.equal(normalizeUsPhoneParts("510", "4961239"), "+15104961239");
+  assert.equal(normalizeUsPhoneParts("800", "5550123"), "+18005550123");
+  assert.equal(isValidUsPhoneParts("510", "4961239"), true);
+});
+
+test("normalizeUsPhoneParts rejects incomplete parts", () => {
+  assert.equal(normalizeUsPhoneParts("51", "4961239"), "");
+  assert.equal(normalizeUsPhoneParts("510", "496123"), "");
+  assert.equal(isValidUsPhoneParts("510", "496123"), false);
+});
+
 test("normalizePhoneNumber adds +1 for 10-digit US numbers", () => {
   assert.equal(normalizePhoneNumber("510 496 1239"), "+15104961239");
+  assert.equal(normalizePhoneNumber("(510) 496-1239"), "+15104961239");
+  assert.equal(normalizePhoneNumber("15104961239"), "+15104961239");
 });
 
 test("normalizePhoneNumber keeps explicit international prefix", () => {
   assert.equal(normalizePhoneNumber("+44 20 7946 0018"), "+442079460018");
+  assert.equal(normalizePhoneNumber("+1-510-496-1239"), "+15104961239");
+});
+
+test("normalizePhoneNumber converts 00 international prefix", () => {
+  assert.equal(normalizePhoneNumber("0015104961239"), "+15104961239");
 });
 
 test("normalizePhoneNumber returns empty when no digits", () => {
   assert.equal(normalizePhoneNumber("   "), "");
+});
+
+test("isValidE164PhoneNumber accepts normalized numbers", () => {
+  assert.equal(isValidE164PhoneNumber("+15104961239"), true);
+  assert.equal(isValidE164PhoneNumber("+442079460018"), true);
+});
+
+test("isValidE164PhoneNumber rejects invalid numbers", () => {
+  assert.equal(isValidE164PhoneNumber("+0015104961239"), false);
+  assert.equal(isValidE164PhoneNumber("15104961239"), false);
+  assert.equal(isValidE164PhoneNumber("+"), false);
 });
 
 test("isLikelyAutoDisplayName detects generated fallback names", () => {

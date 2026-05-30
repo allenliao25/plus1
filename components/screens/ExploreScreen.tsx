@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import QuestList from "@/components/QuestList";
+import { questCategories } from "@/data/demoQuests";
 import type { Quest } from "@/types/quest";
 
 type FeedCategory = Quest["category"] | "All";
@@ -21,8 +22,8 @@ export default function ExploreScreen({
   const [search, setSearch] = useState("");
 
   const categories = useMemo<FeedCategory[]>(
-    () => ["All", ...new Set(quests.map((quest) => quest.category))],
-    [quests],
+    () => ["All", ...questCategories],
+    [],
   );
 
   const filteredQuests = useMemo(() => {
@@ -46,7 +47,7 @@ export default function ExploreScreen({
       <div>
         <h2 className="text-xl font-semibold text-zinc-950">Explore</h2>
         <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Search and filter quests by category, place, or vibe.
+          Search and filter events by category, place, or vibe.
         </p>
       </div>
 
@@ -54,7 +55,7 @@ export default function ExploreScreen({
         type="search"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search quests, places, keywords"
+        placeholder="Search events, places, keywords"
         className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
       />
 
@@ -82,8 +83,9 @@ export default function ExploreScreen({
       <QuestList
         joiningQuestId={joiningQuestId}
         quests={filteredQuests}
+        variant="compact"
         emptyBody="Try a different category or search term."
-        emptyTitle="No quests match"
+        emptyTitle="No events match"
         onJoin={onJoin}
         onOpen={onOpen}
       />

@@ -16,11 +16,28 @@ export async function getAuthenticatedUser() {
   return session?.user ?? null;
 }
 
+export const PHONE_INPUT_ERROR = "Enter a 3-digit area code and 7-digit phone number.";
+
+export function normalizeUsPhoneParts(areaCode: string, localNumber: string) {
+  const area = areaCode.replace(/\D+/g, "");
+  const local = localNumber.replace(/\D+/g, "");
+
+  if (area.length !== 3 || local.length !== 7) {
+    return "";
+  }
+
+  return `+1${area}${local}`;
+}
+
+export function isValidUsPhoneParts(areaCode: string, localNumber: string) {
+  return normalizeUsPhoneParts(areaCode, localNumber) !== "";
+}
+
 export async function sendPhoneOtp(phone: string) {
   const normalizedPhone = normalizePhoneNumber(phone);
 
   if (!normalizedPhone) {
-    throw new Error("Enter your phone number with country code.");
+    throw new Error(PHONE_INPUT_ERROR);
   }
 
   const supabase = getSupabaseClient();
@@ -38,7 +55,7 @@ export async function verifyPhoneOtp(phone: string, token: string) {
   const normalizedToken = token.trim();
 
   if (!normalizedPhone) {
-    throw new Error("Enter your phone number with country code.");
+    throw new Error(PHONE_INPUT_ERROR);
   }
 
   if (!normalizedToken) {
@@ -81,7 +98,7 @@ export function subscribeToAuthChanges(onChange: () => void) {
 
 export async function ensureProfile(user: User): Promise<Profile> {
   const fallbackName = resolveDisplayName(user);
-  const fallbackEmail = user.email ?? null;
+  const fallbackEmail = normalizeProfileEmail(user.email);
   const fallbackPhone = user.phone ?? null;
   const fallbackInitials = initials(fallbackName);
   const supabase = getSupabaseClient();
@@ -159,6 +176,7 @@ export async function updateProfile(
     displayName: string;
     handle: string;
     bio: string | null;
+    avatarUrl?: string | null;
     websiteUrl?: string | null;
     interests?: string[];
   },
@@ -182,6 +200,7 @@ export async function updateProfile(
     .update({
       display_name: nextDisplayName,
       handle: nextHandle,
+      ...(changes.avatarUrl !== undefined ? { avatar_url: changes.avatarUrl } : {}),
       ...(nextWebsiteUrl !== undefined ? { website_url: nextWebsiteUrl } : {}),
       bio: normalizeBio(changes.bio),
       ...(changes.interests ? { interests: changes.interests } : {}),
@@ -204,24 +223,76 @@ export async function updateProfile(
   return mapProfileRow(data, "plus1 user");
 }
 
+export async function uploadProfilePhoto(userId: string, file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Choose an image file for your profile photo.");
+  }
+
+  const maxBytes = 5 * 1024 * 1024;
+
+  if (file.size > maxBytes) {
+    throw new Error("Profile photo must be 5 MB or smaller.");
+  }
+
+  const supabase = getSupabaseClient();
+  const extension = getImageExtension(file);
+  const path = `${userId}/avatar-${Date.now()}.${extension}`;
+  const { error } = await supabase.storage
+    .from("profile-photos")
+    .upload(path, file, {
+      cacheControl: "3600",
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Could not upload profile photo: ${error.message}`);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("profile-photos").getPublicUrl(path);
+
+  return publicUrl;
+}
+
 export function isLikelyAutoDisplayName(displayName: string) {
   const normalized = displayName.trim().toLowerCase();
   return /^plus1(?:\s+\d{4}| user)(?:-[a-z0-9]{6})?$/.test(normalized);
 }
 
+const E164_PATTERN = /^\+[1-9]\d{1,14}$/;
+
+export function isValidE164PhoneNumber(phone: string) {
+  return E164_PATTERN.test(phone);
+}
+
 export function normalizePhoneNumber(phone: string) {
   const trimmed = phone.trim();
-  const digits = trimmed.replace(/\D+/g, "");
+
+  if (!trimmed) {
+    return "";
+  }
+
+  let digits = trimmed.replace(/\D+/g, "");
+  const hadPlus = trimmed.startsWith("+");
+
+  if (!hadPlus && digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
 
   if (!digits) {
     return "";
   }
-  if (trimmed.startsWith("+")) {
+
+  if (hadPlus) {
     return `+${digits}`;
   }
+
   if (digits.length === 10) {
     return `+1${digits}`;
   }
+
   if (digits.length === 11 && digits.startsWith("1")) {
     return `+${digits}`;
   }
@@ -270,7 +341,7 @@ function validateHandle(handle: string) {
 }
 
 const profileSelect =
-  "id, display_name, handle, email, phone, avatar_initials, website_url, bio, interests, created_at, updated_at";
+  "id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at";
 
 function insertProfile(input: {
   id: string;
@@ -304,6 +375,7 @@ function mapProfileRow(
     email: string | null;
     phone: string | null;
     avatar_initials: string | null;
+    avatar_url: string | null;
     website_url: string | null;
     bio: string | null;
     interests: string[] | null;
@@ -319,6 +391,7 @@ function mapProfileRow(
     email: profile.email,
     phone: profile.phone,
     avatarInitials: profile.avatar_initials ?? initials(displayName),
+    avatarUrl: profile.avatar_url,
     websiteUrl: profile.website_url,
     bio: profile.bio,
     interests: profile.interests ?? [],
@@ -347,6 +420,11 @@ function initials(name: string | null) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+export function normalizeProfileEmail(email: string | null | undefined) {
+  const trimmed = email?.trim() ?? "";
+  return trimmed || null;
 }
 
 function normalizeDisplayName(value: string) {
@@ -384,4 +462,16 @@ function isDuplicateHandleError(error: { code?: string; message?: string } | nul
     error?.code === "23505" &&
     (error.message?.includes("profiles_handle") ?? false)
   );
+}
+
+function getImageExtension(file: File) {
+  if (file.type === "image/png") {
+    return "png";
+  }
+
+  if (file.type === "image/webp") {
+    return "webp";
+  }
+
+  return "jpg";
 }

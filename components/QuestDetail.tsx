@@ -43,6 +43,22 @@ export default function QuestDetail({
       </button>
 
       <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div
+          data-category={quest.category}
+          className="holo-thumb relative mb-5 aspect-[16/10] overflow-hidden rounded-[1.5rem] bg-zinc-100"
+        >
+          {quest.cardImageUrl ? (
+            <img
+              src={quest.cardImageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <div className="holo-thumb-fallback absolute inset-0" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10" />
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
             {quest.category}
@@ -89,9 +105,18 @@ export default function QuestDetail({
                   key={attendee.id}
                   className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700"
                 >
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
-                    {attendee.avatarInitials}
-                  </span>
+                  {attendee.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={attendee.avatarUrl}
+                      alt=""
+                      className="h-5 w-5 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
+                      {attendee.avatarInitials}
+                    </span>
+                  )}
                   <span>{attendee.displayName}</span>
                   {attendee.isHost ? (
                     <span className="text-zinc-500">(host)</span>
@@ -126,12 +151,12 @@ export default function QuestDetail({
             ? "You are going"
             : !isJoinable
               ? quest.status === "closed"
-                ? "Quest is closed"
-                : "Quest has started"
+                ? "Event is closed"
+                : "Event has started"
             : isJoining
               ? "Joining..."
               : isFull
-                ? "Quest is full"
+                ? "Event is full"
                 : "I'm down"}
         </button>
 
@@ -141,7 +166,7 @@ export default function QuestDetail({
             onClick={() => onEdit(quest)}
             className="mt-3 min-h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
           >
-            Edit quest
+            Edit event
           </button>
         ) : null}
 
@@ -152,7 +177,7 @@ export default function QuestDetail({
             disabled={isLeaving}
             className="mt-3 min-h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
           >
-            {isLeaving ? "Leaving..." : "Leave quest"}
+            {isLeaving ? "Leaving..." : "Leave event"}
           </button>
         ) : null}
 
@@ -163,7 +188,7 @@ export default function QuestDetail({
             disabled={isClosing}
             className="mt-3 min-h-11 w-full rounded-2xl bg-red-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-800 disabled:opacity-50"
           >
-            {isClosing ? "Closing..." : "Close quest"}
+            {isClosing ? "Closing..." : "Close event"}
           </button>
         ) : null}
       </section>

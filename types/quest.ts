@@ -2,9 +2,9 @@ export type QuestCategory =
   | "Food"
   | "Study"
   | "Fitness"
-  | "Errand"
   | "Outdoors"
-  | "Social";
+  | "Social"
+  | "Sidequest";
 
 export type QuestStatus = "open" | "closed" | "past";
 
@@ -12,6 +12,7 @@ export type QuestAttendee = {
   id: string;
   displayName: string;
   avatarInitials: string;
+  avatarUrl: string | null;
   isHost: boolean;
 };
 
@@ -25,6 +26,7 @@ export type Quest = {
   startTime: string;
   startTimeRelative: string | null;
   description: string;
+  cardImageUrl: string | null;
   creator: string;
   goingCount: number;
   maxPeople: number;
@@ -41,6 +43,7 @@ export type Profile = {
   email: string | null;
   phone: string | null;
   avatarInitials: string;
+  avatarUrl: string | null;
   websiteUrl: string | null;
   bio: string | null;
   interests: string[];
@@ -66,6 +69,12 @@ export type NewQuestInput = {
   startTime: string;
   description: string;
   maxPeople: number;
+  cardImageUrl?: string | null;
 };
 
 export type UpdateQuestInput = NewQuestInput;
+
+export type QuestCardImageChanges = {
+  cardImageFile?: File | null;
+  removeCardImage?: boolean;
+};

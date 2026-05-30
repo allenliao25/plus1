@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB upload cap
 
 const EXTRACT_PROMPT =
-  "Extract a quest draft from this event flyer image. Read the title, location, date/time, and any details, then map them to the required JSON fields.";
+  "Extract an event draft from this flyer image. Read the title, location, date/time, and any details, then map them to the required JSON fields.";
 
 export async function POST(request: Request) {
   let file: File | null = null;

@@ -1,15 +1,15 @@
 # plus1
 
-Campus hangouts, without the group text.
+Hangouts, without the group text.
 
-plus1 is a mobile-first social app for lightweight campus plans ("quests"). Students can sign in with phone OTP, discover plans, join or host events, and use AI to draft quest details from text or flyers.
+plus1 is a mobile-first social app for lightweight events. Students can sign in with phone OTP, discover plans, join or host events, and use AI to draft event details from text or flyers.
 
 ## Why this project
 
 Most campus coordination happens in fragmented group chats. plus1 tries to reduce that friction with:
 
-- one-tap quest discovery
-- low-pressure joins/leaves
+- one-tap event discovery
+- frictionless joins/leaves
 - clear host ownership and capacity limits
 - AI-assisted draft creation for faster posting
 
@@ -22,15 +22,15 @@ Most campus coordination happens in fragmented group chats. plus1 tries to reduc
 - Automatic profile bootstrap on first sign-in
 - Profile editing (display name, unique @handle, bio)
 
-### Quests
+### Events
 
-- Home feed of open quests
+- Home feed of open events
 - Explore screen with search + category filters
-- Create quest flow with form validation
-- Join / leave quest
-- Host edit / close quest
-- Quest detail with attendees and status badges
-- Shareable quest card with native share sheet / clipboard fallback
+- Create event flow with form validation
+- Join / leave event
+- Host edit / close event
+- Event detail with attendees and status badges
+- Shareable event card with native share sheet / clipboard fallback
 
 ### Activity and realtime
 
@@ -41,8 +41,8 @@ Most campus coordination happens in fragmented group chats. plus1 tries to reduc
 
 ### AI flows
 
-- Text-to-quest drafting: `app/api/ai/quest-draft/route.ts`
-- Flyer-image-to-quest extraction: `app/api/ai/flyer-to-quest/route.ts`
+- Text-to-event drafting: `app/api/ai/quest-draft/route.ts`
+- Flyer-image-to-event extraction: `app/api/ai/flyer-to-quest/route.ts`
 - Server-side validation/clamping of AI JSON output in `lib/aiQuestDraft.ts`
 
 ## Architecture
@@ -62,7 +62,7 @@ flowchart LR
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS 4
 - Supabase (Auth, Postgres, Realtime)
-- OpenAI API (quest drafting)
+- OpenAI API (event drafting)
 - Capacitor iOS shell for native testing
 - Vercel for deployment
 
@@ -161,11 +161,11 @@ npx vercel deploy --prod
 
 1. Open app and sign in via Test OTP (or Twilio SMS).
 2. Confirm first-run profile setup appears for new users.
-3. Create a quest manually.
-4. Create another quest draft via AI text prompt.
-5. Open Explore and filter/search quests.
-6. Join a quest and verify Activity tab updates.
-7. Open quest detail and share the quest card.
+3. Create an event manually.
+4. Create another event draft via AI text prompt.
+5. Open Explore and filter/search events.
+6. Join an event and verify Activity tab updates.
+7. Open event detail and share the event card.
 8. Edit profile bio/interests and verify persistence.
 
 ## Project documentation for submission

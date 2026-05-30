@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import HolographicQuestCard from "@/components/HolographicQuestCard";
 import { buildQuestShareUrl } from "@/lib/questLinks";
 import type { Quest } from "@/types/quest";
 
@@ -24,7 +25,6 @@ function buildShareText(quest: Quest, shareUrl: string | null): string {
 
 export default function QuestShareCard({ quest }: QuestShareCardProps) {
   const [shareState, setShareState] = useState<"idle" | "copied">("idle");
-  const when = quest.startTimeRelative ?? quest.startTime;
   const shareUrl =
     typeof window === "undefined"
       ? null
@@ -53,45 +53,11 @@ export default function QuestShareCard({ quest }: QuestShareCardProps) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-950 p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-            {quest.category}
-          </span>
-          <span className="text-sm font-medium text-white/70">plus1</span>
-        </div>
-
-        <h2 className="mt-6 text-2xl font-bold leading-tight">{quest.title}</h2>
-
-        <dl className="mt-5 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <dt className="w-16 shrink-0 text-white/50">Where</dt>
-            <dd className="font-medium">{quest.location}</dd>
-          </div>
-          {when ? (
-            <div className="flex items-center gap-2">
-              <dt className="w-16 shrink-0 text-white/50">When</dt>
-              <dd className="font-medium">{when}</dd>
-            </div>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <dt className="w-16 shrink-0 text-white/50">Spots</dt>
-            <dd className="font-medium">
-              {quest.goingCount}/{quest.maxPeople} going
-            </dd>
-          </div>
-        </dl>
-
-        {quest.description ? (
-          <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-6 text-white/80">
-            {quest.description}
-          </p>
-        ) : null}
-
-        <p className="mt-6 text-xs font-medium text-white/50">
-          Hosted by {quest.creator} · Tap to join on plus1
-        </p>
-      </div>
+      <HolographicQuestCard
+        quest={quest}
+        variant="share"
+        showActions={false}
+      />
 
       <button
         type="button"

@@ -6,7 +6,7 @@ This document maps plus1's current state to the CS 153 project rubric and record
 
 ### Problem
 
-Students often coordinate low-commitment plans (food, study, walks, errands) through fragmented group chats. That workflow has high friction:
+Students often coordinate casual events (food, study, walks, sidequests) through fragmented group chats. That workflow has high friction:
 
 - no shared browse surface for plans nearby
 - unclear host ownership and participant capacity
@@ -14,7 +14,7 @@ Students often coordinate low-commitment plans (food, study, walks, errands) thr
 
 ### Insight
 
-A mobile-first, low-pressure "quest" model can reduce coordination overhead if it combines:
+A mobile-first event model can reduce coordination overhead if it combines:
 
 - fast phone sign-in
 - simple create/join/leave lifecycle
@@ -30,10 +30,10 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 - Phone OTP auth and persistent sessions
 - Unique @handle setup and profile editing
 - Instagram-style 5-tab app shell (Home, Explore, Create, Activity, Profile)
-- Quest lifecycle (create, join, leave, edit, close)
+- Event lifecycle (create, join, leave, edit, close)
 - Activity feed with unread indicators
-- AI text-to-quest and flyer-to-quest draft routes
-- Shareable quest card flow
+- AI text-to-event and flyer-to-event draft routes
+- Shareable event card flow
 - Capacitor iOS wrapper and native-safe-area UI polish
 
 ### Technical scope evidence
@@ -60,7 +60,7 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 
 - Auth flow tested with Supabase Test OTP pair
 - Sign-in persistence tested across app relaunches
-- Join/leave/edit/close quest paths exercised manually
+- Join/leave/edit/close event paths exercised manually
 - Activity feed write/read flow tested via join/edit/close actions
 - AI draft routes tested for both text and flyer uploads
 
@@ -95,14 +95,14 @@ From real usage/testing sessions:
 Capture one clean screenshot for each of these states (device frame optional):
 
 - Dedicated phone login screen
-- Home feed with multiple open quests
+- Home feed with multiple open events
 - Explore screen with search + category filter active
 - Create screen with AI text draft populated
 - Create screen with flyer upload flow
-- Quest detail + attendee list
+- Event detail + attendee list
 - Activity feed with unread indicator
 - Profile screen with updated bio/interests
-- Profile screen with handle, bio, and quest tabs
+- Profile screen with handle, bio, photo, and event tabs
 
 ## 4) Limitations and failure analysis
 
@@ -117,9 +117,9 @@ Capture one clean screenshot for each of these states (device frame optional):
 | Criterion | Target | Current status |
 |---|---|---|
 | User can authenticate with phone OTP | End-to-end sign-in works | Met (test OTP path) |
-| User can create and join quests | Core lifecycle works | Met |
+| User can create and join events | Core lifecycle works | Met |
 | User sees updates after interactions | Activity feed + unread works | Met |
-| AI can bootstrap quest fields | Text + flyer routes return validated draft JSON | Met (with quality limits) |
+| AI can bootstrap event fields | Text + flyer routes return validated draft JSON | Met (with quality limits) |
 | Project is reproducible by grader | Setup + migration + demo checklist documented | In progress (README/docs updated this pass) |
 | Evidence of iteration and technical depth | Commit history + architecture + validation artifacts | Met, with ongoing polish |
 
@@ -127,7 +127,7 @@ Capture one clean screenshot for each of these states (device frame optional):
 
 - 10DLC-compliant SMS production rollout
 - richer matching/recommendation using profile interests + time/location proximity
-- deep-link based share/open quest flow
+- deep-link based share/open event flow
 - moderation and trust/safety controls
 
 ## 7) Final verification protocol

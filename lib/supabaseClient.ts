@@ -11,6 +11,7 @@ export type Database = {
           email: string | null;
           phone: string | null;
           avatar_initials: string | null;
+          avatar_url: string | null;
           website_url: string | null;
           bio: string | null;
           interests: string[] | null;
@@ -24,6 +25,7 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           avatar_initials?: string | null;
+          avatar_url?: string | null;
           website_url?: string | null;
           bio?: string | null;
           interests?: string[] | null;
@@ -36,6 +38,7 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           avatar_initials?: string | null;
+          avatar_url?: string | null;
           website_url?: string | null;
           bio?: string | null;
           interests?: string[] | null;
@@ -52,6 +55,7 @@ export type Database = {
           location: string | null;
           start_time: string | null;
           description: string | null;
+          card_image_url: string | null;
           max_people: number | null;
           status: string | null;
           created_at: string | null;
@@ -64,6 +68,7 @@ export type Database = {
           location?: string | null;
           start_time?: string | null;
           description?: string | null;
+          card_image_url?: string | null;
           max_people?: number | null;
           status?: string | null;
           created_at?: string | null;
@@ -74,6 +79,7 @@ export type Database = {
           location?: string | null;
           start_time?: string | null;
           description?: string | null;
+          card_image_url?: string | null;
           max_people?: number | null;
           status?: string | null;
         };

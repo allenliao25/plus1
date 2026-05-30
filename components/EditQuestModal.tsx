@@ -1,12 +1,22 @@
-import { FormEvent, useMemo, useState } from "react";
-import type { NewQuestInput, Quest, QuestCategory } from "@/types/quest";
+import { Camera, ImagePlus, X } from "lucide-react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  NewQuestInput,
+  Quest,
+  QuestCardImageChanges,
+  QuestCategory,
+} from "@/types/quest";
 import { questCategories } from "@/data/demoQuests";
+import { validateQuestCardImageFile } from "@/lib/questService";
 
 type EditQuestModalProps = {
   isSubmitting: boolean;
   quest: Quest;
   onCancel: () => void;
-  onSave: (input: NewQuestInput) => Promise<void>;
+  onSave: (
+    input: NewQuestInput,
+    imageChanges?: QuestCardImageChanges,
+  ) => Promise<void>;
 };
 
 function toDatetimeLocal(value: string | null) {
@@ -44,6 +54,13 @@ export default function EditQuestModal({
   );
   const [form, setForm] = useState<NewQuestInput>(defaultForm);
   const [error, setError] = useState("");
+  const [cardImageFile, setCardImageFile] = useState<File | null>(null);
+  const [cardImagePreviewUrl, setCardImagePreviewUrl] = useState<string | null>(
+    quest.cardImageUrl,
+  );
+  const [removeCardImage, setRemoveCardImage] = useState(false);
+  const [cardImageError, setCardImageError] = useState("");
+  const cardImageInputRef = useRef<HTMLInputElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
     key: Value,
@@ -67,13 +84,16 @@ export default function EditQuestModal({
 
     try {
       setError("");
-      await onSave({
-        ...form,
-        title: form.title.trim(),
-        location: form.location.trim(),
-        startTime: form.startTime.trim(),
-        description: form.description.trim() || "No extra details yet. Just show up.",
-      });
+      await onSave(
+        {
+          ...form,
+          title: form.title.trim(),
+          location: form.location.trim(),
+          startTime: form.startTime.trim(),
+          description: form.description.trim() || "No extra details yet. Just show up.",
+        },
+        { cardImageFile, removeCardImage },
+      );
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -83,11 +103,47 @@ export default function EditQuestModal({
     }
   }
 
+  function handleCardImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      validateQuestCardImageFile(file);
+      setCardImageFile(file);
+      setRemoveCardImage(false);
+      setCardImageError("");
+    } catch (caught) {
+      setCardImageError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not use that event image.",
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (!cardImageFile) {
+      setCardImagePreviewUrl(removeCardImage ? null : quest.cardImageUrl);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(cardImageFile);
+    setCardImagePreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [cardImageFile, quest.cardImageUrl, removeCardImage]);
+
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-zinc-950/45 p-4">
       <div className="max-h-[90vh] w-full max-w-[430px] overflow-y-auto rounded-3xl border border-zinc-200 bg-[#fbfaf7] p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold text-zinc-950">Edit quest</h3>
+          <h3 className="text-xl font-semibold text-zinc-950">Edit event</h3>
           <button
             type="button"
             onClick={onCancel}
@@ -115,7 +171,7 @@ export default function EditQuestModal({
 
           <div>
             <p className="text-sm font-semibold text-zinc-700">Category</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               {questCategories.map((category) => {
                 const isSelected = form.category === category;
 
@@ -135,6 +191,64 @@ export default function EditQuestModal({
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-zinc-700">Card photo</p>
+              {cardImagePreviewUrl ? (
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    setCardImageFile(null);
+                    setRemoveCardImage(true);
+                    setCardImageError("");
+                  }}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  <X size={14} strokeWidth={2} aria-hidden="true" />
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => cardImageInputRef.current?.click()}
+              className="mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
+            >
+              {cardImagePreviewUrl ? (
+                <img
+                  src={cardImagePreviewUrl}
+                  alt=""
+                  className="h-44 w-full object-cover"
+                />
+              ) : (
+                <span className="flex min-h-36 flex-col items-center justify-center gap-3 px-4 text-center">
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-zinc-100 text-zinc-700">
+                    <ImagePlus size={20} strokeWidth={1.9} aria-hidden="true" />
+                  </span>
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                    <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
+                    Add photo
+                  </span>
+                </span>
+              )}
+            </button>
+            <input
+              ref={cardImageInputRef}
+              type="file"
+              accept="image/*"
+              disabled={isSubmitting}
+              onChange={handleCardImageChange}
+              className="sr-only"
+            />
+            {cardImageError ? (
+              <p className="mt-2 text-sm font-medium text-red-600">
+                {cardImageError}
+              </p>
+            ) : null}
           </div>
 
           <label className="block">

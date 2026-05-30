@@ -20,7 +20,7 @@ async function readDraft(response: Response): Promise<NewQuestInput> {
   } | null;
 
   if (!response.ok || !payload?.draft) {
-    throw new Error(payload?.error || "The AI could not draft a quest.");
+    throw new Error(payload?.error || "The AI could not draft an event.");
   }
 
   return payload.draft;
@@ -55,7 +55,7 @@ export default function AiQuestDraft({
       setDraft(await readDraft(response));
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : "Could not draft a quest.",
+        caught instanceof Error ? caught.message : "Could not draft an event.",
       );
     } finally {
       setIsLoading(false);
@@ -152,7 +152,7 @@ export default function AiQuestDraft({
               ? "AI unavailable"
               : isLoading
                 ? "Drafting..."
-                : "Draft quest"}
+                : "Draft event"}
           </button>
         </form>
       ) : (

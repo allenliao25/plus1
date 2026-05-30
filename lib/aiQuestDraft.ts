@@ -4,7 +4,7 @@ import type { NewQuestInput, QuestCategory } from "@/types/quest";
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
 
-const SYSTEM_PROMPT = `You turn casual event descriptions into a structured quest draft for a campus meetup app.
+const SYSTEM_PROMPT = `You turn casual event descriptions into a structured event draft for a hangout app.
 Return ONLY a single JSON object (no markdown, no commentary) with exactly these keys:
 - "title": short, catchy event title (string)
 - "category": one of ${questCategories.map((c) => `"${c}"`).join(", ")}

@@ -24,15 +24,15 @@ export default function ActivityScreen({
       <div>
         <h2 className="text-xl font-semibold text-zinc-950">Activity</h2>
         <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Joins, edits, and updates on the quests you care about.
+          Joins, edits, and reminders for events you care about.
         </p>
       </div>
 
       {events.length === 0 ? (
         <EmptyState
           title="Nothing yet"
-          body="When people join or update your quests, you'll see it here."
-          actionLabel="Browse quests"
+          body="When people join or update your events, you'll see it here."
+          actionLabel="Browse events"
           onAction={onBrowse}
         />
       ) : (

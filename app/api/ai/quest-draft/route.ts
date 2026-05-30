@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return Response.json({ draft });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Could not draft a quest.";
+      error instanceof Error ? error.message : "Could not draft an event.";
     return Response.json({ error: message }, { status: 502 });
   }
 }

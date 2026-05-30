@@ -11,7 +11,7 @@ type QuestListProps = {
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
   onEmptyAction?: () => void;
-  compact?: boolean;
+  variant?: "immersive" | "compact";
 };
 
 export default function QuestList({
@@ -23,7 +23,7 @@ export default function QuestList({
   onJoin,
   onOpen,
   onEmptyAction,
-  compact = false,
+  variant = "compact",
 }: QuestListProps) {
   if (quests.length === 0) {
     return (
@@ -37,7 +37,7 @@ export default function QuestList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className={variant === "immersive" ? "space-y-5" : "space-y-3"}>
       {quests.map((quest) => (
         <QuestCard
           key={quest.id}
@@ -45,7 +45,7 @@ export default function QuestList({
           quest={quest}
           onJoin={onJoin}
           onOpen={onOpen}
-          compact={compact}
+          variant={variant}
         />
       ))}
     </div>

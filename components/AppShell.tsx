@@ -11,18 +11,22 @@ import ActivityScreen from "@/components/screens/ActivityScreen";
 import ExploreScreen from "@/components/screens/ExploreScreen";
 import HomeScreen from "@/components/screens/HomeScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
+import { questCategories } from "@/data/demoQuests";
 import {
   completeProfileSetup,
   ensureProfile,
   getAuthenticatedUser,
   isLikelyAutoDisplayName,
   isValidHandle,
+  isValidUsPhoneParts,
   normalizeHandle,
   normalizePhoneNumber,
+  normalizeUsPhoneParts,
   sendPhoneOtp,
   signOutCurrentUser,
   subscribeToAuthChanges,
   updateProfile,
+  uploadProfilePhoto,
   verifyPhoneOtp,
 } from "@/lib/authService";
 import {
@@ -34,6 +38,7 @@ import {
   joinQuest,
   leaveQuest,
   updateQuest,
+  uploadQuestCardImage,
 } from "@/lib/questService";
 import {
   fetchActivityEvents,
@@ -49,6 +54,7 @@ import { getQuestIdFromSearch } from "@/lib/questLinks";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
   ActivityEvent,
+  QuestCardImageChanges,
   NewQuestInput,
   Profile,
   Quest,
@@ -281,8 +287,8 @@ export default function AppShell() {
         const profiles = await fetchProfilesByIds([quest.creator_id]);
         const hostName = profiles[0]?.displayName ?? "Someone nearby";
         await notifyLocalEvent(
-          "New quest nearby",
-          `${hostName} posted: ${quest.title ?? "Untitled quest"}`,
+          "New event nearby",
+          `${hostName} posted: ${quest.title ?? "Untitled event"}`,
         );
       },
     );
@@ -315,7 +321,7 @@ export default function AppShell() {
         const profiles = await fetchProfilesByIds([join.user_id]);
         const joinerName = profiles[0]?.displayName ?? "Someone";
         await notifyLocalEvent(
-          "Someone joined your quest",
+          "Someone joined your event",
           `${joinerName} joined ${myQuest.title}`,
         );
       },
@@ -370,7 +376,7 @@ export default function AppShell() {
 
       if (!linkedQuest) {
         setOpenedQuestLinkId(questId);
-        setActionError("That shared quest is not available in your feed.");
+        setActionError("That shared event is not available in your feed.");
         return;
       }
 
@@ -463,6 +469,7 @@ export default function AppShell() {
   async function handleSaveProfile(changes: {
     displayName: string;
     handle: string;
+    avatarFile?: File | null;
     websiteUrl: string | null;
     bio: string | null;
     interests: string[];
@@ -474,7 +481,13 @@ export default function AppShell() {
     try {
       setIsSavingProfile(true);
       setProfileError("");
-      const updated = await updateProfile(currentProfile.id, changes);
+      const avatarUrl = changes.avatarFile
+        ? await uploadProfilePhoto(currentProfile.id, changes.avatarFile)
+        : undefined;
+      const updated = await updateProfile(currentProfile.id, {
+        ...changes,
+        avatarUrl,
+      });
       setCurrentProfile(updated);
     } catch (saveError) {
       const message = readErrorMessage(saveError);
@@ -488,6 +501,7 @@ export default function AppShell() {
   async function handleCompleteProfile(changes: {
     displayName: string;
     handle: string;
+    interests: string[];
   }) {
     if (!currentProfile) {
       return;
@@ -508,7 +522,7 @@ export default function AppShell() {
 
   async function handleJoinQuest(questId: string) {
     if (!currentProfile) {
-      setActionError("Sign in before joining a quest.");
+      setActionError("Sign in before joining an event.");
       return;
     }
 
@@ -527,7 +541,7 @@ export default function AppShell() {
 
   async function handleLeaveQuest(questId: string) {
     if (!currentProfile) {
-      setActionError("Sign in before leaving a quest.");
+      setActionError("Sign in before leaving an event.");
       return;
     }
 
@@ -546,7 +560,7 @@ export default function AppShell() {
 
   async function handleCloseQuest(questId: string) {
     if (!currentProfile) {
-      setActionError("Sign in before closing a quest.");
+      setActionError("Sign in before closing an event.");
       return;
     }
 
@@ -567,15 +581,24 @@ export default function AppShell() {
     }
   }
 
-  async function handleCreateQuest(input: NewQuestInput) {
+  async function handleCreateQuest(
+    input: NewQuestInput,
+    cardImageFile?: File | null,
+  ) {
     if (!currentProfile) {
-      throw new Error("Sign in before creating a quest.");
+      throw new Error("Sign in before creating an event.");
     }
 
     try {
       setIsCreating(true);
       setActionError("");
-      const newQuest = await createQuest(input, currentProfile.id);
+      const cardImageUrl = cardImageFile
+        ? await uploadQuestCardImage(currentProfile.id, cardImageFile)
+        : null;
+      const newQuest = await createQuest(
+        { ...input, cardImageUrl },
+        currentProfile.id,
+      );
       await refreshData(currentProfile.id);
       setCreateInitialValues(null);
       setCreateFormKey((key) => key + 1);
@@ -586,16 +609,34 @@ export default function AppShell() {
     }
   }
 
-  async function handleEditQuest(input: NewQuestInput) {
+  async function handleEditQuest(
+    input: NewQuestInput,
+    imageChanges?: QuestCardImageChanges,
+  ) {
     if (!currentProfile || !editingQuest) {
-      throw new Error("Choose a quest to edit.");
+      throw new Error("Choose an event to edit.");
     }
 
     try {
       setIsEditing(true);
       setActionError("");
       const quest = editingQuest;
-      await updateQuest(quest.id, input, currentProfile.id);
+      let cardImageUrl = imageChanges?.removeCardImage
+        ? null
+        : quest.cardImageUrl;
+
+      if (imageChanges?.cardImageFile) {
+        cardImageUrl = await uploadQuestCardImage(
+          currentProfile.id,
+          imageChanges.cardImageFile,
+        );
+      }
+
+      await updateQuest(
+        quest.id,
+        { ...input, cardImageUrl },
+        currentProfile.id,
+      );
       await recordQuestUpdateActivity(quest, currentProfile, "edit");
       await refreshData(currentProfile.id);
       setEditingQuestId(null);
@@ -698,6 +739,7 @@ export default function AppShell() {
       <ProfileSetupScreen
         initialDisplayName={currentProfile.displayName}
         initialHandle={currentProfile.handle}
+        initialInterests={currentProfile.interests}
         isSubmitting={isCompletingProfileSetup}
         error={profileSetupError}
         onComplete={handleCompleteProfile}
@@ -733,7 +775,7 @@ export default function AppShell() {
               onLeave={handleLeaveQuest}
             />
           ) : showLoading ? (
-            <LoadingState label="Loading quests..." />
+            <LoadingState label="Loading events..." />
           ) : activeTab === "home" ? (
             <HomeScreen
               quests={feedQuests}
@@ -754,7 +796,7 @@ export default function AppShell() {
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-semibold text-zinc-950">
-                  New quest
+                  New event
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">
                   Start with the plan. People can decide if they are in.
@@ -833,16 +875,18 @@ function AuthScreen({
   onSendCode: (phone: string) => Promise<boolean>;
   onVerifyCode: (phone: string, token: string) => Promise<boolean>;
 }) {
-  const [phone, setPhone] = useState("");
+  const [areaCode, setAreaCode] = useState("");
+  const [localNumber, setLocalNumber] = useState("");
   const [pendingPhone, setPendingPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const isVerifying = Boolean(pendingPhone);
+  const phonePartsAreValid = isValidUsPhoneParts(areaCode, localNumber);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!isVerifying) {
-      const normalizedPhone = normalizePhoneNumber(phone);
+      const normalizedPhone = normalizeUsPhoneParts(areaCode, localNumber);
       const didSendCode = await onSendCode(normalizedPhone);
 
       if (didSendCode) {
@@ -863,6 +907,8 @@ function AuthScreen({
   function handleUseDifferentPhone() {
     setPendingPhone("");
     setOtpCode("");
+    setAreaCode("");
+    setLocalNumber("");
   }
 
   return (
@@ -874,21 +920,51 @@ function AuthScreen({
               plus1
             </h1>
             <p className="mt-3 text-sm text-zinc-500">
-              Campus hangouts, without the group text.
+              Hangouts, without the group text.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-10 space-y-3">
             {!isVerifying ? (
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="Phone number"
-                autoComplete="tel"
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
-              />
+              <>
+                <div className="flex gap-3">
+                  <input
+                    type="tel"
+                    required
+                    value={areaCode}
+                    onChange={(event) =>
+                      setAreaCode(
+                        event.target.value.replace(/\D+/g, "").slice(0, 3),
+                      )
+                    }
+                    placeholder="510"
+                    autoComplete="tel-area-code"
+                    inputMode="numeric"
+                    aria-label="Area code"
+                    className="w-24 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-center text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                  />
+                  <input
+                    type="tel"
+                    required
+                    value={localNumber}
+                    onChange={(event) =>
+                      setLocalNumber(
+                        event.target.value.replace(/\D+/g, "").slice(0, 7),
+                      )
+                    }
+                    placeholder="4961239"
+                    autoComplete="tel-local"
+                    inputMode="numeric"
+                    aria-label="Phone number"
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                  />
+                </div>
+                <p className="text-center text-xs leading-5 text-zinc-400">
+                  US numbers: 3-digit area code, then 7-digit number. Demo:{" "}
+                  <span className="font-medium text-zinc-500">800</span> +{" "}
+                  <span className="font-medium text-zinc-500">5550123</span>.
+                </p>
+              </>
             ) : (
               <>
                 <p className="text-center text-sm text-zinc-500">
@@ -925,7 +1001,7 @@ function AuthScreen({
               type="submit"
               disabled={
                 isSubmitting ||
-                (!isVerifying && !phone.trim()) ||
+                (!isVerifying && !phonePartsAreValid) ||
                 (isVerifying && !otpCode.trim())
               }
               className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
@@ -965,23 +1041,27 @@ function AuthScreen({
 function ProfileSetupScreen({
   initialDisplayName,
   initialHandle,
+  initialInterests,
   isSubmitting,
   error,
   onComplete,
 }: {
   initialDisplayName: string;
   initialHandle: string;
+  initialInterests: string[];
   isSubmitting: boolean;
   error: string;
   onComplete: (changes: {
     displayName: string;
     handle: string;
+    interests: string[];
   }) => Promise<void> | void;
 }) {
   const [displayName, setDisplayName] = useState(() =>
     isLikelyAutoDisplayName(initialDisplayName) ? "" : initialDisplayName,
   );
   const [handle, setHandle] = useState(initialHandle);
+  const [selectedInterests, setSelectedInterests] = useState(initialInterests);
 
   const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
   const normalizedHandle = normalizeHandle(handle);
@@ -999,7 +1079,16 @@ function ProfileSetupScreen({
     await onComplete({
       displayName: normalizedDisplayName,
       handle: normalizedHandle,
+      interests: selectedInterests,
     });
+  }
+
+  function toggleInterest(interest: string) {
+    setSelectedInterests((current) =>
+      current.includes(interest)
+        ? current.filter((item) => item !== interest)
+        : [...current, interest],
+    );
   }
 
   return (
@@ -1066,6 +1155,34 @@ function ProfileSetupScreen({
               3-30 characters. Letters, numbers, periods, and underscores.
             </span>
           </label>
+
+          <div>
+            <p className="text-sm font-semibold text-zinc-700">Interests</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {questCategories.map((interest) => {
+                const isSelected = selectedInterests.includes(interest);
+
+                return (
+                  <button
+                    key={interest}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => toggleInterest(interest)}
+                    className={`min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                      isSelected
+                        ? "border-zinc-950 bg-zinc-950 text-white"
+                        : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:bg-white"
+                    }`}
+                  >
+                    {interest}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="mt-1 block text-xs font-medium text-zinc-400">
+              Choose a few so plus1 can float matching events first.
+            </span>
+          </div>
 
           {error ? (
             <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">

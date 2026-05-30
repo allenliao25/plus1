@@ -10,6 +10,7 @@ create table if not exists profiles (
   email text unique,
   phone text unique,
   avatar_initials text,
+  avatar_url text,
   website_url text,
   bio text,
   interests text[] not null default '{}',
@@ -25,6 +26,7 @@ create table if not exists quests (
   location text not null,
   start_time timestamp not null,
   description text,
+  card_image_url text,
   max_people int not null default 4,
   status text not null default 'open',
   created_at timestamp default now()
@@ -86,11 +88,93 @@ create unique index if not exists push_tokens_user_id_token_unique
 create index if not exists activity_events_user_id_created_at_idx
   on activity_events (user_id, created_at desc);
 
+insert into storage.buckets (id, name, public)
+values ('profile-photos', 'profile-photos', true)
+on conflict (id) do update
+set public = excluded.public;
+
+insert into storage.buckets (id, name, public)
+values ('quest-card-images', 'quest-card-images', true)
+on conflict (id) do update
+set public = excluded.public;
+
 alter table profiles enable row level security;
 alter table quests enable row level security;
 alter table quest_joins enable row level security;
 alter table push_tokens enable row level security;
 alter table activity_events enable row level security;
+
+drop policy if exists "profile photos are public" on storage.objects;
+create policy "profile photos are public"
+  on storage.objects for select
+  using (bucket_id = 'profile-photos');
+
+drop policy if exists "users upload own profile photos" on storage.objects;
+create policy "users upload own profile photos"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "users update own profile photos" on storage.objects;
+create policy "users update own profile photos"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "users delete own profile photos" on storage.objects;
+create policy "users delete own profile photos"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'profile-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "quest card images are public" on storage.objects;
+create policy "quest card images are public"
+  on storage.objects for select
+  using (bucket_id = 'quest-card-images');
+
+drop policy if exists "users upload own quest card images" on storage.objects;
+create policy "users upload own quest card images"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'quest-card-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "users update own quest card images" on storage.objects;
+create policy "users update own quest card images"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'quest-card-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'quest-card-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "users delete own quest card images" on storage.objects;
+create policy "users delete own quest card images"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'quest-card-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 drop policy if exists "demo read profiles" on profiles;
 create policy "demo read profiles"

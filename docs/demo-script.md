@@ -7,13 +7,13 @@ Use this script for the CS 153 final video. It follows the course prompt structu
 Talking points:
 
 - "Campus plans usually happen in scattered group chats and DMs."
-- "I built plus1 to make low-pressure plans easy to discover and join."
-- "The core idea is a lightweight quest feed where students can post and join quickly."
+- "I built plus1 to make plans easy to discover and join."
+- "The core idea is a lightweight event feed where students can post and join quickly."
 
 On-screen:
 
 - plus1 auth screen and app logo
-- quick glance at Home feed with multiple quests
+- quick glance at Home feed with multiple events
 
 ## 0:20 - 1:20: How the product works (live walkthrough)
 
@@ -24,13 +24,13 @@ On-screen:
 
 ### Step 2: Browse and join
 
-- Home tab: open quests
+- Home tab: open events
 - Explore tab: category + search filtering
-- Open a quest, join it, and show attendee list
+- Open an event, join it, and show attendee list
 
 ### Step 3: Create
 
-- Create tab: fill in quest form manually
+- Create tab: fill in event form manually
 - Show AI assist from text prompt
 - Show AI flyer extraction path (upload flyer image)
 - Apply AI draft into form and post
@@ -38,7 +38,7 @@ On-screen:
 ### Step 4: Track updates and profile
 
 - Activity tab: show join/edit/close event feed and unread behavior
-- Profile tab: bio/interests updates, hosted/joined stats, and grouped quests
+- Profile tab: photo, bio/interests updates, hosted/joined stats, and grouped events
 
 ## 1:20 - 1:55: Technical architecture (concise)
 

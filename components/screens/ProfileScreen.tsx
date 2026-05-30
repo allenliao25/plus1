@@ -1,4 +1,4 @@
-import { Edit3, Link2, LogOut, Share2 } from "lucide-react";
+import { Copy, Edit3, Link2, LogOut } from "lucide-react";
 import { useMemo, useState } from "react";
 import ProfileEditSheet, {
   type ProfileIdentityChanges,
@@ -44,21 +44,23 @@ export default function ProfileScreen({
 
   const activeQuests = sections[activeTab];
 
-  async function handleShareProfile() {
+  async function handleCopyProfile() {
     const text = `${profile.displayName} (@${profile.handle}) on plus1`;
     setShareMessage("");
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title: profile.displayName, text });
-        setShareMessage("Profile shared.");
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setShareMessage("Profile copied.");
         return;
       }
 
-      await navigator.clipboard.writeText(text);
-      setShareMessage("Profile copied.");
+      if (navigator.share) {
+        await navigator.share({ title: profile.displayName, text });
+        setShareMessage("Profile shared.");
+      }
     } catch {
-      setShareMessage("Could not share profile.");
+      setShareMessage("Could not copy profile.");
     }
   }
 
@@ -79,10 +81,8 @@ export default function ProfileScreen({
           </button>
         </div>
 
-        <div className="grid grid-cols-[5.75rem_1fr] items-center gap-5">
-          <span className="grid h-24 w-24 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white shadow-sm">
-            {profile.avatarInitials}
-          </span>
+        <div className="grid grid-cols-[6.75rem_1fr] items-center gap-5">
+          <ProfileAvatar profile={profile} />
 
           <div className="grid grid-cols-3 gap-2 text-center">
             <Stat label="hosted" value={sections.hosted.length} />
@@ -118,6 +118,18 @@ export default function ProfileScreen({
               <span className="truncate">{formatWebsite(profile.websiteUrl)}</span>
             </a>
           ) : null}
+          {profile.interests.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {profile.interests.map((interest) => (
+                <span
+                  key={interest}
+                  className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600"
+                >
+                  {interest}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -131,11 +143,11 @@ export default function ProfileScreen({
           </button>
           <button
             type="button"
-            onClick={handleShareProfile}
+            onClick={handleCopyProfile}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
           >
-            <Share2 size={16} strokeWidth={1.9} aria-hidden="true" />
-            Share profile
+            <Copy size={16} strokeWidth={1.9} aria-hidden="true" />
+            Copy profile
           </button>
         </div>
 
@@ -174,7 +186,7 @@ export default function ProfileScreen({
         ) : (
           <div className="py-14 text-center">
             <p className="text-sm font-semibold text-zinc-700">
-              No {activeTab} quests yet.
+              No {activeTab} events yet.
             </p>
             <p className="mt-1 text-sm text-zinc-400">
               Your plus1 moments will show up here.
@@ -197,6 +209,25 @@ export default function ProfileScreen({
         />
       ) : null}
     </div>
+  );
+}
+
+function ProfileAvatar({ profile }: { profile: Profile }) {
+  if (profile.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={profile.avatarUrl}
+        alt=""
+        className="h-28 w-28 rounded-full object-cover shadow-sm"
+      />
+    );
+  }
+
+  return (
+    <span className="grid h-28 w-28 place-items-center rounded-full bg-zinc-950 text-3xl font-semibold text-white shadow-sm">
+      {profile.avatarInitials}
+    </span>
   );
 }
 
@@ -254,16 +285,28 @@ function QuestTile({
     <button
       type="button"
       onClick={() => onOpen(quest.id)}
-      className="group relative aspect-square overflow-hidden bg-zinc-100 text-left transition active:scale-[0.98]"
+      data-category={quest.category}
+      className="holo-thumb group relative aspect-square overflow-hidden bg-zinc-100 text-left transition active:scale-[0.98]"
       aria-label={`Open ${quest.title}`}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.95),transparent_28%),linear-gradient(135deg,#18181b,#71717a)]" />
+      {quest.cardImageUrl ? (
+        <img
+          src={quest.cardImageUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="holo-thumb-fallback absolute inset-0" />
+      )}
+      <span className="absolute left-1.5 top-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[0.58rem] font-bold uppercase text-zinc-700">
+        {quest.category}
+      </span>
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-2">
         <p className="line-clamp-2 text-xs font-semibold leading-4 text-white">
           {quest.title}
         </p>
         <p className="mt-1 truncate text-[0.65rem] font-medium text-white/70">
-          {quest.category} / {quest.goingCount}/{quest.maxPeople}
+          {quest.startTimeRelative ?? quest.startTime} / {quest.goingCount}/{quest.maxPeople}
         </p>
       </div>
       {quest.status !== "open" ? (

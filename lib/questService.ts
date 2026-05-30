@@ -13,14 +13,15 @@ type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
 type QuestJoinRow = Database["public"]["Tables"]["quest_joins"]["Row"];
 
 const BOOT_TIMEOUT_MS = 10_000;
+export const QUEST_CARD_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const demoUserNames = ["Allen", "Maya", "Chris"];
 const validCategories: QuestCategory[] = [
   "Food",
   "Study",
   "Fitness",
-  "Errand",
   "Outdoors",
   "Social",
+  "Sidequest",
 ];
 
 export async function fetchDemoProfiles() {
@@ -35,7 +36,7 @@ async function loadDemoProfiles() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, website_url, bio, interests, created_at, updated_at")
+    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at")
     .in("display_name", demoUserNames);
 
   if (error) {
@@ -69,7 +70,7 @@ export async function fetchFeedQuests(currentUserId: string) {
     .order("start_time", { ascending: true });
 
   if (error) {
-    throw new Error(`Could not load quests: ${error.message}`);
+    throw new Error(`Could not load events: ${error.message}`);
   }
 
   return hydrateQuests(data ?? [], currentUserId);
@@ -89,7 +90,7 @@ export async function fetchMyQuests(currentUserId: string) {
     ]);
 
   if (createdError) {
-    throw new Error(`Could not load created quests: ${createdError.message}`);
+    throw new Error(`Could not load created events: ${createdError.message}`);
   }
 
   let joinedQuests: QuestRow[] = [];
@@ -102,7 +103,7 @@ export async function fetchMyQuests(currentUserId: string) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      throw new Error(`Could not load joined quests: ${error.message}`);
+      throw new Error(`Could not load joined events: ${error.message}`);
     }
 
     joinedQuests = data ?? [];
@@ -134,6 +135,7 @@ export async function createQuest(
       location: input.location,
       start_time: startTime,
       description: input.description,
+      card_image_url: input.cardImageUrl ?? null,
       max_people: maxPeople,
       status: "open",
     })
@@ -141,7 +143,7 @@ export async function createQuest(
     .single();
 
   if (error) {
-    throw new Error(`Could not create quest: ${error.message}`);
+    throw new Error(`Could not create event: ${error.message}`);
   }
 
   const [quest] = await hydrateQuests([data], currentUserId);
@@ -165,6 +167,7 @@ export async function updateQuest(
       location: input.location,
       start_time: startTime,
       description: input.description,
+      card_image_url: input.cardImageUrl ?? null,
       max_people: maxPeople,
     })
     .eq("id", questId)
@@ -175,7 +178,7 @@ export async function updateQuest(
 
   if (error || !data) {
     throw new Error(
-      `Could not update quest: ${error?.message ?? "Quest not found."}`,
+      `Could not update event: ${error?.message ?? "Event not found."}`,
     );
   }
 
@@ -198,16 +201,16 @@ export async function joinQuest(questId: string, currentUserId: string) {
 
   if (questError || !quest) {
     throw new Error(
-      `Could not load quest: ${questError?.message ?? "Quest not found."}`,
+      `Could not load event: ${questError?.message ?? "Event not found."}`,
     );
   }
 
   if (joinsError) {
-    throw new Error(`Could not join quest: ${joinsError.message}`);
+    throw new Error(`Could not join event: ${joinsError.message}`);
   }
 
   if (quest.status !== "open") {
-    throw new Error("This quest is no longer open.");
+    throw new Error("This event is no longer open.");
   }
 
   const joinRows = joins ?? [];
@@ -218,14 +221,14 @@ export async function joinQuest(questId: string, currentUserId: string) {
   }
 
   if (quest.creator_id === currentUserId) {
-    throw new Error("You're already hosting this quest.");
+    throw new Error("You're already hosting this event.");
   }
 
   const goingCount = 1 + joinRows.length;
   const maxPeople = quest.max_people ?? 4;
 
   if (goingCount >= maxPeople) {
-    throw new Error("This quest is full.");
+    throw new Error("This event is full.");
   }
 
   const { error } = await supabase.from("quest_joins").insert({
@@ -235,7 +238,7 @@ export async function joinQuest(questId: string, currentUserId: string) {
 
   // Postgres unique violations mean the user already joined; that is safe here.
   if (error && error.code !== "23505") {
-    throw new Error(`Could not join quest: ${error.message}`);
+    throw new Error(`Could not join event: ${error.message}`);
   }
 }
 
@@ -250,12 +253,12 @@ export async function leaveQuest(questId: string, currentUserId: string) {
 
   if (questError || !quest) {
     throw new Error(
-      `Could not load quest: ${questError?.message ?? "Quest not found."}`,
+      `Could not load event: ${questError?.message ?? "Event not found."}`,
     );
   }
 
   if (quest.creator_id === currentUserId) {
-    throw new Error("Hosts can close a quest, but cannot leave it.");
+    throw new Error("Hosts can close an event, but cannot leave it.");
   }
 
   const { error } = await supabase
@@ -265,7 +268,7 @@ export async function leaveQuest(questId: string, currentUserId: string) {
     .eq("user_id", currentUserId);
 
   if (error) {
-    throw new Error(`Could not leave quest: ${error.message}`);
+    throw new Error(`Could not leave event: ${error.message}`);
   }
 }
 
@@ -283,8 +286,49 @@ export async function closeQuest(questId: string, currentUserId: string) {
 
   if (error || !data) {
     throw new Error(
-      `Could not close quest: ${error?.message ?? "Quest not found."}`,
+      `Could not close event: ${error?.message ?? "Event not found."}`,
     );
+  }
+}
+
+export async function uploadQuestCardImage(userId: string, file: File) {
+  validateQuestCardImageFile(file);
+
+  const supabase = getSupabaseClient();
+  const extension = getQuestCardImageExtension(file.type);
+  const uniqueId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}`;
+  const path = `${userId}/card-${uniqueId}.${extension}`;
+  const { error } = await supabase.storage
+    .from("quest-card-images")
+    .upload(path, file, {
+      cacheControl: "3600",
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Could not upload event image: ${error.message}`);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("quest-card-images").getPublicUrl(path);
+
+  return publicUrl;
+}
+
+export function validateQuestCardImageFile(
+  file: Pick<File, "size" | "type">,
+) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Choose an image file for the event card.");
+  }
+
+  if (file.size > QUEST_CARD_IMAGE_MAX_BYTES) {
+    throw new Error("Event image must be 8 MB or smaller.");
   }
 }
 
@@ -296,7 +340,7 @@ async function fetchJoinedQuestIds(currentUserId: string) {
     .eq("user_id", currentUserId);
 
   if (error) {
-    throw new Error(`Could not load joined quest ids: ${error.message}`);
+    throw new Error(`Could not load joined event ids: ${error.message}`);
   }
 
   return (data ?? [])
@@ -325,7 +369,7 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
     .in("quest_id", questIds);
 
   if (joinsError) {
-    throw new Error(`Could not load quest joins: ${joinsError.message}`);
+    throw new Error(`Could not load event joins: ${joinsError.message}`);
   }
 
   const joinsByQuestId = groupJoinsByQuestId(joins ?? []);
@@ -359,11 +403,11 @@ export async function fetchProfilesByIds(profileIds: string[]) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, website_url, bio, interests, created_at, updated_at")
+    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at")
     .in("id", profileIds);
 
   if (error) {
-    throw new Error(`Could not load quest profiles: ${error.message}`);
+    throw new Error(`Could not load event profiles: ${error.message}`);
   }
 
   return (data ?? []).map(mapProfileRow);
@@ -405,14 +449,15 @@ function mapQuestRow({
 
   return {
     id: quest.id,
-    title: quest.title ?? "Untitled quest",
-    category: normalizeCategory(quest.category),
+    title: quest.title ?? "Untitled event",
+    category: normalizeQuestCategory(quest.category),
     status: normalizeStatus(quest.status, quest.start_time),
     location: quest.location ?? "Campus",
     startTimeISO: quest.start_time,
     startTime,
     startTimeRelative: formatRelativeTime(quest.start_time),
     description: quest.description ?? "No extra details yet.",
+    cardImageUrl: quest.card_image_url,
     creator: profile?.displayName ?? "Someone nearby",
     goingCount: 1 + joins.length,
     maxPeople: quest.max_people ?? 4,
@@ -433,6 +478,7 @@ function buildAttendees(
           id: host.id,
           displayName: host.displayName,
           avatarInitials: host.avatarInitials,
+          avatarUrl: host.avatarUrl,
           isHost: true,
         },
       ]
@@ -446,6 +492,7 @@ function buildAttendees(
       id: profile.id,
       displayName: profile.displayName,
       avatarInitials: profile.avatarInitials,
+      avatarUrl: profile.avatarUrl,
       isHost: false,
     }));
 
@@ -460,15 +507,32 @@ function mapProfileRow(profile: ProfileRow): Profile {
     email: profile.email,
     phone: profile.phone,
     avatarInitials: profile.avatar_initials ?? initials(profile.display_name),
+    avatarUrl: profile.avatar_url,
     websiteUrl: profile.website_url,
     bio: profile.bio,
     interests: profile.interests ?? [],
   };
 }
 
-function normalizeCategory(category: string | null): QuestCategory {
+export function normalizeQuestCategory(category: string | null): QuestCategory {
+  if (category === "Errand") {
+    return "Sidequest";
+  }
+
   const match = validCategories.find((option) => option === category);
   return match ?? "Social";
+}
+
+function getQuestCardImageExtension(type: string) {
+  if (type === "image/png") {
+    return "png";
+  }
+
+  if (type === "image/webp") {
+    return "webp";
+  }
+
+  return "jpg";
 }
 
 function normalizeStatus(status: string | null, startTime: string | null): QuestStatus {
