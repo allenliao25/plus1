@@ -110,7 +110,7 @@ export default function AppShell() {
     const [nextFeedQuests, nextMyQuests, nextActivity] = await Promise.all([
       fetchFeedQuests(userId),
       fetchMyQuests(userId),
-      fetchActivityEvents(userId),
+      fetchActivityEvents(userId).catch(() => [] as ActivityEvent[]),
     ]);
 
     setFeedQuests(nextFeedQuests);
@@ -143,9 +143,6 @@ export default function AppShell() {
       setAuthState("signed_in");
       setAuthError("");
       setAuthMessage("");
-      await registerPushToken(profile.id).catch(() => {
-        // Push token registration can fail silently during development.
-      });
 
       try {
         setIsLoadingQuests(true);
@@ -155,6 +152,10 @@ export default function AppShell() {
       } finally {
         setIsLoadingQuests(false);
       }
+
+      void registerPushToken(profile.id).catch(() => {
+        // Push token registration is best-effort during development.
+      });
     } catch (syncError) {
       setError(readErrorMessage(syncError));
       setAuthState("signed_out");

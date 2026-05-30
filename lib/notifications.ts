@@ -49,19 +49,33 @@ export async function registerPushToken(userId: string) {
     return;
   }
 
-  await PushNotifications.requestPermissions();
+  const permissions = await PushNotifications.requestPermissions();
+
+  if (permissions.receive !== "granted") {
+    return;
+  }
+
   await PushNotifications.register();
 
-  return new Promise<void>((resolve, reject) => {
+  await new Promise<void>((resolve) => {
     let registrationSub: PluginListenerHandle | null = null;
     let errorSub: PluginListenerHandle | null = null;
+    let settled = false;
 
-    const cleanup = async () => {
+    const finish = async () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timeoutId);
       await registrationSub?.remove();
       await errorSub?.remove();
-      registrationSub = null;
-      errorSub = null;
+      resolve();
     };
+
+    const timeoutId = window.setTimeout(() => {
+      void finish();
+    }, 5_000);
 
     void PushNotifications.addListener(
       "registration",
@@ -70,7 +84,7 @@ export async function registerPushToken(userId: string) {
           const platform = Capacitor.getPlatform();
           const supabase = getSupabaseClient();
 
-          const { error } = await supabase.from("push_tokens").upsert(
+          await supabase.from("push_tokens").upsert(
             {
               user_id: userId,
               token: tokenInfo.value,
@@ -79,16 +93,8 @@ export async function registerPushToken(userId: string) {
             },
             { onConflict: "token" },
           );
-
-          if (error) {
-            throw error;
-          }
-
-          await cleanup();
-          resolve();
-        } catch (error) {
-          await cleanup();
-          reject(error);
+        } finally {
+          await finish();
         }
       },
     ).then((handle) => {
@@ -98,8 +104,7 @@ export async function registerPushToken(userId: string) {
     void PushNotifications.addListener(
       "registrationError",
       async () => {
-        await cleanup();
-        reject(new Error("Could not register for push notifications."));
+        await finish();
       },
     ).then((handle) => {
       errorSub = handle;
