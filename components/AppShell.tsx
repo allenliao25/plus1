@@ -536,6 +536,22 @@ export default function AppShell() {
 
   const showLoading = isLoadingQuests && activeTab !== "create";
 
+  if (authState === "loading") {
+    return <SplashScreen />;
+  }
+
+  if (authState === "signed_out") {
+    return (
+      <AuthScreen
+        error={authError}
+        isSubmitting={isSigningIn}
+        message={authMessage}
+        onSendCode={handleSendPhoneCode}
+        onVerifyCode={handleVerifyPhoneCode}
+      />
+    );
+  }
+
   return (
     <main className="flex h-dvh flex-col bg-white text-zinc-950">
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
@@ -549,17 +565,7 @@ export default function AppShell() {
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
           {actionError ? <ActionError message={actionError} /> : null}
 
-          {authState === "loading" ? (
-            <LoadingState label="Checking account..." />
-          ) : authState === "signed_out" ? (
-            <AuthGate
-              error={authError}
-              isSubmitting={isSigningIn}
-              message={authMessage}
-              onSendCode={handleSendPhoneCode}
-              onVerifyCode={handleVerifyPhoneCode}
-            />
-          ) : isBooting ? (
+          {isBooting ? (
             <LoadingState label="Loading your account..." />
           ) : selectedQuest ? (
             <QuestDetail
@@ -648,7 +654,16 @@ export default function AppShell() {
   );
 }
 
-function AuthGate({
+function SplashScreen() {
+  return (
+    <main className="flex h-dvh flex-col items-center justify-center bg-white text-zinc-950">
+      <h1 className="text-[2.75rem] font-semibold tracking-tight">plus1</h1>
+      <div className="mt-6 h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
+    </main>
+  );
+}
+
+function AuthScreen({
   isSubmitting,
   message,
   error,
@@ -694,85 +709,99 @@ function AuthGate({
   }
 
   return (
-    <div className="rounded-3xl border border-zinc-200 bg-white p-6">
-      <p className="text-sm font-medium text-zinc-500">
-        Campus hangouts, without the group text.
-      </p>
-      <h2 className="mt-1 text-xl font-semibold text-zinc-950">Sign in to plus1</h2>
-      <p className="mt-1 text-sm leading-6 text-zinc-500">
-        We&apos;ll text you a sign-in code.
-      </p>
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-        {!isVerifying ? (
-          <label className="block">
-            <span className="text-sm font-semibold text-zinc-700">Phone number</span>
-            <input
-              type="tel"
-              required
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+1 650 555 1234"
-              autoComplete="tel"
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
-            />
-          </label>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-zinc-500">
-              Enter the 6-digit code sent to <span className="font-semibold">{pendingPhone}</span>.
+    <main className="flex h-dvh flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950">
+      <div className="flex flex-1 flex-col justify-center">
+        <div className="mx-auto w-full max-w-sm">
+          <div className="text-center">
+            <h1 className="text-[2.75rem] font-semibold leading-none tracking-tight">
+              plus1
+            </h1>
+            <p className="mt-3 text-sm text-zinc-500">
+              Campus hangouts, without the group text.
             </p>
-            <label className="block">
-              <span className="text-sm font-semibold text-zinc-700">Verification code</span>
-              <input
-                type="text"
-                required
-                value={otpCode}
-                onChange={(event) =>
-                  setOtpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))
-                }
-                placeholder="123456"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base tracking-[0.25em] text-zinc-950 outline-none transition placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-400"
-              />
-            </label>
           </div>
-        )}
-        {error ? (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {message}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={isSubmitting || (!isVerifying && !phone.trim()) || (isVerifying && !otpCode.trim())}
-          className="min-h-11 w-full rounded-2xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-        >
-          {isSubmitting
-            ? isVerifying
-              ? "Verifying..."
-              : "Sending code..."
-            : isVerifying
-              ? "Verify code"
-              : "Text me a code"}
-        </button>
-        {isVerifying ? (
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={handleUseDifferentPhone}
-            className="min-h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Use a different phone number
-          </button>
-        ) : null}
-      </form>
-    </div>
+
+          <form onSubmit={handleSubmit} className="mt-10 space-y-3">
+            {!isVerifying ? (
+              <input
+                type="tel"
+                required
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="Phone number"
+                autoComplete="tel"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+              />
+            ) : (
+              <>
+                <p className="text-center text-sm text-zinc-500">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-semibold text-zinc-700">{pendingPhone}</span>.
+                </p>
+                <input
+                  type="text"
+                  required
+                  value={otpCode}
+                  onChange={(event) =>
+                    setOtpCode(event.target.value.replace(/\D+/g, "").slice(0, 6))
+                  }
+                  placeholder="Verification code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-center text-lg tracking-[0.4em] text-zinc-950 outline-none transition placeholder:text-base placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                />
+              </>
+            )}
+
+            {error ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {error}
+              </p>
+            ) : null}
+            {message ? (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                {message}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                (!isVerifying && !phone.trim()) ||
+                (isVerifying && !otpCode.trim())
+              }
+              className="min-h-12 w-full rounded-xl bg-zinc-950 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            >
+              {isSubmitting
+                ? isVerifying
+                  ? "Verifying..."
+                  : "Sending code..."
+                : isVerifying
+                  ? "Verify code"
+                  : "Text me a code"}
+            </button>
+
+            {isVerifying ? (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleUseDifferentPhone}
+                className="min-h-11 w-full text-center text-sm font-semibold text-zinc-500 transition hover:text-zinc-800 disabled:opacity-50"
+              >
+                Use a different number
+              </button>
+            ) : null}
+          </form>
+        </div>
+      </div>
+
+      <p className="mx-auto max-w-xs text-center text-xs leading-5 text-zinc-400">
+        {isVerifying
+          ? "Didn't get a code? Double-check your number and try again."
+          : "We'll text you a one-time code. New here? Your account is created automatically."}
+      </p>
+    </main>
   );
 }
 
@@ -820,5 +849,17 @@ function readErrorMessage(error: unknown) {
 }
 
 function normalizePhone(phone: string) {
-  return phone.trim().replace(/\s+/g, "");
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D+/g, "");
+
+  if (trimmed.startsWith("+")) {
+    return `+${digits}`;
+  }
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+  return `+${digits}`;
 }
