@@ -1,4 +1,4 @@
-import { Camera, ImagePlus, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { questCategories } from "@/data/demoQuests";
 import { validateQuestCardImageFile } from "@/lib/questService";
@@ -19,6 +19,8 @@ type CreateQuestFormProps = {
   ) => Promise<void>;
 };
 
+type TimeMode = "asap" | "scheduled";
+
 const defaultForm: NewQuestInput = {
   title: "",
   category: "Food",
@@ -36,6 +38,9 @@ export default function CreateQuestForm({
   onCreateQuest,
 }: CreateQuestFormProps) {
   const [form, setForm] = useState<NewQuestInput>(initialValues ?? defaultForm);
+  const [timeMode, setTimeMode] = useState<TimeMode>(
+    initialValues?.startTime ? "scheduled" : "asap",
+  );
   const [error, setError] = useState("");
   const [cardImageFile, setCardImageFile] = useState<File | null>(null);
   const [cardImagePreviewUrl, setCardImagePreviewUrl] = useState<string | null>(
@@ -55,15 +60,25 @@ export default function CreateQuestForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.title.trim() || !form.location.trim() || !form.startTime.trim()) {
-      setError("Add a title, location, and start time.");
+    if (!form.title.trim() || !form.location.trim()) {
+      setError("Add a title and location.");
       return;
     }
 
-    const startTime = new Date(form.startTime);
-    if (Number.isNaN(startTime.getTime()) || startTime.getTime() <= Date.now()) {
-      setError("Choose a future start time.");
-      return;
+    if (timeMode === "scheduled") {
+      if (!form.startTime.trim()) {
+        setError("Choose a start time or switch to ASAP.");
+        return;
+      }
+
+      const startTime = new Date(form.startTime);
+      if (
+        Number.isNaN(startTime.getTime()) ||
+        startTime.getTime() <= Date.now()
+      ) {
+        setError("Choose a future start time.");
+        return;
+      }
     }
 
     const maxPeople = Number(form.maxPeople);
@@ -78,7 +93,7 @@ export default function CreateQuestForm({
           ...form,
           title: form.title.trim(),
           location: form.location.trim(),
-          startTime: form.startTime.trim(),
+          startTime: timeMode === "asap" ? "" : form.startTime.trim(),
           maxPeople,
           description:
             form.description.trim() || "No extra details yet. Just show up.",
@@ -144,10 +159,6 @@ export default function CreateQuestForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <p className="text-sm leading-6 text-zinc-500">
-        Post a casual plan and let people decide if they are in.
-      </p>
-
       {error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
@@ -155,7 +166,10 @@ export default function CreateQuestForm({
       ) : null}
 
       <label className="block">
-        <span className="text-sm font-bold text-zinc-800">Title</span>
+        <span className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-zinc-800">Title</span>
+          <RequiredBadge />
+        </span>
         <input
           value={form.title}
           onChange={(event) => updateForm("title", event.target.value)}
@@ -187,67 +201,11 @@ export default function CreateQuestForm({
           })}
         </div>
       </div>
-
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-bold text-zinc-800">Card photo</p>
-          {cardImageFile ? (
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => {
-                clearCardImage();
-                setCardImageError("");
-              }}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
-            >
-              <X size={14} strokeWidth={2} aria-hidden="true" />
-              Remove
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          disabled={isSubmitting}
-          onClick={() => cardImageInputRef.current?.click()}
-          className="mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-left transition hover:border-zinc-400 hover:bg-white disabled:opacity-50"
-        >
-          {cardImagePreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cardImagePreviewUrl}
-              alt=""
-              className="h-48 w-full object-cover"
-            />
-          ) : (
-            <span className="flex min-h-40 flex-col items-center justify-center gap-3 px-4 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-zinc-700 shadow-sm">
-                <ImagePlus size={21} strokeWidth={1.9} aria-hidden="true" />
-              </span>
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-zinc-700">
-                <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
-                Add photo
-              </span>
-            </span>
-          )}
-        </button>
-        <input
-          ref={cardImageInputRef}
-          type="file"
-          accept="image/*"
-          disabled={isSubmitting}
-          onChange={handleCardImageChange}
-          className="sr-only"
-        />
-        {cardImageError ? (
-          <p className="mt-2 text-sm font-bold text-red-600">
-            {cardImageError}
-          </p>
-        ) : null}
-      </div>
-
       <label className="block">
-        <span className="text-sm font-bold text-zinc-800">Location</span>
+        <span className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-zinc-800">Location</span>
+          <RequiredBadge />
+        </span>
         <input
           value={form.location}
           onChange={(event) => updateForm("location", event.target.value)}
@@ -256,15 +214,40 @@ export default function CreateQuestForm({
         />
       </label>
 
-      <label className="block">
-        <span className="text-sm font-bold text-zinc-800">Start time</span>
-        <input
-          type="datetime-local"
-          value={form.startTime}
-          onChange={(event) => updateForm("startTime", event.target.value)}
-          className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
-        />
-      </label>
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-bold text-zinc-800">Time</p>
+          <RequiredBadge />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-full bg-zinc-100 p-1">
+          {(["asap", "scheduled"] as TimeMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setTimeMode(mode)}
+              className={`min-h-10 rounded-full px-3 py-2 text-sm font-bold transition ${
+                timeMode === mode
+                  ? "bg-zinc-950 text-white shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              {mode === "asap" ? "ASAP" : "Pick time"}
+            </button>
+          ))}
+        </div>
+        {timeMode === "scheduled" ? (
+          <input
+            type="datetime-local"
+            value={form.startTime}
+            onChange={(event) => updateForm("startTime", event.target.value)}
+            className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+          />
+        ) : (
+          <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-600">
+            Shows as ASAP and stays open until you close it.
+          </p>
+        )}
+      </div>
 
       <label className="block">
         <span className="text-sm font-bold text-zinc-800">Description</span>
@@ -291,6 +274,76 @@ export default function CreateQuestForm({
         />
       </label>
 
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-bold text-zinc-800">Card photo</p>
+          <span className="text-xs font-bold uppercase tracking-normal text-zinc-400">
+            Optional
+          </span>
+          {cardImageFile ? (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                clearCardImage();
+                setCardImageError("");
+              }}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            >
+              <X size={14} strokeWidth={2} aria-hidden="true" />
+              Remove
+            </button>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => cardImageInputRef.current?.click()}
+          data-category={form.category}
+          className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-left transition hover:border-zinc-400 hover:bg-white disabled:opacity-50"
+        >
+          {cardImagePreviewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cardImagePreviewUrl}
+              alt=""
+              className="h-48 w-full object-cover"
+            />
+          ) : (
+            <span className="relative block h-40">
+              <span className="holo-thumb-fallback absolute inset-0" />
+              <span className="absolute inset-0 bg-black/16" />
+              <span className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border border-white/16 bg-black/34 p-3 text-white shadow-sm backdrop-blur-xl">
+                <span>
+                  <span className="block text-sm font-bold">
+                    Using the {form.category} default
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-white/75">
+                    Upload a photo anytime.
+                  </span>
+                </span>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-zinc-800">
+                  <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
+                </span>
+              </span>
+            </span>
+          )}
+        </button>
+        <input
+          ref={cardImageInputRef}
+          type="file"
+          accept="image/*"
+          disabled={isSubmitting}
+          onChange={handleCardImageChange}
+          className="sr-only"
+        />
+        {cardImageError ? (
+          <p className="mt-2 text-sm font-bold text-red-600">
+            {cardImageError}
+          </p>
+        ) : null}
+      </div>
+
       <button
         type="submit"
         disabled={isSubmitting}
@@ -299,5 +352,13 @@ export default function CreateQuestForm({
         {isSubmitting ? submittingLabel : submitLabel}
       </button>
     </form>
+  );
+}
+
+function RequiredBadge() {
+  return (
+    <span className="text-xs font-bold uppercase tracking-normal text-zinc-400">
+      Required
+    </span>
   );
 }

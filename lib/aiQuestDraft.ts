@@ -10,7 +10,7 @@ Return ONLY a single JSON object (no markdown, no commentary) with exactly these
 - "category": one of ${questCategories.map((c) => `"${c}"`).join(", ")}
 - "location": where it happens (string, "" if unknown)
 - "startTime": local datetime in "YYYY-MM-DDTHH:mm" 24-hour format, or "" if unknown
-- "description": one or two friendly sentences about the plan (string)
+- "description": always "" (do not write a caption or description)
 - "maxPeople": integer between 2 and 12 for total group size
 Pick the closest category from the allowed list. If a value is missing, use a sensible default rather than inventing fake specifics.`;
 
@@ -49,7 +49,7 @@ export function parseQuestDraft(raw: unknown): NewQuestInput {
     category: isQuestCategory(record.category) ? record.category : "Social",
     location: asString(record.location),
     startTime: asString(record.startTime),
-    description: asString(record.description),
+    description: "",
     maxPeople,
   };
 }

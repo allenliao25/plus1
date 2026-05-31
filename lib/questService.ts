@@ -66,7 +66,7 @@ export async function fetchFeedQuests(currentUserId: string) {
     .from("quests")
     .select("*")
     .eq("status", "open")
-    .gte("start_time", now)
+    .or(`start_time.is.null,start_time.gte.${now}`)
     .order("start_time", { ascending: true });
 
   if (error) {
@@ -587,6 +587,10 @@ function formatRelativeTime(value: string | null) {
 }
 
 function parseStartTime(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -596,9 +600,9 @@ function parseStartTime(value: string) {
   return date.toISOString();
 }
 
-function formatQuestTime(value: string | null) {
+export function formatQuestTime(value: string | null) {
   if (!value) {
-    return "Time TBD";
+    return "ASAP";
   }
 
   const date = new Date(value);

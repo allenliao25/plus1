@@ -24,7 +24,7 @@ create table if not exists quests (
   title text not null,
   category text not null,
   location text not null,
-  start_time timestamp not null,
+  start_time timestamp,
   description text,
   card_image_url text,
   max_people int not null default 4,

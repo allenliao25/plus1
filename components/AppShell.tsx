@@ -907,9 +907,6 @@ export default function AppShell() {
                 <h2 className="text-xl font-bold tracking-tight text-zinc-950">
                   New event
                 </h2>
-                <p className="mt-1 text-sm leading-6 text-zinc-500">
-                  Start with the plan. People can decide if they are in.
-                </p>
               </div>
               <AiQuestDraft
                 isAvailable={isAiAvailable}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeQuestCategory } from "@/lib/questService";
+import { formatQuestTime, normalizeQuestCategory } from "@/lib/questService";
 
 test("normalizeQuestCategory maps legacy Errand rows to Sidequest", () => {
   assert.equal(normalizeQuestCategory("Errand"), "Sidequest");
@@ -14,4 +14,8 @@ test("normalizeQuestCategory keeps valid event categories", () => {
 test("normalizeQuestCategory falls back safely for unknown values", () => {
   assert.equal(normalizeQuestCategory("Mystery"), "Social");
   assert.equal(normalizeQuestCategory(null), "Social");
+});
+
+test("formatQuestTime displays missing start time as ASAP", () => {
+  assert.equal(formatQuestTime(null), "ASAP");
 });

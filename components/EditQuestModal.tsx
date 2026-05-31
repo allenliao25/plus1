@@ -19,6 +19,8 @@ type EditQuestModalProps = {
   ) => Promise<void>;
 };
 
+type TimeMode = "asap" | "scheduled";
+
 function toDatetimeLocal(value: string | null) {
   if (!value) {
     return "";
@@ -53,6 +55,9 @@ export default function EditQuestModal({
     [quest],
   );
   const [form, setForm] = useState<NewQuestInput>(defaultForm);
+  const [timeMode, setTimeMode] = useState<TimeMode>(
+    quest.startTimeISO ? "scheduled" : "asap",
+  );
   const [error, setError] = useState("");
   const [cardImageFile, setCardImageFile] = useState<File | null>(null);
   const [cardImagePreviewUrl, setCardImagePreviewUrl] = useState<string | null>(
@@ -73,15 +78,25 @@ export default function EditQuestModal({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.title.trim() || !form.location.trim() || !form.startTime.trim()) {
-      setError("Add a title, location, and start time.");
+    if (!form.title.trim() || !form.location.trim()) {
+      setError("Add a title and location.");
       return;
     }
 
-    const startTime = new Date(form.startTime);
-    if (Number.isNaN(startTime.getTime()) || startTime.getTime() <= Date.now()) {
-      setError("Choose a future start time.");
-      return;
+    if (timeMode === "scheduled") {
+      if (!form.startTime.trim()) {
+        setError("Choose a start time or switch to ASAP.");
+        return;
+      }
+
+      const startTime = new Date(form.startTime);
+      if (
+        Number.isNaN(startTime.getTime()) ||
+        startTime.getTime() <= Date.now()
+      ) {
+        setError("Choose a future start time.");
+        return;
+      }
     }
 
     const maxPeople = Number(form.maxPeople);
@@ -102,7 +117,7 @@ export default function EditQuestModal({
           ...form,
           title: form.title.trim(),
           location: form.location.trim(),
-          startTime: form.startTime.trim(),
+          startTime: timeMode === "asap" ? "" : form.startTime.trim(),
           maxPeople,
           description: form.description.trim() || "No extra details yet. Just show up.",
         },
@@ -285,15 +300,38 @@ export default function EditQuestModal({
             />
           </label>
 
-          <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Start time</span>
-            <input
-              type="datetime-local"
-              value={form.startTime}
-              onChange={(event) => updateForm("startTime", event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
-            />
-          </label>
+          <div>
+            <p className="text-sm font-bold text-zinc-800">Time</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 rounded-full bg-zinc-100 p-1">
+              {(["asap", "scheduled"] as TimeMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setTimeMode(mode)}
+                  disabled={isSubmitting}
+                  className={`min-h-10 rounded-full px-3 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                    timeMode === mode
+                      ? "bg-zinc-950 text-white shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800"
+                  }`}
+                >
+                  {mode === "asap" ? "ASAP" : "Pick time"}
+                </button>
+              ))}
+            </div>
+            {timeMode === "scheduled" ? (
+              <input
+                type="datetime-local"
+                value={form.startTime}
+                onChange={(event) => updateForm("startTime", event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+              />
+            ) : (
+              <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-600">
+                Shows as ASAP and stays open until you close it.
+              </p>
+            )}
+          </div>
 
           <label className="block">
             <span className="text-sm font-bold text-zinc-800">Description</span>
