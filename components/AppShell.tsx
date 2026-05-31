@@ -1625,39 +1625,31 @@ function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact" }) {
   const isImmersive = variant === "immersive";
 
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-zinc-100 shadow-sm">
-      <div
-        className={`flex flex-col justify-between ${
-          isImmersive ? "min-h-[clamp(23rem,72vh,29rem)] p-4 sm:p-5" : "min-h-[18.5rem] p-4"
-        }`}
-      >
-        <div className="flex flex-wrap gap-2">
-          <div className="h-7 w-20 rounded-full bg-white/70" />
-          <div className="h-7 w-16 rounded-full bg-white/70" />
-        </div>
-        <div className="rounded-[1.35rem] border border-white/80 bg-white/75 p-4 shadow-sm">
-          <div className="h-3 w-32 rounded-full bg-zinc-200" />
-          <div className="mt-3 space-y-2">
-            <div className="h-8 w-11/12 rounded-full bg-zinc-200" />
-            {isImmersive ? (
-              <div className="h-8 w-3/5 rounded-full bg-zinc-200" />
-            ) : null}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <div className="h-9 w-28 rounded-full bg-zinc-200" />
-            <div className="h-9 w-24 rounded-full bg-zinc-200" />
-            <div className="h-9 w-24 rounded-full bg-zinc-200" />
-          </div>
-          {isImmersive ? (
-            <div className="mt-4 space-y-2">
-              <div className="h-4 w-full rounded-full bg-zinc-200" />
-              <div className="h-4 w-4/5 rounded-full bg-zinc-200" />
+    <article
+      className={`relative overflow-hidden border border-zinc-200 bg-zinc-100 shadow-sm ${
+        isImmersive ? "aspect-[4/5] rounded-[1.75rem]" : "aspect-[5/4] rounded-[1.35rem]"
+      }`}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#e4e4e7,#fafafa_44%,#d4d4d8)]" />
+      <div className="absolute left-3 top-3 flex gap-1.5">
+        <div className="h-7 w-20 rounded-full bg-white/70" />
+        <div className="h-7 w-16 rounded-full bg-white/60" />
+      </div>
+      <div className="absolute inset-x-3 bottom-3 rounded-[1.15rem] border border-white/80 bg-white/72 p-3 shadow-sm">
+        <div className="flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="space-y-2">
+              <div className="h-7 w-11/12 rounded-full bg-zinc-200" />
+              {isImmersive ? (
+                <div className="h-7 w-3/5 rounded-full bg-zinc-200" />
+              ) : null}
             </div>
-          ) : null}
-          <div className="mt-5 flex items-center gap-3">
-            <div className="h-11 w-24 rounded-full bg-zinc-200" />
-            <div className="h-11 flex-1 rounded-full bg-zinc-200" />
+            <div className="mt-3 flex gap-2">
+              <div className="h-4 w-20 rounded-full bg-zinc-200" />
+              <div className="h-4 w-24 rounded-full bg-zinc-200" />
+            </div>
           </div>
+          <div className="h-10 w-24 rounded-full bg-zinc-200" />
         </div>
       </div>
     </article>

@@ -302,11 +302,11 @@ function QuestTile({
       ) : (
         <div className="holo-thumb-fallback absolute inset-0" />
       )}
-      <div className="absolute inset-0 bg-black/12" />
-      <span className="absolute left-1.5 top-1.5 rounded-full border border-black/10 bg-white/90 px-2 py-0.5 text-[0.58rem] font-bold uppercase text-zinc-700 shadow-sm backdrop-blur-md">
+      <div className="absolute inset-0 bg-black/10" />
+      <span className="absolute left-1.5 top-1.5 rounded-full border border-white/18 bg-black/34 px-2 py-0.5 text-[0.58rem] font-bold uppercase text-white shadow-sm backdrop-blur-md">
         {quest.category}
       </span>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/58 to-transparent p-2">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/88 via-black/48 to-transparent p-2.5">
         <p className="line-clamp-2 text-xs font-bold leading-4 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.76)]">
           {quest.title}
         </p>
