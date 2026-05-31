@@ -66,21 +66,7 @@ export default function ProfileScreen({
 
   return (
     <div className="space-y-5 pb-3">
-      <section className="space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="min-w-0 truncate text-2xl font-bold tracking-tight text-zinc-950">
-            {profile.handle}
-          </h2>
-          <button
-            type="button"
-            onClick={() => onSignOut()}
-            aria-label="Sign out"
-            className="grid h-10 w-10 place-items-center rounded-full border border-zinc-200 text-zinc-600 transition hover:bg-zinc-50"
-          >
-            <LogOut size={18} strokeWidth={1.9} aria-hidden="true" />
-          </button>
-        </div>
-
+      <section className="space-y-4">
         <div className="grid grid-cols-[6.75rem_1fr] items-center gap-5">
           <ProfileAvatar key={profile.avatarUrl ?? profile.avatarInitials} profile={profile} />
 
@@ -92,21 +78,18 @@ export default function ProfileScreen({
         </div>
 
         <div>
-          <p className="text-base font-bold text-zinc-950">
+          <p className="text-[15px] font-bold text-zinc-950">
             {profile.displayName}
           </p>
           {profile.bio ? (
-            <p className="mt-1 whitespace-pre-line text-sm leading-6 text-zinc-700">
+            <p className="mt-1 whitespace-pre-line text-[15px] leading-6 text-zinc-700">
               {profile.bio}
             </p>
           ) : (
-            <p className="mt-1 text-sm leading-6 text-zinc-400">
+            <p className="mt-1 text-[15px] leading-6 text-zinc-400">
               No bio yet.
             </p>
           )}
-          <p className="mt-1 text-sm font-semibold text-zinc-400">
-            @{profile.handle}
-          </p>
           {profile.websiteUrl ? (
             <a
               href={profile.websiteUrl}
@@ -132,11 +115,11 @@ export default function ProfileScreen({
           ) : null}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_1fr_2.75rem] gap-2">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
           >
             <Edit3 size={16} strokeWidth={1.9} aria-hidden="true" />
             Edit profile
@@ -144,10 +127,18 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
           >
             <Copy size={16} strokeWidth={1.9} aria-hidden="true" />
-            Copy profile
+            Share
+          </button>
+          <button
+            type="button"
+            onClick={() => onSignOut()}
+            aria-label="Sign out"
+            className="grid min-h-10 place-items-center rounded-lg bg-zinc-100 text-zinc-950 transition hover:bg-zinc-200"
+          >
+            <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
 
@@ -217,18 +208,20 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
 
   if (profile.avatarUrl && !didImageFail) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={profile.avatarUrl}
-        alt=""
-        onError={() => setDidImageFail(true)}
-        className="h-28 w-28 rounded-full object-cover shadow-sm"
-      />
+      <span className="block aspect-square h-28 w-28 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={profile.avatarUrl}
+          alt=""
+          onError={() => setDidImageFail(true)}
+          className="block h-full w-full object-cover"
+        />
+      </span>
     );
   }
 
   return (
-    <span className="grid h-28 w-28 place-items-center rounded-full bg-zinc-950 text-3xl font-bold text-white shadow-sm">
+    <span className="grid aspect-square h-28 w-28 place-items-center overflow-hidden rounded-full bg-zinc-950 text-3xl font-bold text-white shadow-sm">
       {profile.avatarInitials}
     </span>
   );
@@ -266,7 +259,7 @@ function TabButton({
       type="button"
       aria-pressed={isActive}
       onClick={onClick}
-      className={`min-h-12 border-t-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
+      className={`min-h-12 border-b-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
         isActive
           ? "border-zinc-950 text-zinc-950"
           : "border-transparent text-zinc-400 hover:text-zinc-600"

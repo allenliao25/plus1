@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AtSign, UserRound } from "lucide-react";
+import { AtSign, ChevronLeft, UserRound } from "lucide-react";
 import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
@@ -855,17 +855,31 @@ export default function AppShell() {
     );
   }
 
+  const headerTitle = selectedQuest
+    ? selectedQuest.title
+    : activeTab === "home"
+      ? "plus1"
+      : activeTab === "explore"
+        ? "Explore"
+        : activeTab === "create"
+          ? "New event"
+          : activeTab === "activity"
+            ? "Activity"
+            : currentProfile
+              ? `@${currentProfile.handle}`
+              : "Profile";
+
   return (
     <main
       className="app-viewport flex flex-col bg-white text-zinc-950"
       style={STABLE_VIEWPORT_STYLE}
     >
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
-        <header className="flex items-center border-b border-zinc-200 bg-white/85 px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+14px)] backdrop-blur-xl">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-            plus1
-          </h1>
-        </header>
+        <AppHeader
+          isBrand={activeTab === "home" && !selectedQuest}
+          title={headerTitle}
+          onBack={selectedQuest ? () => setSelectedQuestId(null) : undefined}
+        />
 
         <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 py-5">
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
@@ -879,7 +893,6 @@ export default function AppShell() {
               isJoining={joiningQuestId === selectedQuest.id}
               isLeaving={leavingQuestId === selectedQuest.id}
               quest={selectedQuest}
-              onBack={() => setSelectedQuestId(null)}
               onClose={handleCloseQuest}
               onEdit={(quest) => setEditingQuestId(quest.id)}
               onJoin={handleJoinQuest}
@@ -903,11 +916,6 @@ export default function AppShell() {
             />
           ) : activeTab === "create" ? (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-zinc-950">
-                  New event
-                </h2>
-              </div>
               <AiQuestDraft
                 isAvailable={isAiAvailable}
                 onApplyDraft={handleApplyDraft}
@@ -963,6 +971,38 @@ export default function AppShell() {
 
 const KEYBOARD_HEIGHT_GAP = 120;
 const STABLE_VIEWPORT_STYLE = { height: "var(--plus1-app-height, 100vh)" };
+
+function AppHeader({
+  isBrand,
+  onBack,
+  title,
+}: {
+  isBrand: boolean;
+  onBack?: () => void;
+  title: string;
+}) {
+  return (
+    <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/88 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-950 transition hover:bg-zinc-100"
+        >
+          <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
+        </button>
+      ) : null}
+      <h1
+        className={`min-w-0 truncate font-bold tracking-tight text-zinc-950 ${
+          isBrand ? "text-2xl" : "text-xl"
+        }`}
+      >
+        {title}
+      </h1>
+    </header>
+  );
+}
 
 function useStableKeyboardViewport() {
   useEffect(() => {

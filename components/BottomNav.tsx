@@ -166,29 +166,31 @@ function ProfileNavAvatar({
 
   return (
     <span
-      className={`grid h-8 w-8 place-items-center rounded-full border p-[2px] transition ${
+      className={`grid aspect-square h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border p-[2px] transition ${
         isActive
           ? "border-zinc-950"
           : "border-transparent group-hover:border-zinc-300"
       }`}
     >
-      {avatarUrl && !didImageFail ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatarUrl}
-          alt=""
-          onError={() => setDidImageFail(true)}
-          className="h-full w-full rounded-full object-cover"
-        />
-      ) : (
-        <span
-          className={`grid h-full w-full place-items-center rounded-full text-[0.68rem] font-bold ${
-            isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
-          }`}
-        >
-          {initials}
-        </span>
-      )}
+      <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-zinc-200">
+        {avatarUrl && !didImageFail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            onError={() => setDidImageFail(true)}
+            className="block h-full w-full object-cover"
+          />
+        ) : (
+          <span
+            className={`grid h-full w-full place-items-center text-[0.68rem] font-bold ${
+              isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
+            }`}
+          >
+            {initials}
+          </span>
+        )}
+      </span>
     </span>
   );
 }

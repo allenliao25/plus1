@@ -21,12 +21,9 @@ export default function ActivityScreen({
 }: ActivityScreenProps) {
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-zinc-950">Activity</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Joins, edits, and reminders for events you care about.
-        </p>
-      </div>
+      <p className="text-sm leading-6 text-zinc-500">
+        Joins, edits, and reminders for events you care about.
+      </p>
 
       {events.length === 0 ? (
         <EmptyState

@@ -7,7 +7,6 @@ type QuestDetailProps = {
   isLeaving?: boolean;
   isClosing?: boolean;
   quest: Quest;
-  onBack: () => void;
   onJoin: (questId: string) => void | Promise<void>;
   onLeave: (questId: string) => void | Promise<void>;
   onClose: (questId: string) => void | Promise<void>;
@@ -19,7 +18,6 @@ export default function QuestDetail({
   isLeaving = false,
   isClosing = false,
   quest,
-  onBack,
   onJoin,
   onLeave,
   onClose,
@@ -34,14 +32,6 @@ export default function QuestDetail({
 
   return (
     <div className="space-y-5">
-      <button
-        type="button"
-        onClick={onBack}
-        className="min-h-11 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-bold text-zinc-800 transition hover:bg-zinc-50"
-      >
-        Back
-      </button>
-
       <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
         <div
           data-category={quest.category}

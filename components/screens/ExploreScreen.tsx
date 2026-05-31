@@ -44,12 +44,9 @@ export default function ExploreScreen({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-zinc-950">Explore</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">
-          Search and filter events by category, place, or vibe.
-        </p>
-      </div>
+      <p className="text-sm leading-6 text-zinc-500">
+        Search and filter events by category, place, or vibe.
+      </p>
 
       <input
         type="search"
