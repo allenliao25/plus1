@@ -4,9 +4,25 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   let prompt = "";
+  let nowLocal = "";
+  let timeZone = "";
   try {
-    const body = (await request.json()) as { prompt?: unknown };
+    const body = (await request.json()) as {
+      prompt?: unknown;
+      context?: {
+        nowLocal?: unknown;
+        timeZone?: unknown;
+      };
+    };
     prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    nowLocal =
+      typeof body.context?.nowLocal === "string"
+        ? body.context.nowLocal.trim()
+        : "";
+    timeZone =
+      typeof body.context?.timeZone === "string"
+        ? body.context.timeZone.trim()
+        : "";
   } catch {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
@@ -19,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const draft = await requestQuestDraft(prompt);
+    const draft = await requestQuestDraft(prompt, { nowLocal, timeZone });
     return Response.json({ draft });
   } catch (error) {
     const message =

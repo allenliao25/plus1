@@ -14,6 +14,16 @@ type Mode = "text" | "flyer";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
+function getDraftContext() {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+
+  return {
+    nowLocal: localDate.toISOString().slice(0, 16),
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
+}
+
 async function readDraft(response: Response): Promise<NewQuestInput> {
   const payload = (await response.json().catch(() => null)) as {
     draft?: NewQuestInput;
@@ -51,7 +61,10 @@ export default function AiQuestDraft({
       const response = await fetch("/api/ai/quest-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt.trim() }),
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          context: getDraftContext(),
+        }),
       });
       setDraft(await readDraft(response));
     } catch (caught) {
