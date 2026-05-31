@@ -32,8 +32,15 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
+}
+
+input,
+select,
+textarea {
+  scroll-margin-bottom: 10rem;
 }
 
 .app-viewport {
@@ -44,7 +51,12 @@ textarea {
 
 .app-scroll {
   overscroll-behavior: contain;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.app-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .holo-card,

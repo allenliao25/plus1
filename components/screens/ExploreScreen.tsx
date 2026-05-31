@@ -59,7 +59,7 @@ export default function ExploreScreen({
         className="w-full rounded-full border border-transparent bg-zinc-100 px-5 py-3.5 text-[15px] font-medium text-zinc-950 outline-none transition placeholder:text-zinc-500 focus:border-zinc-300 focus:bg-white"
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {categories.map((option) => {
           const isActive = category === option;
 

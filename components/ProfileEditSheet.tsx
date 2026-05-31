@@ -2,16 +2,15 @@ import {
   AtSign,
   Camera,
   Link2,
-  Save,
   Type,
   UserRound,
-  X,
 } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { questCategories } from "@/data/demoQuests";
 import {
   isValidHandle,
   normalizeHandle,
+  normalizeWebsiteUrl,
 } from "@/lib/authService";
 import type { Profile } from "@/types/quest";
 
@@ -47,6 +46,8 @@ export default function ProfileEditSheet({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(profile.avatarUrl);
   const [avatarError, setAvatarError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [hiddenSaveError, setHiddenSaveError] = useState("");
   const objectUrlRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,21 +55,28 @@ export default function ProfileEditSheet({
   const normalizedHandle = normalizeHandle(handle);
   const normalizedWebsiteUrl = websiteUrl.trim();
   const normalizedBio = bio.trim();
+  const websiteValidation = validateWebsiteInput(normalizedWebsiteUrl);
+  const websiteChanged = websiteValidation.error
+    ? normalizedWebsiteUrl !== (profile.websiteUrl ?? "")
+    : (websiteValidation.value ?? "") !== (profile.websiteUrl ?? "");
   const interestsChanged =
     selectedInterests.length !== profile.interests.length ||
     selectedInterests.some((interest) => !profile.interests.includes(interest));
   const isDirty =
     normalizedDisplayName !== profile.displayName ||
     normalizedHandle !== profile.handle ||
-    normalizedWebsiteUrl !== (profile.websiteUrl ?? "") ||
+    websiteChanged ||
     normalizedBio !== (profile.bio ?? "") ||
     interestsChanged ||
     Boolean(avatarFile);
-  const canSave =
-    normalizedDisplayName.length >= 2 &&
-    isValidHandle(normalizedHandle) &&
-    isDirty &&
-    !isSaving;
+  const canSave = isDirty && !isSaving;
+  const displayedError =
+    submitError || (hiddenSaveError === saveError ? "" : saveError);
+
+  function clearLocalErrors() {
+    setSubmitError("");
+    setHiddenSaveError(saveError);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,17 +85,36 @@ export default function ProfileEditSheet({
       return;
     }
 
-    await onSave({
+    const validationError = getValidationError({
       displayName: normalizedDisplayName,
       handle: normalizedHandle,
-      websiteUrl: normalizedWebsiteUrl || null,
-      bio: normalizedBio || null,
-      interests: selectedInterests,
-      avatarFile,
+      websiteError: websiteValidation.error,
     });
+
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
+    setSubmitError("");
+    setHiddenSaveError("");
+
+    try {
+      await onSave({
+        displayName: normalizedDisplayName,
+        handle: normalizedHandle,
+        websiteUrl: websiteValidation.value,
+        bio: normalizedBio || null,
+        interests: selectedInterests,
+        avatarFile,
+      });
+    } catch (error) {
+      setSubmitError(readErrorMessage(error));
+    }
   }
 
   function toggleInterest(interest: string) {
+    clearLocalErrors();
     setSelectedInterests((current) =>
       current.includes(interest)
         ? current.filter((item) => item !== interest)
@@ -118,6 +145,7 @@ export default function ProfileEditSheet({
     objectUrlRef.current = objectUrl;
     setAvatarPreviewUrl(objectUrl);
     setAvatarError("");
+    clearLocalErrors();
     setAvatarFile(file);
   }
 
@@ -130,20 +158,20 @@ export default function ProfileEditSheet({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-12">
+    <div className="fixed inset-0 z-50 bg-white text-zinc-950">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-[456px] overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-5 py-4">
+        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
           <button
             type="button"
             disabled={isSaving}
             onClick={onCancel}
             aria-label="Cancel profile edits"
-            className="grid h-10 w-10 place-items-center rounded-full text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-50"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-700 transition hover:text-zinc-950 disabled:opacity-50"
           >
-            <X size={19} strokeWidth={1.9} aria-hidden="true" />
+            Cancel
           </button>
           <h3 className="text-base font-bold text-zinc-950">
             Edit profile
@@ -152,13 +180,13 @@ export default function ProfileEditSheet({
             type="submit"
             disabled={!canSave}
             aria-label="Save profile"
-            className="grid h-10 w-10 place-items-center rounded-full bg-zinc-950 text-white transition hover:bg-zinc-800 disabled:bg-zinc-300"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-950 transition hover:text-zinc-700 disabled:text-zinc-300"
           >
-            <Save size={18} strokeWidth={1.9} aria-hidden="true" />
+            {isSaving ? "Saving" : "Save"}
           </button>
         </div>
 
-        <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto px-5 py-5">
+        <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5">
           <div className="flex justify-center">
             <div className="relative h-24 w-24">
               {avatarPreviewUrl ? (
@@ -204,9 +232,12 @@ export default function ProfileEditSheet({
                 required
                 maxLength={32}
                 value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
+                onChange={(event) => {
+                  clearLocalErrors();
+                  setDisplayName(event.target.value);
+                }}
                 placeholder="Your name"
-                className="w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </ProfileField>
 
@@ -216,11 +247,14 @@ export default function ProfileEditSheet({
                 required
                 maxLength={31}
                 value={handle}
-                onChange={(event) => setHandle(event.target.value)}
+                onChange={(event) => {
+                  clearLocalErrors();
+                  setHandle(event.target.value);
+                }}
                 autoCapitalize="none"
                 autoCorrect="off"
                 placeholder="your.handle"
-                className="w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </ProfileField>
 
@@ -229,11 +263,14 @@ export default function ProfileEditSheet({
                 type="text"
                 inputMode="url"
                 value={websiteUrl}
-                onChange={(event) => setWebsiteUrl(event.target.value)}
+                onChange={(event) => {
+                  clearLocalErrors();
+                  setWebsiteUrl(event.target.value);
+                }}
                 autoCapitalize="none"
                 autoCorrect="off"
                 placeholder="https://your-site.com"
-                className="w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </ProfileField>
 
@@ -242,9 +279,12 @@ export default function ProfileEditSheet({
                 value={bio}
                 maxLength={150}
                 rows={4}
-                onChange={(event) => setBio(event.target.value)}
+                onChange={(event) => {
+                  clearLocalErrors();
+                  setBio(event.target.value);
+                }}
                 placeholder="Tell people what you're about."
-                className="w-full resize-none bg-transparent text-base leading-6 text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full resize-none bg-transparent text-base leading-6 text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </ProfileField>
           </div>
@@ -278,16 +318,63 @@ export default function ProfileEditSheet({
               })}
             </div>
           </div>
+        </div>
 
-          {saveError ? (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {saveError}
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white/94 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur-xl">
+          {displayedError ? (
+            <p className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {displayedError}
             </p>
           ) : null}
+          <button
+            type="submit"
+            disabled={!canSave}
+            className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+          >
+            {isSaving ? "Saving profile..." : isDirty ? "Save changes" : "No changes"}
+          </button>
         </div>
       </form>
     </div>
   );
+}
+
+function validateWebsiteInput(value: string) {
+  try {
+    return {
+      error: "",
+      value: normalizeWebsiteUrl(value),
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Enter a valid website link.",
+      value: null,
+    };
+  }
+}
+
+function getValidationError({
+  displayName,
+  handle,
+  websiteError,
+}: {
+  displayName: string;
+  handle: string;
+  websiteError: string;
+}) {
+  if (displayName.length < 2) {
+    return "Name must be at least 2 characters.";
+  }
+
+  if (!isValidHandle(handle)) {
+    return "Handle must be 3-30 characters using letters, numbers, periods, or underscores.";
+  }
+
+  return websiteError;
+}
+
+function readErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Could not save profile.";
 }
 
 function ProfileField({
@@ -300,12 +387,10 @@ function ProfileField({
   label: string;
 }) {
   return (
-    <label className="grid grid-cols-[1.5rem_5rem_1fr] items-start gap-3 px-4 py-3.5">
-      <span className="pt-0.5 text-zinc-400" aria-hidden="true">
-        {icon}
-      </span>
-      <span className="pt-0.5 text-sm font-bold text-zinc-700">{label}</span>
-      {children}
+    <label className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3.5">
+      <span className="pt-0.5 text-zinc-400" aria-hidden="true">{icon}</span>
+      <span className="text-sm font-bold text-zinc-700">{label}</span>
+      <span className="col-start-2 min-w-0">{children}</span>
     </label>
   );
 }

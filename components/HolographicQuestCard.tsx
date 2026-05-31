@@ -38,7 +38,7 @@ export default function HolographicQuestCard({
       <div
         className={`relative flex flex-col justify-between ${
           isImmersive
-            ? "min-h-[29rem] p-5"
+            ? "min-h-[clamp(23rem,72vh,29rem)] p-4 sm:p-5"
             : isShare
               ? "min-h-[25rem] p-5"
               : "min-h-[18.5rem] p-4"
@@ -100,7 +100,7 @@ export default function HolographicQuestCard({
           <h3
             className={`mt-2 font-bold leading-[1.04] tracking-normal text-white [text-shadow:0_3px_18px_rgba(0,0,0,0.76)] ${
               isImmersive
-                ? "text-[2.45rem]"
+                ? "text-[clamp(2rem,9vw,2.45rem)]"
                 : isShare
                   ? "text-[2rem]"
                   : "text-[1.65rem]"

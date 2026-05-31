@@ -154,26 +154,31 @@ export default function EditQuestModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-zinc-950/45 p-4">
-      <div className="max-h-[90vh] w-full max-w-[430px] overflow-y-auto rounded-3xl border border-zinc-200 bg-[#fbfaf7] p-5 shadow-2xl">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-xl font-bold tracking-tight text-zinc-950">Edit event</h3>
+    <div className="fixed inset-0 z-50 bg-white text-zinc-950">
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
+      >
+        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+            disabled={isSubmitting}
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-700 transition hover:text-zinc-950 disabled:opacity-50"
           >
-            Close
+            Cancel
+          </button>
+          <h3 className="text-base font-bold tracking-tight text-zinc-950">Edit event</h3>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-950 transition hover:text-zinc-700 disabled:text-zinc-300"
+          >
+            {isSubmitting ? "Saving" : "Save"}
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-5">
-          {error ? (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {error}
-            </p>
-          ) : null}
-
+        <div className="app-scroll min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
           <label className="block">
             <span className="text-sm font-bold text-zinc-800">Title</span>
             <input
@@ -314,24 +319,33 @@ export default function EditQuestModal({
             />
           </label>
 
+        </div>
+
+        <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white/94 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur-xl">
+          {error ? (
+            <p className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </p>
+          ) : null}
           <div className="flex gap-3">
             <button
               type="button"
               onClick={onCancel}
-              className="min-h-11 flex-1 rounded-full border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+              disabled={isSubmitting}
+              className="min-h-12 flex-1 rounded-full border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="min-h-11 flex-1 rounded-full bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+              className="min-h-12 flex-1 rounded-full bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:bg-zinc-300"
             >
               {isSubmitting ? "Saving..." : "Save changes"}
             </button>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
