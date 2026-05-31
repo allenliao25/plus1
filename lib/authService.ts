@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { Profile } from "@/types/quest";
 
@@ -83,12 +83,14 @@ export async function signOutCurrentUser() {
   }
 }
 
-export function subscribeToAuthChanges(onChange: () => void) {
+export function subscribeToAuthChanges(
+  onChange: (event: AuthChangeEvent) => void,
+) {
   const supabase = getSupabaseClient();
   const {
     data: { subscription },
-  } = supabase.auth.onAuthStateChange(() => {
-    onChange();
+  } = supabase.auth.onAuthStateChange((event) => {
+    onChange(event);
   });
 
   return () => {

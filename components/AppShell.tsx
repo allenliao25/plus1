@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AtSign, UserRound } from "lucide-react";
 import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
@@ -83,6 +90,7 @@ export default function AppShell() {
   const [isAiAvailable, setIsAiAvailable] = useState<boolean | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingQuests, setIsLoadingQuests] = useState(false);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -96,9 +104,14 @@ export default function AppShell() {
   const [closingQuestId, setClosingQuestId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
+  const authSyncIdRef = useRef(0);
+  const loadedProfileIdRef = useRef<string | null>(null);
 
   const currentProfileId = currentProfile?.id ?? "";
-  const isAppLocked = authState !== "signed_in" || isBooting;
+  const isInitialContentLoading =
+    authState === "signed_in" && isLoadingQuests && !hasLoadedInitialData;
+  const isAppLocked =
+    authState !== "signed_in" || isBooting || isInitialContentLoading;
 
   useStableKeyboardViewport();
 
@@ -157,11 +170,19 @@ export default function AppShell() {
   }, []);
 
   const syncAuthAndData = useCallback(async () => {
+    const syncId = authSyncIdRef.current + 1;
+    authSyncIdRef.current = syncId;
+    const isStaleSync = () => authSyncIdRef.current !== syncId;
+
     setIsBooting(true);
     setError("");
 
     try {
       const user = await getAuthenticatedUser();
+
+      if (isStaleSync()) {
+        return;
+      }
 
       if (!user) {
         setAuthState("signed_out");
@@ -176,33 +197,68 @@ export default function AppShell() {
         setOpenedQuestLinkId(null);
         setNeedsProfileSetup(false);
         setProfileSetupError("");
+        setHasLoadedInitialData(false);
+        setIsLoadingQuests(false);
+        loadedProfileIdRef.current = null;
         return;
       }
 
       const profile = await ensureProfile(user);
+
+      if (isStaleSync()) {
+        return;
+      }
+
       const shouldCompleteProfileSetup = isLikelyAutoDisplayName(
         profile.displayName,
       );
+      const isSameLoadedProfile = loadedProfileIdRef.current === profile.id;
+
+      if (!isSameLoadedProfile) {
+        setHasLoadedInitialData(false);
+        setFeedQuests([]);
+        setMyQuests([]);
+        setActivityEvents([]);
+      }
+
       setCurrentProfile(profile);
       setNeedsProfileSetup(shouldCompleteProfileSetup);
       setProfileSetupError("");
+      setIsLoadingQuests(true);
       setAuthState("signed_in");
       setAuthError("");
       setAuthMessage("");
+      setIsBooting(false);
 
       try {
-        setIsLoadingQuests(true);
         await refreshData(profile.id);
+
+        if (isStaleSync()) {
+          return;
+        }
+
+        loadedProfileIdRef.current = profile.id;
+        setHasLoadedInitialData(true);
       } catch (refreshError) {
+        if (isStaleSync()) {
+          return;
+        }
+
         setError(readErrorMessage(refreshError));
       } finally {
-        setIsLoadingQuests(false);
+        if (!isStaleSync()) {
+          setIsLoadingQuests(false);
+        }
       }
 
       void registerPushToken(profile.id).catch(() => {
         // Push token registration is best-effort during development.
       });
     } catch (syncError) {
+      if (isStaleSync()) {
+        return;
+      }
+
       const message = readErrorMessage(syncError);
       setError(message);
       setAuthError(message);
@@ -211,8 +267,13 @@ export default function AppShell() {
       setCurrentProfile(null);
       setNeedsProfileSetup(false);
       setProfileSetupError("");
+      setHasLoadedInitialData(false);
+      setIsLoadingQuests(false);
+      loadedProfileIdRef.current = null;
     } finally {
-      setIsBooting(false);
+      if (!isStaleSync()) {
+        setIsBooting(false);
+      }
     }
   }, [refreshData]);
 
@@ -247,16 +308,17 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void syncAuthAndData();
-    }, 0);
-
-    const unsubscribe = subscribeToAuthChanges(() => {
-      void syncAuthAndData();
+    const unsubscribe = subscribeToAuthChanges((event) => {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "SIGNED_OUT"
+      ) {
+        void syncAuthAndData();
+      }
     });
 
     return () => {
-      window.clearTimeout(timer);
       unsubscribe();
     };
   }, [syncAuthAndData]);
@@ -755,14 +817,14 @@ export default function AppShell() {
 
       setIsLoadingQuests(true);
       await refreshData(currentProfileId);
+      loadedProfileIdRef.current = currentProfileId;
+      setHasLoadedInitialData(true);
     } catch (retryError) {
       setError(readErrorMessage(retryError));
     } finally {
       setIsLoadingQuests(false);
     }
   }
-
-  const showLoading = isLoadingQuests && activeTab !== "create";
 
   if (authState === "loading") {
     return <SplashScreen />;
@@ -809,8 +871,8 @@ export default function AppShell() {
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
           {actionError ? <ActionError message={actionError} /> : null}
 
-          {isBooting ? (
-            <LoadingState label="Loading your account..." />
+          {isInitialContentLoading && !error ? (
+            <TabSkeleton activeTab={activeTab} />
           ) : selectedQuest ? (
             <QuestDetail
               isClosing={closingQuestId === selectedQuest.id}
@@ -823,8 +885,6 @@ export default function AppShell() {
               onJoin={handleJoinQuest}
               onLeave={handleLeaveQuest}
             />
-          ) : showLoading ? (
-            <LoadingState label="Loading events..." />
           ) : activeTab === "home" ? (
             <HomeScreen
               quests={feedQuests}
@@ -1409,12 +1469,198 @@ function buildQuestReminderEvents(
     }));
 }
 
-function LoadingState({ label }: { label: string }) {
+function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
+  if (activeTab === "explore") {
+    return <ExploreSkeleton />;
+  }
+
+  if (activeTab === "create") {
+    return <CreateSkeleton />;
+  }
+
+  if (activeTab === "activity") {
+    return <ActivitySkeleton />;
+  }
+
+  if (activeTab === "profile") {
+    return <ProfileSkeleton />;
+  }
+
+  return <HomeSkeleton />;
+}
+
+function HomeSkeleton() {
   return (
-    <div className="rounded-3xl border border-zinc-200 bg-white p-6 text-center">
-      <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
-      <p className="mt-3 text-sm font-semibold text-zinc-500">{label}</p>
+    <div role="status" aria-label="Loading events" className="space-y-5 animate-pulse">
+      <span className="sr-only">Loading events</span>
+      <div className="flex items-center gap-2">
+        <div className="h-7 w-24 rounded-full bg-zinc-100" />
+        <div className="h-7 w-16 rounded-full bg-zinc-100" />
+      </div>
+      <div className="space-y-5">
+        <SkeletonQuestCard variant="immersive" />
+        <SkeletonQuestCard variant="compact" />
+      </div>
     </div>
+  );
+}
+
+function ExploreSkeleton() {
+  return (
+    <div role="status" aria-label="Loading explore" className="space-y-5 animate-pulse">
+      <span className="sr-only">Loading explore</span>
+      <div className="space-y-2">
+        <div className="h-7 w-24 rounded-full bg-zinc-100" />
+        <div className="h-4 w-64 max-w-full rounded-full bg-zinc-100" />
+      </div>
+      <div className="h-12 rounded-full bg-zinc-100" />
+      <div className="flex gap-2 overflow-hidden pb-1">
+        <div className="h-11 w-16 shrink-0 rounded-full bg-zinc-100" />
+        <div className="h-11 w-20 shrink-0 rounded-full bg-zinc-100" />
+        <div className="h-11 w-24 shrink-0 rounded-full bg-zinc-100" />
+        <div className="h-11 w-20 shrink-0 rounded-full bg-zinc-100" />
+      </div>
+      <div className="space-y-3">
+        <SkeletonQuestCard variant="compact" />
+        <SkeletonQuestCard variant="compact" />
+      </div>
+    </div>
+  );
+}
+
+function CreateSkeleton() {
+  return (
+    <div role="status" aria-label="Loading create" className="space-y-5 animate-pulse">
+      <span className="sr-only">Loading create</span>
+      <div className="space-y-2">
+        <div className="h-7 w-28 rounded-full bg-zinc-100" />
+        <div className="h-4 w-72 max-w-full rounded-full bg-zinc-100" />
+      </div>
+      <div className="rounded-3xl border border-zinc-200 bg-white p-4">
+        <div className="h-5 w-36 rounded-full bg-zinc-100" />
+        <div className="mt-4 h-24 rounded-2xl bg-zinc-100" />
+        <div className="mt-4 h-11 rounded-full bg-zinc-100" />
+      </div>
+      <div className="space-y-4">
+        <div className="h-12 rounded-2xl bg-zinc-100" />
+        <div className="h-12 rounded-2xl bg-zinc-100" />
+        <div className="h-24 rounded-2xl bg-zinc-100" />
+      </div>
+    </div>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <div role="status" aria-label="Loading activity" className="space-y-5 animate-pulse">
+      <span className="sr-only">Loading activity</span>
+      <div className="space-y-2">
+        <div className="h-7 w-24 rounded-full bg-zinc-100" />
+        <div className="h-4 w-72 max-w-full rounded-full bg-zinc-100" />
+      </div>
+      <ul className="space-y-3">
+        {[0, 1, 2].map((item) => (
+          <li key={item} className="rounded-3xl border border-zinc-200 bg-white p-4">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-20 rounded-full bg-zinc-100" />
+              <div className="ml-auto h-4 w-12 rounded-full bg-zinc-100" />
+            </div>
+            <div className="mt-3 h-4 w-4/5 rounded-full bg-zinc-100" />
+            <div className="mt-2 h-4 w-2/3 rounded-full bg-zinc-100" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div role="status" aria-label="Loading profile" className="space-y-5 pb-3 animate-pulse">
+      <span className="sr-only">Loading profile</span>
+      <section className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="h-8 w-32 rounded-full bg-zinc-100" />
+          <div className="h-10 w-10 rounded-full border border-zinc-200 bg-zinc-100" />
+        </div>
+        <div className="grid grid-cols-[6.75rem_1fr] items-center gap-5">
+          <div className="h-28 w-28 rounded-full bg-zinc-100" />
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="space-y-2">
+                <div className="mx-auto h-6 w-8 rounded-full bg-zinc-100" />
+                <div className="mx-auto h-3 w-12 rounded-full bg-zinc-100" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="h-5 w-36 rounded-full bg-zinc-100" />
+          <div className="h-4 w-full rounded-full bg-zinc-100" />
+          <div className="h-4 w-2/3 rounded-full bg-zinc-100" />
+          <div className="h-4 w-28 rounded-full bg-zinc-100" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-11 rounded-full bg-zinc-100" />
+          <div className="h-11 rounded-full bg-zinc-100" />
+        </div>
+      </section>
+      <section className="border-t border-zinc-200">
+        <div className="grid grid-cols-3 gap-3 py-4">
+          <div className="h-4 rounded-full bg-zinc-100" />
+          <div className="h-4 rounded-full bg-zinc-100" />
+          <div className="h-4 rounded-full bg-zinc-100" />
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {[0, 1, 2, 3, 4, 5].map((item) => (
+            <div key={item} className="aspect-square bg-zinc-100" />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact" }) {
+  const isImmersive = variant === "immersive";
+
+  return (
+    <article className="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-zinc-100 shadow-sm">
+      <div
+        className={`flex flex-col justify-between ${
+          isImmersive ? "min-h-[clamp(23rem,72vh,29rem)] p-4 sm:p-5" : "min-h-[18.5rem] p-4"
+        }`}
+      >
+        <div className="flex flex-wrap gap-2">
+          <div className="h-7 w-20 rounded-full bg-white/70" />
+          <div className="h-7 w-16 rounded-full bg-white/70" />
+        </div>
+        <div className="rounded-[1.35rem] border border-white/80 bg-white/75 p-4 shadow-sm">
+          <div className="h-3 w-32 rounded-full bg-zinc-200" />
+          <div className="mt-3 space-y-2">
+            <div className="h-8 w-11/12 rounded-full bg-zinc-200" />
+            {isImmersive ? (
+              <div className="h-8 w-3/5 rounded-full bg-zinc-200" />
+            ) : null}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <div className="h-9 w-28 rounded-full bg-zinc-200" />
+            <div className="h-9 w-24 rounded-full bg-zinc-200" />
+            <div className="h-9 w-24 rounded-full bg-zinc-200" />
+          </div>
+          {isImmersive ? (
+            <div className="mt-4 space-y-2">
+              <div className="h-4 w-full rounded-full bg-zinc-200" />
+              <div className="h-4 w-4/5 rounded-full bg-zinc-200" />
+            </div>
+          ) : null}
+          <div className="mt-5 flex items-center gap-3">
+            <div className="h-11 w-24 rounded-full bg-zinc-200" />
+            <div className="h-11 flex-1 rounded-full bg-zinc-200" />
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 
