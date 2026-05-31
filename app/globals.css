@@ -60,6 +60,7 @@ textarea {
   isolation: isolate;
 }
 
+.event-card[data-category="Food"],
 .holo-card[data-category="Food"],
 .holo-thumb[data-category="Food"] {
   --holo-a: #fb923c;
@@ -67,6 +68,7 @@ textarea {
   --holo-c: #fde047;
 }
 
+.event-card[data-category="Study"],
 .holo-card[data-category="Study"],
 .holo-thumb[data-category="Study"] {
   --holo-a: #38bdf8;
@@ -74,6 +76,7 @@ textarea {
   --holo-c: #a78bfa;
 }
 
+.event-card[data-category="Fitness"],
 .holo-card[data-category="Fitness"],
 .holo-thumb[data-category="Fitness"] {
   --holo-a: #4ade80;
@@ -81,6 +84,7 @@ textarea {
   --holo-c: #22d3ee;
 }
 
+.event-card[data-category="Outdoors"],
 .holo-card[data-category="Outdoors"],
 .holo-thumb[data-category="Outdoors"] {
   --holo-a: #2dd4bf;
@@ -88,6 +92,7 @@ textarea {
   --holo-c: #facc15;
 }
 
+.event-card[data-category="Social"],
 .holo-card[data-category="Social"],
 .holo-thumb[data-category="Social"] {
   --holo-a: #f472b6;
@@ -95,11 +100,17 @@ textarea {
   --holo-c: #38bdf8;
 }
 
+.event-card[data-category="Sidequest"],
 .holo-card[data-category="Sidequest"],
 .holo-thumb[data-category="Sidequest"] {
   --holo-a: #94a3b8;
   --holo-b: #f59e0b;
   --holo-c: #22d3ee;
+}
+
+.event-card-deck {
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  backdrop-filter: blur(24px) saturate(1.25);
 }
 
 .holo-card-fallback,

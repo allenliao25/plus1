@@ -299,19 +299,20 @@ function QuestTile({
       ) : (
         <div className="holo-thumb-fallback absolute inset-0" />
       )}
-      <span className="absolute left-1.5 top-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[0.58rem] font-bold uppercase text-zinc-700">
+      <div className="absolute inset-0 bg-black/12" />
+      <span className="absolute left-1.5 top-1.5 rounded-full border border-black/10 bg-white/90 px-2 py-0.5 text-[0.58rem] font-bold uppercase text-zinc-700 shadow-sm backdrop-blur-md">
         {quest.category}
       </span>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-2">
-        <p className="line-clamp-2 text-xs font-bold leading-4 text-white">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/58 to-transparent p-2">
+        <p className="line-clamp-2 text-xs font-bold leading-4 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.76)]">
           {quest.title}
         </p>
-        <p className="mt-1 truncate text-[0.65rem] font-semibold text-white/70">
+        <p className="mt-1 truncate text-[0.65rem] font-semibold text-white/78 [text-shadow:0_2px_8px_rgba(0,0,0,0.72)]">
           {quest.startTimeRelative ?? quest.startTime} / {quest.goingCount}/{quest.maxPeople}
         </p>
       </div>
       {quest.status !== "open" ? (
-        <span className="absolute right-1.5 top-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-zinc-700">
+        <span className="absolute right-1.5 top-1.5 rounded-full border border-black/10 bg-white/90 px-2 py-0.5 text-[0.6rem] font-bold uppercase text-zinc-700 shadow-sm backdrop-blur-md">
           {quest.status}
         </span>
       ) : null}

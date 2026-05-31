@@ -57,7 +57,11 @@ export default function QuestDetail({
           ) : (
             <div className="holo-thumb-fallback absolute inset-0" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/10" />
+          <div className="absolute inset-0 bg-black/14" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.04),transparent_30%,rgba(0,0,0,0.78))]" />
+          <span className="absolute bottom-3 left-3 rounded-full border border-white/18 bg-black/45 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white shadow-sm backdrop-blur-xl [text-shadow:0_2px_10px_rgba(0,0,0,0.7)]">
+            {quest.category}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

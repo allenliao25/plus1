@@ -74,6 +74,8 @@ const navItems: NavItem[] = [
 type BottomNavProps = {
   activeTab: AppTab;
   isDisabled?: boolean;
+  profileAvatarInitials?: string;
+  profileAvatarUrl?: string | null;
   unreadActivityCount?: number;
   onTabChange: (tab: AppTab) => void;
 };
@@ -81,6 +83,8 @@ type BottomNavProps = {
 export default function BottomNav({
   activeTab,
   isDisabled = false,
+  profileAvatarInitials = "",
+  profileAvatarUrl = null,
   unreadActivityCount = 0,
   onTabChange,
 }: BottomNavProps) {
@@ -91,6 +95,7 @@ export default function BottomNav({
     >
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
+        const isProfile = item.id === "profile";
 
         if (item.id === "create") {
           return (
@@ -119,12 +124,20 @@ export default function BottomNav({
             onClick={() => onTabChange(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            className={`relative flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`group relative flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               isActive ? "text-zinc-950" : "text-zinc-300 hover:text-zinc-500"
             }`}
           >
             <span className="relative">
-              {item.icon}
+              {isProfile ? (
+                <ProfileNavAvatar
+                  avatarInitials={profileAvatarInitials}
+                  avatarUrl={profileAvatarUrl}
+                  isActive={isActive}
+                />
+              ) : (
+                item.icon
+              )}
               {showBadge ? (
                 <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">
                   {unreadActivityCount > 9 ? "9+" : unreadActivityCount}
@@ -135,5 +148,44 @@ export default function BottomNav({
         );
       })}
     </nav>
+  );
+}
+
+function ProfileNavAvatar({
+  avatarInitials,
+  avatarUrl,
+  isActive,
+}: {
+  avatarInitials: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+}) {
+  const initials = avatarInitials.trim().slice(0, 2).toUpperCase() || "?";
+
+  return (
+    <span
+      className={`grid h-8 w-8 place-items-center rounded-full border p-[2px] transition ${
+        isActive
+          ? "border-zinc-950"
+          : "border-transparent group-hover:border-zinc-300"
+      }`}
+    >
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt=""
+          className="h-full w-full rounded-full object-cover"
+        />
+      ) : (
+        <span
+          className={`grid h-full w-full place-items-center rounded-full text-[0.68rem] font-bold ${
+            isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
+          }`}
+        >
+          {initials}
+        </span>
+      )}
+    </span>
   );
 }

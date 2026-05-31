@@ -886,6 +886,8 @@ export default function AppShell() {
         <BottomNav
           activeTab={activeTab}
           isDisabled={isAppLocked}
+          profileAvatarInitials={currentProfile?.avatarInitials}
+          profileAvatarUrl={currentProfile?.avatarUrl}
           unreadActivityCount={unreadActivityCount}
           onTabChange={handleTabChange}
         />
