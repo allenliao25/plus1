@@ -2,6 +2,14 @@ import type { AuthChangeEvent, User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { Profile } from "@/types/quest";
 
+export const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+const supportedProfilePhotoTypes = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
 export async function getAuthenticatedUser() {
   const supabase = getSupabaseClient();
   const {
@@ -226,15 +234,7 @@ export async function updateProfile(
 }
 
 export async function uploadProfilePhoto(userId: string, file: File) {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Choose an image file for your profile photo.");
-  }
-
-  const maxBytes = 5 * 1024 * 1024;
-
-  if (file.size > maxBytes) {
-    throw new Error("Profile photo must be 5 MB or smaller.");
-  }
+  validateProfilePhotoFile(file);
 
   const supabase = getSupabaseClient();
   const extension = getImageExtension(file);
@@ -256,6 +256,16 @@ export async function uploadProfilePhoto(userId: string, file: File) {
   } = supabase.storage.from("profile-photos").getPublicUrl(path);
 
   return publicUrl;
+}
+
+export function validateProfilePhotoFile(file: Pick<File, "size" | "type">) {
+  if (!supportedProfilePhotoTypes.has(file.type)) {
+    throw new Error("Choose a JPG, PNG, or WebP image for your profile photo.");
+  }
+
+  if (file.size > PROFILE_PHOTO_MAX_BYTES) {
+    throw new Error("Profile photo must be 5 MB or smaller.");
+  }
 }
 
 export function isLikelyAutoDisplayName(displayName: string) {
@@ -467,13 +477,5 @@ function isDuplicateHandleError(error: { code?: string; message?: string } | nul
 }
 
 function getImageExtension(file: File) {
-  if (file.type === "image/png") {
-    return "png";
-  }
-
-  if (file.type === "image/webp") {
-    return "webp";
-  }
-
-  return "jpg";
+  return supportedProfilePhotoTypes.get(file.type) ?? "jpg";
 }

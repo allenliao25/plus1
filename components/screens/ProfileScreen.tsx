@@ -82,7 +82,7 @@ export default function ProfileScreen({
         </div>
 
         <div className="grid grid-cols-[6.75rem_1fr] items-center gap-5">
-          <ProfileAvatar profile={profile} />
+          <ProfileAvatar key={profile.avatarUrl ?? profile.avatarInitials} profile={profile} />
 
           <div className="grid grid-cols-3 gap-2 text-center">
             <Stat label="hosted" value={sections.hosted.length} />
@@ -213,12 +213,15 @@ export default function ProfileScreen({
 }
 
 function ProfileAvatar({ profile }: { profile: Profile }) {
-  if (profile.avatarUrl) {
+  const [didImageFail, setDidImageFail] = useState(false);
+
+  if (profile.avatarUrl && !didImageFail) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={profile.avatarUrl}
         alt=""
+        onError={() => setDidImageFail(true)}
         className="h-28 w-28 rounded-full object-cover shadow-sm"
       />
     );

@@ -6,11 +6,13 @@ import {
   UserRound,
 } from "lucide-react";
 import { FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { questCategories } from "@/data/demoQuests";
 import {
   isValidHandle,
   normalizeHandle,
   normalizeWebsiteUrl,
+  validateProfilePhotoFile,
 } from "@/lib/authService";
 import type { Profile } from "@/types/quest";
 
@@ -127,13 +129,10 @@ export default function ProfileEditSheet({
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
-      setAvatarError("Choose an image file.");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setAvatarError("Profile photo must be 5 MB or smaller.");
+    try {
+      validateProfilePhotoFile(file);
+    } catch (error) {
+      setAvatarError(readErrorMessage(error));
       return;
     }
 
@@ -150,14 +149,19 @@ export default function ProfileEditSheet({
   }
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     return () => {
+      document.body.style.overflow = previousOverflow;
+
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
   }, []);
 
-  return (
+  const editor = (
     <div className="fixed inset-0 z-50 bg-white text-zinc-950">
       <form
         onSubmit={handleSubmit}
@@ -194,6 +198,7 @@ export default function ProfileEditSheet({
                 <img
                   src={avatarPreviewUrl}
                   alt=""
+                  onError={() => setAvatarPreviewUrl(null)}
                   className="h-24 w-24 rounded-full object-cover"
                 />
               ) : (
@@ -213,7 +218,7 @@ export default function ProfileEditSheet({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
                 onChange={(event) => handleAvatarFile(event.target.files?.[0])}
               />
@@ -337,6 +342,12 @@ export default function ProfileEditSheet({
       </form>
     </div>
   );
+
+  if (typeof document === "undefined") {
+    return editor;
+  }
+
+  return createPortal(editor, document.body);
 }
 
 function validateWebsiteInput(value: string) {

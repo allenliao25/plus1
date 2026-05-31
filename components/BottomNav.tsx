@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export type AppTab = "home" | "explore" | "create" | "activity" | "profile";
 
@@ -131,6 +131,7 @@ export default function BottomNav({
             <span className="relative">
               {isProfile ? (
                 <ProfileNavAvatar
+                  key={profileAvatarUrl ?? profileAvatarInitials}
                   avatarInitials={profileAvatarInitials}
                   avatarUrl={profileAvatarUrl}
                   isActive={isActive}
@@ -161,6 +162,7 @@ function ProfileNavAvatar({
   isActive: boolean;
 }) {
   const initials = avatarInitials.trim().slice(0, 2).toUpperCase() || "?";
+  const [didImageFail, setDidImageFail] = useState(false);
 
   return (
     <span
@@ -170,11 +172,12 @@ function ProfileNavAvatar({
           : "border-transparent group-hover:border-zinc-300"
       }`}
     >
-      {avatarUrl ? (
+      {avatarUrl && !didImageFail ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={avatarUrl}
           alt=""
+          onError={() => setDidImageFail(true)}
           className="h-full w-full rounded-full object-cover"
         />
       ) : (

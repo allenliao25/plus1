@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  PROFILE_PHOTO_MAX_BYTES,
   isLikelyAutoDisplayName,
   isValidE164PhoneNumber,
   isValidHandle,
@@ -10,6 +11,7 @@ import {
   normalizeProfileEmail,
   normalizeUsPhoneParts,
   normalizeWebsiteUrl,
+  validateProfilePhotoFile,
 } from "@/lib/authService";
 
 test("normalizeProfileEmail treats empty phone-auth email as null", () => {
@@ -101,4 +103,35 @@ test("normalizeWebsiteUrl keeps http and https URLs", () => {
 
 test("normalizeWebsiteUrl returns null for empty values", () => {
   assert.equal(normalizeWebsiteUrl("   "), null);
+});
+
+test("validateProfilePhotoFile accepts web-renderable profile photos", () => {
+  assert.doesNotThrow(() =>
+    validateProfilePhotoFile({
+      size: PROFILE_PHOTO_MAX_BYTES,
+      type: "image/jpeg",
+    }),
+  );
+});
+
+test("validateProfilePhotoFile rejects unsupported iPhone photo formats", () => {
+  assert.throws(
+    () =>
+      validateProfilePhotoFile({
+        size: 1024,
+        type: "image/heic",
+      }),
+    /JPG, PNG, or WebP/,
+  );
+});
+
+test("validateProfilePhotoFile rejects oversized profile photos", () => {
+  assert.throws(
+    () =>
+      validateProfilePhotoFile({
+        size: PROFILE_PHOTO_MAX_BYTES + 1,
+        type: "image/png",
+      }),
+    /5 MB or smaller/,
+  );
 });
