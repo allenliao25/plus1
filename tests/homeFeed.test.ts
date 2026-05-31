@@ -165,6 +165,7 @@ function makeProfile(changes: Partial<Profile> = {}): Profile {
     id: "profile-1",
     interests: [],
     phone: null,
+    pronouns: null,
     websiteUrl: null,
     ...changes,
   };

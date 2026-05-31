@@ -3,6 +3,7 @@ import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { Profile } from "@/types/quest";
 
 export const PROFILE_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+export const PROFILE_PRONOUNS_MAX_LENGTH = 32;
 
 const supportedProfilePhotoTypes = new Map([
   ["image/jpeg", "jpg"],
@@ -186,6 +187,7 @@ export async function updateProfile(
     displayName: string;
     handle: string;
     bio: string | null;
+    pronouns?: string | null;
     avatarUrl?: string | null;
     websiteUrl?: string | null;
     interests?: string[];
@@ -197,6 +199,10 @@ export async function updateProfile(
     changes.websiteUrl === undefined
       ? undefined
       : normalizeWebsiteUrl(changes.websiteUrl);
+  const nextPronouns =
+    changes.pronouns === undefined
+      ? undefined
+      : normalizePronouns(changes.pronouns);
 
   if (nextDisplayName.length < 2) {
     throw new Error("Display name must be at least 2 characters.");
@@ -213,6 +219,7 @@ export async function updateProfile(
       ...(changes.avatarUrl !== undefined ? { avatar_url: changes.avatarUrl } : {}),
       ...(nextWebsiteUrl !== undefined ? { website_url: nextWebsiteUrl } : {}),
       bio: normalizeBio(changes.bio),
+      ...(nextPronouns !== undefined ? { pronouns: nextPronouns } : {}),
       ...(changes.interests ? { interests: changes.interests } : {}),
       updated_at: new Date().toISOString(),
     })
@@ -344,6 +351,20 @@ export function normalizeWebsiteUrl(value: string | null) {
   }
 }
 
+export function normalizePronouns(value: string | null) {
+  const normalized = value?.trim().replace(/\s+/g, " ") ?? "";
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > PROFILE_PRONOUNS_MAX_LENGTH) {
+    throw new Error("Pronouns must be 32 characters or fewer.");
+  }
+
+  return normalized;
+}
+
 function validateHandle(handle: string) {
   if (!isValidHandle(handle)) {
     throw new Error(
@@ -353,7 +374,7 @@ function validateHandle(handle: string) {
 }
 
 const profileSelect =
-  "id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at";
+  "id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at";
 
 function insertProfile(input: {
   id: string;
@@ -390,6 +411,7 @@ function mapProfileRow(
     avatar_url: string | null;
     website_url: string | null;
     bio: string | null;
+    pronouns: string | null;
     interests: string[] | null;
   },
   fallbackName: string,
@@ -406,6 +428,7 @@ function mapProfileRow(
     avatarUrl: profile.avatar_url,
     websiteUrl: profile.website_url,
     bio: profile.bio,
+    pronouns: profile.pronouns,
     interests: profile.interests ?? [],
   };
 }

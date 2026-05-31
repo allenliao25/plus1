@@ -46,6 +46,7 @@ export type Profile = {
   avatarUrl: string | null;
   websiteUrl: string | null;
   bio: string | null;
+  pronouns: string | null;
   interests: string[];
 };
 

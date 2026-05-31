@@ -1,11 +1,4 @@
 import {
-  AtSign,
-  Camera,
-  Link2,
-  Type,
-  UserRound,
-} from "lucide-react";
-import {
   FormEvent,
   type PointerEvent,
   type ReactNode,
@@ -14,11 +7,11 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { questCategories } from "@/data/demoQuests";
 import {
+  PROFILE_PRONOUNS_MAX_LENGTH,
   isValidHandle,
   normalizeHandle,
-  normalizeWebsiteUrl,
+  normalizePronouns,
   validateProfilePhotoFile,
 } from "@/lib/authService";
 import type { Profile } from "@/types/quest";
@@ -26,9 +19,8 @@ import type { Profile } from "@/types/quest";
 export type ProfileIdentityChanges = {
   displayName: string;
   handle: string;
-  websiteUrl: string | null;
   bio: string | null;
-  interests: string[];
+  pronouns: string | null;
   avatarFile?: File | null;
 };
 
@@ -58,9 +50,8 @@ export default function ProfileEditSheet({
 }: ProfileEditSheetProps) {
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [handle, setHandle] = useState(profile.handle);
-  const [websiteUrl, setWebsiteUrl] = useState(profile.websiteUrl ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
-  const [selectedInterests, setSelectedInterests] = useState(profile.interests);
+  const [pronouns, setPronouns] = useState(profile.pronouns ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(profile.avatarUrl);
   const [avatarError, setAvatarError] = useState("");
@@ -78,7 +69,8 @@ export default function ProfileEditSheet({
   const objectUrlRef = useRef<string | null>(null);
   const cropObjectUrlRef = useRef<string | null>(null);
   const cropImageRef = useRef<HTMLImageElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraFileInputRef = useRef<HTMLInputElement>(null);
+  const libraryFileInputRef = useRef<HTMLInputElement>(null);
   const cropDragRef = useRef<{
     offset: CropOffset;
     pointerId: number;
@@ -88,21 +80,15 @@ export default function ProfileEditSheet({
 
   const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
   const normalizedHandle = normalizeHandle(handle);
-  const normalizedWebsiteUrl = websiteUrl.trim();
   const normalizedBio = bio.trim();
-  const websiteValidation = validateWebsiteInput(normalizedWebsiteUrl);
-  const websiteChanged = websiteValidation.error
-    ? normalizedWebsiteUrl !== (profile.websiteUrl ?? "")
-    : (websiteValidation.value ?? "") !== (profile.websiteUrl ?? "");
-  const interestsChanged =
-    selectedInterests.length !== profile.interests.length ||
-    selectedInterests.some((interest) => !profile.interests.includes(interest));
+  const pronounsValidation = validatePronounsInput(pronouns);
+  const pronounsChanged =
+    (pronounsValidation.value ?? "") !== (profile.pronouns ?? "");
   const isDirty =
     normalizedDisplayName !== profile.displayName ||
     normalizedHandle !== profile.handle ||
-    websiteChanged ||
     normalizedBio !== (profile.bio ?? "") ||
-    interestsChanged ||
+    pronounsChanged ||
     Boolean(avatarFile);
   const canSave = isDirty && !isSaving && !cropSourceUrl;
   const displayedError =
@@ -123,7 +109,7 @@ export default function ProfileEditSheet({
     const validationError = getValidationError({
       displayName: normalizedDisplayName,
       handle: normalizedHandle,
-      websiteError: websiteValidation.error,
+      pronounsError: pronounsValidation.error,
     });
 
     if (validationError) {
@@ -138,23 +124,13 @@ export default function ProfileEditSheet({
       await onSave({
         displayName: normalizedDisplayName,
         handle: normalizedHandle,
-        websiteUrl: websiteValidation.value,
         bio: normalizedBio || null,
-        interests: selectedInterests,
+        pronouns: pronounsValidation.value,
         avatarFile,
       });
     } catch (error) {
       setSubmitError(readErrorMessage(error));
     }
-  }
-
-  function toggleInterest(interest: string) {
-    clearLocalErrors();
-    setSelectedInterests((current) =>
-      current.includes(interest)
-        ? current.filter((item) => item !== interest)
-        : [...current, interest],
-    );
   }
 
   function handleAvatarFile(file: File | undefined) {
@@ -181,8 +157,12 @@ export default function ProfileEditSheet({
     setAvatarError("");
     clearLocalErrors();
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (cameraFileInputRef.current) {
+      cameraFileInputRef.current.value = "";
+    }
+
+    if (libraryFileInputRef.current) {
+      libraryFileInputRef.current.value = "";
     }
   }
 
@@ -359,7 +339,7 @@ export default function ProfileEditSheet({
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center">
             <div className="relative aspect-square h-24 w-24 overflow-visible rounded-full">
               {avatarPreviewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -374,17 +354,34 @@ export default function ProfileEditSheet({
                   {profile.avatarInitials}
                 </span>
               )}
+            </div>
+            <div className="mt-4 grid w-full max-w-[280px] grid-cols-2 gap-2">
               <button
                 type="button"
                 disabled={isSaving}
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Choose profile photo"
-                className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full border border-white bg-zinc-100 text-zinc-700 shadow-sm transition hover:bg-zinc-200 disabled:opacity-50"
+                onClick={() => cameraFileInputRef.current?.click()}
+                className="min-h-10 rounded-full bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-50"
               >
-                <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
+                Take photo
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => libraryFileInputRef.current?.click()}
+                className="min-h-10 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200 disabled:opacity-50"
+              >
+                Choose photo
               </button>
               <input
-                ref={fileInputRef}
+                ref={cameraFileInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="sr-only"
+                onChange={(event) => handleAvatarFile(event.target.files?.[0])}
+              />
+              <input
+                ref={libraryFileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
@@ -399,7 +396,7 @@ export default function ProfileEditSheet({
           ) : null}
 
           <div className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-200">
-            <ProfileField icon={<UserRound size={18} strokeWidth={1.9} />} label="Name">
+            <ProfileField label="Name">
               <input
                 type="text"
                 required
@@ -414,7 +411,7 @@ export default function ProfileEditSheet({
               />
             </ProfileField>
 
-            <ProfileField icon={<AtSign size={18} strokeWidth={1.9} />} label="Handle">
+            <ProfileField label="Handle">
               <input
                 type="text"
                 required
@@ -431,23 +428,23 @@ export default function ProfileEditSheet({
               />
             </ProfileField>
 
-            <ProfileField icon={<Link2 size={18} strokeWidth={1.9} />} label="Website">
+            <ProfileField label="Pronouns">
               <input
                 type="text"
-                inputMode="url"
-                value={websiteUrl}
+                maxLength={PROFILE_PRONOUNS_MAX_LENGTH}
+                value={pronouns}
                 onChange={(event) => {
                   clearLocalErrors();
-                  setWebsiteUrl(event.target.value);
+                  setPronouns(event.target.value);
                 }}
                 autoCapitalize="none"
                 autoCorrect="off"
-                placeholder="https://your-site.com"
+                placeholder="Optional"
                 className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
             </ProfileField>
 
-            <ProfileField icon={<Type size={18} strokeWidth={1.9} />} label="Bio">
+            <ProfileField label="Bio">
               <textarea
                 value={bio}
                 maxLength={150}
@@ -465,31 +462,6 @@ export default function ProfileEditSheet({
           <div className="mt-2 flex items-center justify-between gap-3 text-xs font-medium text-zinc-400">
             <span>Handles use letters, numbers, periods, and underscores.</span>
             <span>{normalizedBio.length}/150</span>
-          </div>
-
-          <div className="mt-5">
-            <p className="text-sm font-bold text-zinc-800">Interests</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {questCategories.map((interest) => {
-                const isSelected = selectedInterests.includes(interest);
-
-                return (
-                  <button
-                    key={interest}
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => toggleInterest(interest)}
-                    className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
-                      isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
-                    }`}
-                  >
-                    {interest}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
 
@@ -599,15 +571,18 @@ export default function ProfileEditSheet({
   return createPortal(editor, document.body);
 }
 
-function validateWebsiteInput(value: string) {
+function validatePronounsInput(value: string) {
   try {
     return {
       error: "",
-      value: normalizeWebsiteUrl(value),
+      value: normalizePronouns(value),
     };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Enter a valid website link.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Pronouns must be 32 characters or fewer.",
       value: null,
     };
   }
@@ -616,11 +591,11 @@ function validateWebsiteInput(value: string) {
 function getValidationError({
   displayName,
   handle,
-  websiteError,
+  pronounsError,
 }: {
   displayName: string;
   handle: string;
-  websiteError: string;
+  pronounsError: string;
 }) {
   if (displayName.length < 2) {
     return "Name must be at least 2 characters.";
@@ -630,7 +605,7 @@ function getValidationError({
     return "Handle must be 3-30 characters using letters, numbers, periods, or underscores.";
   }
 
-  return websiteError;
+  return pronounsError;
 }
 
 function readErrorMessage(error: unknown) {
@@ -708,18 +683,15 @@ function clamp(value: number, min: number, max: number) {
 
 function ProfileField({
   children,
-  icon,
   label,
 }: {
   children: ReactNode;
-  icon: ReactNode;
   label: string;
 }) {
   return (
-    <label className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3.5">
-      <span className="pt-0.5 text-zinc-400" aria-hidden="true">{icon}</span>
+    <label className="grid gap-2 px-4 py-3.5">
       <span className="text-sm font-bold text-zinc-700">{label}</span>
-      <span className="col-start-2 min-w-0">{children}</span>
+      <span className="min-w-0">{children}</span>
     </label>
   );
 }

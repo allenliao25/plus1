@@ -36,7 +36,7 @@ async function loadDemoProfiles() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at")
+    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at")
     .in("display_name", demoUserNames);
 
   if (error) {
@@ -401,7 +401,7 @@ export async function fetchProfilesByIds(profileIds: string[]) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, interests, created_at, updated_at")
+    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at")
     .in("id", profileIds);
 
   if (error) {
@@ -508,6 +508,7 @@ function mapProfileRow(profile: ProfileRow): Profile {
     avatarUrl: profile.avatar_url,
     websiteUrl: profile.website_url,
     bio: profile.bio,
+    pronouns: profile.pronouns,
     interests: profile.interests ?? [],
   };
 }

@@ -8,6 +8,7 @@ import {
   isValidUsPhoneParts,
   normalizeHandle,
   normalizePhoneNumber,
+  normalizePronouns,
   normalizeProfileEmail,
   normalizeUsPhoneParts,
   normalizeWebsiteUrl,
@@ -103,6 +104,16 @@ test("normalizeWebsiteUrl keeps http and https URLs", () => {
 
 test("normalizeWebsiteUrl returns null for empty values", () => {
   assert.equal(normalizeWebsiteUrl("   "), null);
+});
+
+test("normalizePronouns trims optional pronouns", () => {
+  assert.equal(normalizePronouns("  she / her  "), "she / her");
+  assert.equal(normalizePronouns("they     / them"), "they / them");
+  assert.equal(normalizePronouns("   "), null);
+});
+
+test("normalizePronouns rejects long pronouns", () => {
+  assert.throws(() => normalizePronouns("a".repeat(33)), /32 characters/);
 });
 
 test("validateProfilePhotoFile accepts web-renderable profile photos", () => {

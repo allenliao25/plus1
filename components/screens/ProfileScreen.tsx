@@ -1,4 +1,4 @@
-import { Copy, Edit3, Link2, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useMemo, useState } from "react";
 import ProfileEditSheet, {
   type ProfileIdentityChanges,
@@ -81,6 +81,11 @@ export default function ProfileScreen({
           <p className="text-[15px] font-bold text-zinc-950">
             {profile.displayName}
           </p>
+          {profile.pronouns ? (
+            <p className="mt-0.5 text-[15px] font-semibold text-zinc-500">
+              {profile.pronouns}
+            </p>
+          ) : null}
           {profile.bio ? (
             <p className="mt-1 whitespace-pre-line text-[15px] leading-6 text-zinc-700">
               {profile.bio}
@@ -90,46 +95,21 @@ export default function ProfileScreen({
               No bio yet.
             </p>
           )}
-          {profile.websiteUrl ? (
-            <a
-              href={profile.websiteUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex max-w-full items-center gap-1.5 truncate text-sm font-bold text-zinc-950"
-            >
-              <Link2 size={15} strokeWidth={1.9} aria-hidden="true" />
-              <span className="truncate">{formatWebsite(profile.websiteUrl)}</span>
-            </a>
-          ) : null}
-          {profile.interests.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {profile.interests.map((interest) => (
-                <span
-                  key={interest}
-                  className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-700"
-                >
-                  {interest}
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <div className="grid grid-cols-[1fr_1fr_2.75rem] gap-2">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-zinc-200"
           >
-            <Edit3 size={16} strokeWidth={1.9} aria-hidden="true" />
             Edit profile
           </button>
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-zinc-200"
           >
-            <Copy size={16} strokeWidth={1.9} aria-hidden="true" />
             Share
           </button>
           <button
@@ -234,15 +214,6 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="mt-0.5 text-xs font-bold text-zinc-500">{label}</p>
     </div>
   );
-}
-
-function formatWebsite(value: string) {
-  try {
-    const url = new URL(value);
-    return url.hostname.replace(/^www\./, "") + url.pathname.replace(/\/$/, "");
-  } catch {
-    return value;
-  }
 }
 
 function TabButton({

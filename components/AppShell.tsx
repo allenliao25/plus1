@@ -578,9 +578,8 @@ export default function AppShell() {
     displayName: string;
     handle: string;
     avatarFile?: File | null;
-    websiteUrl: string | null;
     bio: string | null;
-    interests: string[];
+    pronouns: string | null;
   }) {
     if (!currentProfile) {
       return;

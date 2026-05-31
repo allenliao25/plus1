@@ -13,6 +13,7 @@ create table if not exists profiles (
   avatar_url text,
   website_url text,
   bio text,
+  pronouns text,
   interests text[] not null default '{}',
   created_at timestamp default now(),
   updated_at timestamp default now()
