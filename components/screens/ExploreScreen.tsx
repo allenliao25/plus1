@@ -44,10 +44,6 @@ export default function ExploreScreen({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm leading-6 text-zinc-500">
-        Search and filter events by category, place, or vibe.
-      </p>
-
       <input
         type="search"
         value={search}
