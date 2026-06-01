@@ -73,7 +73,8 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 - Production build gate: `npm run build`
 - RLS integration test coverage in:
   - `lib/questService.test.mjs`
-  - validates atomic capacity, host self-join rejection, and outside-area rejection when Supabase test env vars are configured
+  - validates atomic capacity, host self-join rejection, outside-area rejection, invite-only visibility, friends-only visibility, and friendship removal when Supabase test env vars are configured
+  - if the Supabase test env vars are missing, these checks are skipped and the final verification note must call that out rather than treating the run as full database proof
 
 ### C. Iteration evidence from development
 
@@ -114,7 +115,7 @@ Capture one clean screenshot for each of these states (device frame optional):
 
 - **SMS delivery in US:** real Twilio OTP delivery may require A2P 10DLC registration; this can block carrier delivery in trial/new setups
 - **AI extraction reliability:** flyer parsing may miss details or produce imperfect defaults; human review before posting is still required
-- **Push notifications:** native push token registration is best-effort in development; full production push pipeline still requires deployment hardening
+- **Push notifications:** native push token registration is best-effort in development; full production push delivery is not wired to `lib/pushSender.ts` through a job or API route
 - **Network effects:** utility depends on active local user density
 - **Local relevance:** profile-selected area filtering limits demo visibility, but it is not GPS or address verification
 - **Moderation/safety:** report, block, takedown, and reputation tools are documented future work, not implemented product surfaces yet
@@ -140,6 +141,7 @@ Capture one clean screenshot for each of these states (device frame optional):
 - deep-link based share/open event flow
 - report/block flows, moderator takedown tools, and host reputation/verification
 - stronger locality using ZIP/radius, GPS radius, or explicit travel-distance preferences
+- production push delivery for message/activity notifications
 
 ## 7) Final verification protocol
 
@@ -155,3 +157,7 @@ Then execute the manual demo checklist in `README.md` using either:
 
 - Supabase Test OTP (most reliable for grading/demo), or
 - Twilio SMS if compliance configuration is already complete.
+
+Record whether `lib/questService.test.mjs` executed or skipped. A run where the
+RLS tests skip is useful for unit/build confidence, but it is not full proof of
+database authorization behavior.

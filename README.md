@@ -120,10 +120,15 @@ Minimum migrations for current feature set:
 - `supabase/migrations/20260531060000_local_visibility_name.sql`
 - `supabase/migrations/20260531223000_public_quest_share_links.sql`
 - `supabase/migrations/20260531233000_messaging_threads.sql`
+- `supabase/migrations/20260531240000_fix_direct_thread_ambiguous_thread_id.sql`
 
 ### 4) Enable Realtime for activity and messages
 
 Ensure `activity_events`, `message_threads`, `message_thread_participants`, and `messages` are part of publication `supabase_realtime`.
+
+Code deploys, Supabase migrations, Realtime publication changes, and demo data
+seeding are separate steps. A Vercel deploy alone does not apply SQL migrations
+or populate production demo rows.
 
 ### 5) Configure phone auth (choose one)
 
@@ -169,6 +174,9 @@ npx vercel deploy --prod
 - `npm run lint` - lint codebase
 - `npm run test` - run unit + integration tests (integration auto-skips when env is missing)
 - `npm run test:unit` - run lightweight deterministic unit tests
+- `npm run seed:demo:dry-run` - validate and preview production demo seed rows without writing data
+- `npm run seed:demo:prod` - seed demo profiles, events, friendships, messages, and activity using the service-role key
+- `npm run seed:demo:cleanup` - remove demo rows created by the production demo seed
 - `npm run cap:sync:ios` - sync Capacitor iOS project
 - `npm run cap:open:ios` - open iOS project in Xcode
 - `npm run cap:run:ios` - run on selected iOS target
@@ -200,6 +208,14 @@ npx vercel deploy --prod
 Use disposable test users and a disposable Supabase project or schema. The test
 updates those users' `profiles.area` values and creates temporary events.
 
+Expected local behavior:
+
+- without the `PLUS1_TEST_*` variables, `npm run test` should pass unit tests and
+  report the Supabase-backed RLS checks as skipped with `Missing Supabase test env vars`
+- with the variables configured, `npm run test` should execute the six RLS checks
+  for atomic capacity, host self-join rejection, outside-area rejection,
+  invite-only visibility, friends-only visibility, and friendship removal
+
 ## Project documentation for submission
 
 - Evaluation evidence: `docs/evaluation.md`
@@ -211,6 +227,9 @@ updates those users' `profiles.area` values and creates temporary events.
 - Real SMS delivery in US may require Twilio A2P 10DLC registration.
 - AI flyer extraction can miss or hallucinate event details from noisy images.
 - Native push token registration is best-effort in development builds.
+- Production push delivery is not wired yet: the app can register tokens and
+  refresh in-app/local notification surfaces, but `lib/pushSender.ts` is not
+  called by a production job or API route.
 - Network effects are limited without enough active local users.
 - Local area is profile-selected for demo purposes; it is not GPS or address verification.
 - Activity for joins/host edits/closures is server-side, while reminder activity remains best-effort.

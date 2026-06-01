@@ -9,6 +9,9 @@
     "lint": "eslint",
     "test": "npm run test:unit && node --test lib/questService.test.mjs",
     "test:unit": "npx tsx --test \"tests/**/*.test.ts\"",
+    "seed:demo:dry-run": "npx tsx scripts/seedProductionDemo.ts --dry-run",
+    "seed:demo:prod": "npx tsx scripts/seedProductionDemo.ts --apply",
+    "seed:demo:cleanup": "npx tsx scripts/seedProductionDemo.ts --cleanup",
     "cap:sync:ios": "npx cap sync ios",
     "cap:open:ios": "npx cap open ios",
     "cap:run:ios": "npx cap run ios"
