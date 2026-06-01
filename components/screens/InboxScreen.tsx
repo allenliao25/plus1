@@ -2,6 +2,8 @@ import { MessageCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import { splitThreadsByKind } from "@/lib/messageService";
+import { formatRelativeTime } from "@/lib/relativeTime";
+import { useNow } from "@/lib/useNow";
 import type { FriendConnection, MessageThread } from "@/types/quest";
 
 type InboxScreenProps = {
@@ -23,6 +25,7 @@ export default function InboxScreen({
 }: InboxScreenProps) {
   const [mode, setMode] = useState<InboxMode>("direct");
   const [query, setQuery] = useState("");
+  const now = useNow();
   const sections = useMemo(() => splitThreadsByKind(threads), [threads]);
   const activeThreads = mode === "direct" ? sections.direct : sections.event;
   const normalizedQuery = query.trim().toLowerCase();
@@ -71,6 +74,7 @@ export default function InboxScreen({
             <ThreadRow
               key={thread.id}
               thread={thread}
+              now={now}
               onOpen={() => onOpenThread(thread.id)}
             />
           ))}
@@ -116,12 +120,16 @@ export default function InboxScreen({
 }
 
 function ThreadRow({
+  now,
   onOpen,
   thread,
 }: {
+  now: number;
   onOpen: () => void;
   thread: MessageThread;
 }) {
+  const lastMessageAtRelative = formatRelativeTime(thread.lastMessageAtISO, now);
+
   return (
     <button
       type="button"
@@ -141,9 +149,9 @@ function ThreadRow({
           <span className="truncate text-sm font-extrabold text-zinc-950">
             {thread.title}
           </span>
-          {thread.lastMessageAtRelative ? (
+          {lastMessageAtRelative ? (
             <span className="shrink-0 text-xs font-bold text-zinc-400">
-              {thread.lastMessageAtRelative}
+              {lastMessageAtRelative}
             </span>
           ) : null}
         </span>

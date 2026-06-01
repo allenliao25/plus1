@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Send } from "lucide-react";
+import { formatRelativeTime } from "@/lib/relativeTime";
+import { useNow } from "@/lib/useNow";
 import type { ChatMessage, MessageThread } from "@/types/quest";
 
 type ChatThreadScreenProps = {
@@ -21,6 +23,7 @@ export default function ChatThreadScreen({
   const [body, setBody] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const now = useNow();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -90,7 +93,7 @@ export default function ChatThreadScreen({
         ) : (
           <div className="space-y-2">
             {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble key={message.id} message={message} now={now} />
             ))}
           </div>
         )}
@@ -126,7 +129,9 @@ export default function ChatThreadScreen({
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, now }: { message: ChatMessage; now: number }) {
+  const createdAtRelative = formatRelativeTime(message.createdAtISO, now);
+
   return (
     <div className={`flex ${message.isMine ? "justify-end" : "justify-start"}`}>
       <div
@@ -142,13 +147,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           </p>
         ) : null}
         <p className="whitespace-pre-wrap break-words font-medium">{message.body}</p>
-        {message.createdAtRelative ? (
+        {createdAtRelative ? (
           <p
             className={`mt-1 text-[0.68rem] font-bold ${
               message.isMine ? "text-white/58" : "text-zinc-400"
             }`}
           >
-            {message.createdAtRelative}
+            {createdAtRelative}
           </p>
         ) : null}
       </div>
