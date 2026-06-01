@@ -14,6 +14,7 @@ import {
   AtSign,
   Bell,
   ChevronLeft,
+  LogOut,
   MapPin,
   MessageCircle,
   UserRound,
@@ -1642,7 +1643,6 @@ export default function AppShell() {
             onOpen={handleOpenQuest}
             onOpenPeople={() => handleTabChange("people")}
             onSaveProfile={handleSaveProfile}
-            onSignOut={handleSignOut}
           />
         ) : null}
       </>
@@ -1651,6 +1651,7 @@ export default function AppShell() {
 
   function renderRootHeader(page: RootPage) {
     const isHomePanel = page === "home";
+    const isProfilePanel = page === "profile";
     const title =
       page === "home"
         ? "plus1"
@@ -1677,7 +1678,22 @@ export default function AppShell() {
           ) : null
         }
         isBrand={isHomePanel}
+        leading={
+          isProfilePanel ? (
+            <button
+              type="button"
+              onClick={() => {
+                void handleSignOut();
+              }}
+              aria-label="Sign out"
+              className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+            >
+              <LogOut size={20} strokeWidth={1.9} aria-hidden="true" />
+            </button>
+          ) : undefined
+        }
         title={title}
+        titleAlign={isProfilePanel ? "left" : "center"}
       />
     );
   }
@@ -1874,14 +1890,32 @@ function getCurrentRootPage(activeTab: AppTab): RootPage {
 function AppHeader({
   actions,
   isBrand,
+  leading,
   onBack,
   title,
+  titleAlign = "center",
 }: {
   actions?: ReactNode;
   isBrand: boolean;
+  leading?: ReactNode;
   onBack?: () => void;
   title: string;
+  titleAlign?: "center" | "left";
 }) {
+  if (titleAlign === "left") {
+    return (
+      <header className="glass-bar flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {leading}
+          <h1 className="min-w-0 truncate text-xl font-bold tracking-tight text-zinc-950">
+            {title}
+          </h1>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      </header>
+    );
+  }
+
   return (
     <header
       className={`glass-bar relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] ${
@@ -2607,20 +2641,16 @@ function CreateSkeleton() {
 
 function ProfileSkeleton() {
   return (
-    <div role="status" aria-label="Loading profile" className="space-y-5 pb-3 animate-pulse">
+    <div role="status" aria-label="Loading profile" className="space-y-4 pb-3 animate-pulse">
       <span className="sr-only">Loading profile</span>
-      <section className="space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="h-8 w-32 rounded-full bg-zinc-100" />
-          <div className="h-10 w-10 rounded-full border border-zinc-200 bg-zinc-100" />
-        </div>
-        <div className="grid grid-cols-[6.75rem_1fr] items-center gap-5">
-          <div className="h-28 w-28 rounded-full bg-zinc-100" />
+      <section className="space-y-4">
+        <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
+          <div className="h-20 w-20 rounded-full bg-zinc-100" />
           <div className="grid grid-cols-3 gap-2">
             {[0, 1, 2].map((item) => (
-              <div key={item} className="space-y-2">
-                <div className="mx-auto h-6 w-8 rounded-full bg-zinc-100" />
-                <div className="mx-auto h-3 w-12 rounded-full bg-zinc-100" />
+              <div key={item} className="space-y-1.5">
+                <div className="mx-auto h-5 w-6 rounded-full bg-zinc-100" />
+                <div className="mx-auto h-2.5 w-12 rounded-full bg-zinc-100" />
               </div>
             ))}
           </div>
@@ -2629,20 +2659,15 @@ function ProfileSkeleton() {
           <div className="h-5 w-36 rounded-full bg-zinc-100" />
           <div className="h-4 w-full rounded-full bg-zinc-100" />
           <div className="h-4 w-2/3 rounded-full bg-zinc-100" />
-          <div className="h-4 w-28 rounded-full bg-zinc-100" />
+          <div className="h-3.5 w-28 rounded-full bg-zinc-100" />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="h-11 rounded-full bg-zinc-100" />
-          <div className="h-11 rounded-full bg-zinc-100" />
+          <div className="h-9 rounded-lg bg-zinc-100" />
+          <div className="h-9 rounded-lg bg-zinc-100" />
         </div>
       </section>
-      <section className="border-t border-zinc-200">
-        <div className="grid grid-cols-3 gap-3 py-4">
-          <div className="h-4 rounded-full bg-zinc-100" />
-          <div className="h-4 rounded-full bg-zinc-100" />
-          <div className="h-4 rounded-full bg-zinc-100" />
-        </div>
-        <div className="grid grid-cols-3 gap-1">
+      <section className="-mx-5 mt-2">
+        <div className="grid grid-cols-3 gap-[1px] bg-zinc-200">
           {[0, 1, 2, 3, 4, 5].map((item) => (
             <div key={item} className="aspect-square bg-zinc-100" />
           ))}

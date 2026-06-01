@@ -1,5 +1,4 @@
-import { CalendarPlus, LayoutGrid, LogOut, UserCheck, UsersRound } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import ProfileEditSheet, {
   type ProfileIdentityChanges,
@@ -14,7 +13,6 @@ type ProfileScreenProps = {
   saveError: string;
   onOpen: (questId: string) => void;
   onOpenPeople: () => void;
-  onSignOut: () => void | Promise<void>;
   onSaveProfile: (changes: ProfileIdentityChanges) => void | Promise<void>;
 };
 
@@ -26,7 +24,6 @@ export default function ProfileScreen({
   saveError,
   onOpen,
   onOpenPeople,
-  onSignOut,
   onSaveProfile,
 }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -62,36 +59,22 @@ export default function ProfileScreen({
   }
 
   return (
-    <div className="space-y-5 pb-3">
+    <div className="space-y-4 pb-3">
       <section className="space-y-4">
-        <div className="grid grid-cols-[7rem_1fr] items-center gap-5">
+        <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
           <ProfileAvatar key={profile.avatarUrl ?? profile.avatarInitials} profile={profile} />
 
-          <div className="min-w-0 space-y-4">
-            <div className="min-w-0">
-              <p className="truncate text-[17px] font-extrabold leading-6 text-zinc-950">
-                {profile.displayName}
-                {profile.pronouns ? (
-                  <span className="ml-2 font-semibold text-zinc-500">
-                    {profile.pronouns}
-                  </span>
-                ) : null}
-              </p>
-            </div>
-
+          <div className="min-w-0">
             <div className="grid grid-cols-3 gap-1 text-center">
               <ProfileStat
-                icon={<CalendarPlus size={18} strokeWidth={2.1} aria-hidden="true" />}
-                label="Hosted events"
+                label="Hosted"
                 value={stats.hosted.length}
               />
               <ProfileStat
-                icon={<UserCheck size={18} strokeWidth={2.1} aria-hidden="true" />}
-                label="Attended events"
+                label="Attended"
                 value={stats.going.length}
               />
               <ProfileStat
-                icon={<UsersRound size={18} strokeWidth={2.1} aria-hidden="true" />}
                 label="Friends"
                 value={friends.length}
                 onClick={onOpenPeople}
@@ -100,39 +83,39 @@ export default function ProfileScreen({
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <p className="text-[15px] font-bold text-zinc-500">
-            {profile.area}
+        <div className="space-y-1">
+          <p className="truncate text-[17px] font-extrabold leading-6 text-zinc-950">
+            {profile.displayName}
+            {profile.pronouns ? (
+              <span className="ml-2 font-semibold text-zinc-500">
+                {profile.pronouns}
+              </span>
+            ) : null}
           </p>
+          {profile.area ? (
+            <p className="text-sm text-zinc-500">{profile.area}</p>
+          ) : null}
           {profile.bio ? (
-            <p className="whitespace-pre-line text-[15px] leading-6 text-zinc-700">
+            <p className="whitespace-pre-line text-sm leading-6 text-zinc-700">
               {profile.bio}
             </p>
           ) : null}
         </div>
 
-        <div className="grid grid-cols-[1fr_1fr_2.75rem] gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="glass-chip inline-flex min-h-10 items-center justify-center rounded-lg border px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-white/80"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-semibold text-zinc-950 transition active:scale-[0.98]"
           >
             Edit profile
           </button>
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="glass-chip inline-flex min-h-10 items-center justify-center rounded-lg border px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-white/80"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-semibold text-zinc-950 transition active:scale-[0.98]"
           >
             Share
-          </button>
-          <button
-            type="button"
-            onClick={() => onSignOut()}
-            aria-label="Sign out"
-            className="glass-chip grid min-h-10 place-items-center rounded-lg border text-zinc-950 transition hover:bg-white/80"
-          >
-            <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
 
@@ -143,22 +126,16 @@ export default function ProfileScreen({
         ) : null}
       </section>
 
-      <section className="border-t border-zinc-200 pt-3">
-        <div className="flex h-9 items-center justify-center text-zinc-950">
-          <LayoutGrid size={22} strokeWidth={2.15} aria-label="Profile events grid" />
-        </div>
-
+      <section className="-mx-5 mt-2">
         {myQuests.length > 0 ? (
-          <div className="mt-3 grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-3 gap-[1px] bg-zinc-200">
             {myQuests.map((quest) => (
               <QuestTile key={quest.id} quest={quest} onOpen={onOpen} />
             ))}
           </div>
         ) : (
-          <div className="py-14 text-center">
-            <p className="text-sm font-bold text-zinc-800">
-              No events yet.
-            </p>
+          <div className="px-5 py-14 text-center">
+            <p className="text-sm font-bold text-zinc-800">No events yet.</p>
             <p className="mt-1 text-sm text-zinc-400">
               Your plus1 moments will show up here.
             </p>
@@ -188,7 +165,7 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
 
   if (profile.avatarUrl && !didImageFail) {
     return (
-      <span className="block aspect-square h-28 w-28 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+      <span className="block aspect-square h-20 w-20 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={profile.avatarUrl}
@@ -201,30 +178,28 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
   }
 
   return (
-    <span className="grid aspect-square h-28 w-28 place-items-center overflow-hidden rounded-full bg-zinc-950 text-3xl font-bold text-white shadow-sm">
+    <span className="grid aspect-square h-20 w-20 place-items-center overflow-hidden rounded-full bg-zinc-950 text-2xl font-bold text-white shadow-sm">
       {profile.avatarInitials}
     </span>
   );
 }
 
 function ProfileStat({
-  icon,
   label,
   onClick,
   value,
 }: {
-  icon: ReactNode;
   label: string;
   onClick?: () => void;
   value: number;
 }) {
   const content = (
     <>
-      <span className="flex h-6 items-center justify-center text-zinc-500">
-        {icon}
-      </span>
-      <span className="mt-1 block text-xl font-extrabold leading-none text-zinc-950">
+      <span className="block text-lg font-extrabold leading-none text-zinc-950">
         {value}
+      </span>
+      <span className="mt-1 block text-xs font-semibold text-zinc-500">
+        {label}
       </span>
     </>
   );
@@ -256,11 +231,6 @@ function QuestTile({
   quest: Quest;
   onOpen: (questId: string) => void;
 }) {
-  const when = quest.startTimeRelative ?? quest.startTime;
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
-  const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
-  const socialProof = `${quest.goingCount}/${quest.maxPeople} going · ${openSpots} open`;
-
   return (
     <button
       type="button"
@@ -282,18 +252,10 @@ function QuestTile({
           className="absolute inset-0 h-full w-full"
         />
       )}
-      <div className="absolute inset-0 bg-black/10" />
-      <div className="glass-overlay absolute inset-x-1.5 bottom-1.5 rounded-xl border p-2.5">
-        <p className="line-clamp-2 text-xs font-bold leading-4 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.76)]">
-          {quest.title}
-        </p>
-        <p className="mt-1 line-clamp-2 text-[0.62rem] font-semibold leading-3 text-white/78 [text-shadow:0_2px_8px_rgba(0,0,0,0.72)]">
-          {context}
-        </p>
-        <p className="mt-1 truncate text-[0.62rem] font-bold leading-3 text-white/88 [text-shadow:0_2px_8px_rgba(0,0,0,0.72)]">
-          {socialProof}
-        </p>
-      </div>
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
+      <p className="absolute bottom-1.5 left-1.5 right-1.5 truncate text-[11px] font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
+        {quest.title}
+      </p>
       {quest.status !== "open" ? (
         <span className="glass-chip absolute right-1.5 top-1.5 rounded-full border px-2 py-0.5 text-[0.6rem] font-bold uppercase text-zinc-700">
           {quest.status}
