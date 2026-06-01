@@ -1653,6 +1653,7 @@ export default function AppShell() {
   function renderRootHeader(page: RootPage) {
     const isHomePanel = page === "home";
     const isProfilePanel = page === "profile";
+    const hideTitle = page === "events" || page === "people";
     const title =
       page === "home"
         ? "plus1"
@@ -1681,6 +1682,7 @@ export default function AppShell() {
           ) : null
         }
         compactLargeTitle={isProfilePanel}
+        hideTitle={hideTitle}
         isBrand={isHomePanel}
         title={title}
         titleAlign="large"
@@ -1789,10 +1791,12 @@ export default function AppShell() {
               <section className="flex h-full flex-col overflow-hidden bg-white">
                 {renderRootHeader(page)}
                 <div
-                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-3 ${
+                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} ${
                     page === "events"
-                      ? "snap-y snap-mandatory"
-                      : ""
+                      ? "pt-0 snap-y snap-mandatory"
+                      : page === "people"
+                        ? "pt-0"
+                        : "pt-3"
                   }`}
                 >
                   {renderRootContent(page)}
@@ -1879,6 +1883,7 @@ function getCurrentRootPage(activeTab: AppTab): RootPage {
 function AppHeader({
   actions,
   compactLargeTitle = false,
+  hideTitle = false,
   isBrand,
   leading,
   onBack,
@@ -1887,12 +1892,45 @@ function AppHeader({
 }: {
   actions?: ReactNode;
   compactLargeTitle?: boolean;
+  hideTitle?: boolean;
   isBrand: boolean;
   leading?: ReactNode;
   onBack?: () => void;
   title: string;
   titleAlign?: "center" | "large" | "left";
 }) {
+  if (hideTitle && titleAlign === "large") {
+    return (
+      <header className="shrink-0 bg-white pt-[calc(env(safe-area-inset-top,0px)+6px)]">
+        {actions ? (
+          <div className="flex items-center justify-end px-5 pb-1">{actions}</div>
+        ) : null}
+      </header>
+    );
+  }
+
+  if (hideTitle) {
+    return (
+      <header className="shrink-0 bg-white px-4 pb-1 pt-[calc(env(safe-area-inset-top,0px)+6px)]">
+        <div className="flex min-h-10 items-center gap-2">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+            >
+              <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+          ) : null}
+          {actions ? (
+            <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
+          ) : null}
+        </div>
+      </header>
+    );
+  }
+
   if (titleAlign === "large") {
     return (
       <header className="shrink-0 bg-white px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
