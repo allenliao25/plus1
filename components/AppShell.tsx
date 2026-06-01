@@ -1900,7 +1900,7 @@ export default function AppShell() {
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         {isRootTrackActive ? (
           <div
-            className="min-h-0 flex-1 touch-pan-y overflow-hidden bg-zinc-950"
+            className="min-h-0 flex-1 touch-pan-y select-none overflow-hidden bg-zinc-950"
             onPointerCancel={handlePointerCancel}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
