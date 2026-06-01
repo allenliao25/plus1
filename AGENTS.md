@@ -1,6 +1,6 @@
 # plus1 — agent instructions
 
-Campus hangout app ("quests"): phone OTP auth, quest discovery/create/join, activity feed, optional AI-assisted quest drafting. Mobile-first Next.js app with a Capacitor iOS wrapper deployed to Vercel.
+General hangout app (user-facing "events", legacy internal "quests"): phone OTP auth, event discovery/create/join, activity feed, optional AI-assisted event drafting. Mobile-first Next.js app with a Capacitor iOS wrapper deployed to Vercel.
 
 **Before large changes, read:** `README.md`, `docs/evaluation.md`, and relevant code under the paths below.
 

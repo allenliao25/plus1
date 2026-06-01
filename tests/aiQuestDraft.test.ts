@@ -19,6 +19,7 @@ test("parseQuestDraft ignores generated descriptions", () => {
     startTime: "2026-06-01T20:00",
     description: "",
     maxPeople: 2,
+    visibility: "local",
   });
 });
 
@@ -57,6 +58,44 @@ test("parseQuestDraft moves tonight to tomorrow if the time already passed", () 
   );
 
   assert.equal(draft.startTime, "2026-05-31T20:00");
+});
+
+test("parseQuestDraft treats spaced meal times as PM", () => {
+  const draft = parseQuestDraft(
+    {
+      title: "Dinner at Wilbur",
+      category: "Food",
+      location: "Wilbur",
+      startTime: "2026-05-31T06:00",
+      maxPeople: 4,
+    },
+    {
+      sourceText: "dinner at wilbur today 6 30 invite jungkook",
+      nowLocal: "2026-05-31T12:00",
+    },
+  );
+
+  assert.equal(draft.startTime, "2026-05-31T18:30");
+  assert.equal(draft.maxPeople, 2);
+});
+
+test("parseQuestDraft extracts explicit invite hints", () => {
+  const draft = parseQuestDraft(
+    {
+      title: "Dinner at Wilbur",
+      category: "Food",
+      location: "Wilbur",
+      startTime: "2026-05-31T18:30",
+      maxPeople: 4,
+      inviteHints: ["@jungkook"],
+    },
+    {
+      sourceText: "dinner at wilbur today 6 30 invite Jungkook",
+      nowLocal: "2026-05-31T12:00",
+    },
+  );
+
+  assert.deepEqual(draft.inviteHints, ["jungkook"]);
 });
 
 test("parseQuestDraft removes stale model dates without a relative cue", () => {

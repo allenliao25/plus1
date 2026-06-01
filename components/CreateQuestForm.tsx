@@ -1,10 +1,19 @@
 import { Camera, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import InvitePicker from "@/components/InvitePicker";
+import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import { questCategories } from "@/data/demoQuests";
 import { validateQuestCardImageFile } from "@/lib/questService";
-import type { NewQuestInput, QuestCategory } from "@/types/quest";
+import type {
+  NewQuestInput,
+  QuestCategory,
+  QuestInviteProfile,
+  QuestVisibility,
+} from "@/types/quest";
 
 type CreateQuestFormProps = {
+  currentUserId: string;
+  friendProfiles?: QuestInviteProfile[];
   isSubmitting: boolean;
   submitLabel?: string;
   submittingLabel?: string;
@@ -13,6 +22,7 @@ type CreateQuestFormProps = {
    * an AI draft; the draft is never auto-posted.
    */
   initialValues?: NewQuestInput;
+  initialInvitees?: QuestInviteProfile[];
   onCreateQuest: (
     event: NewQuestInput,
     cardImageFile?: File | null,
@@ -28,16 +38,46 @@ const defaultForm: NewQuestInput = {
   startTime: "",
   description: "",
   maxPeople: 4,
+  visibility: "local",
 };
 
+const visibilityOptions: Array<{
+  value: QuestVisibility;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "local",
+    label: "Local",
+    helper: "Anyone in your area can discover and join.",
+  },
+  {
+    value: "friends",
+    label: "Friends",
+    helper: "Your friends can discover and join. Invited people can also join.",
+  },
+  {
+    value: "invite_only",
+    label: "Invite-only",
+    helper: "Only invited people can see and join.",
+  },
+];
+
 export default function CreateQuestForm({
+  currentUserId,
+  friendProfiles = [],
   isSubmitting,
   submitLabel = "Post event",
   submittingLabel = "Posting...",
   initialValues,
+  initialInvitees,
   onCreateQuest,
 }: CreateQuestFormProps) {
-  const [form, setForm] = useState<NewQuestInput>(initialValues ?? defaultForm);
+  const [form, setForm] = useState<NewQuestInput>({
+    ...defaultForm,
+    ...initialValues,
+    visibility: initialValues?.visibility ?? defaultForm.visibility,
+  });
   const [timeMode, setTimeMode] = useState<TimeMode>(
     initialValues?.startTime ? "scheduled" : "asap",
   );
@@ -47,6 +87,9 @@ export default function CreateQuestForm({
     null,
   );
   const [cardImageError, setCardImageError] = useState("");
+  const [invitees, setInvitees] = useState<QuestInviteProfile[]>(
+    initialInvitees ?? [],
+  );
   const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,12 +138,15 @@ export default function CreateQuestForm({
           location: form.location.trim(),
           startTime: timeMode === "asap" ? "" : form.startTime.trim(),
           maxPeople,
+          visibility: form.visibility ?? "local",
+          inviteeIds: invitees.map((invitee) => invitee.id),
           description:
             form.description.trim() || "No extra details yet. Just show up.",
         },
         cardImageFile,
       );
       setForm(defaultForm);
+      setInvitees([]);
       clearCardImage();
       setError("");
       setCardImageError("");
@@ -191,8 +237,8 @@ export default function CreateQuestForm({
                 onClick={() => updateForm("category", category as QuestCategory)}
                 className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
                   isSelected
-                    ? "border-zinc-950 bg-zinc-950 text-white"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                    ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
+                    : "glass-chip border text-zinc-700 hover:bg-white/80"
                 }`}
               >
                 {category}
@@ -219,7 +265,7 @@ export default function CreateQuestForm({
           <p className="text-sm font-bold text-zinc-800">Time</p>
           <RequiredBadge />
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 rounded-full bg-zinc-100 p-1">
+        <div className="glass-panel mt-2 grid grid-cols-2 gap-2 rounded-full border p-1">
           {(["asap", "scheduled"] as TimeMode[]).map((mode) => (
             <button
               key={mode}
@@ -275,6 +321,46 @@ export default function CreateQuestForm({
       </label>
 
       <div>
+        <p className="text-sm font-bold text-zinc-800">Who can see this?</p>
+        <div className="glass-panel mt-2 grid grid-cols-3 gap-1 rounded-full border p-1">
+          {visibilityOptions.map((option) => {
+            const isSelected = (form.visibility ?? "local") === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => updateForm("visibility", option.value)}
+                className={`min-h-10 rounded-full px-2 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                  isSelected
+                    ? "bg-zinc-950 text-white shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold leading-6 text-zinc-600">
+          {
+            visibilityOptions.find(
+              (option) => option.value === (form.visibility ?? "local"),
+            )?.helper
+          }
+        </p>
+      </div>
+
+      <InvitePicker
+        currentUserId={currentUserId}
+        disabled={isSubmitting}
+        friendProfiles={friendProfiles}
+        selectedProfiles={invitees}
+        onChange={setInvitees}
+      />
+
+      <div>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-bold text-zinc-800">Card photo</p>
           <span className="text-xs font-bold uppercase tracking-normal text-zinc-400">
@@ -288,7 +374,7 @@ export default function CreateQuestForm({
                 clearCardImage();
                 setCardImageError("");
               }}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              className="glass-chip inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
             >
               <X size={14} strokeWidth={2} aria-hidden="true" />
               Remove
@@ -311,9 +397,12 @@ export default function CreateQuestForm({
             />
           ) : (
             <span className="relative block h-40">
-              <span className="holo-thumb-fallback absolute inset-0" />
+              <QuestCategoryArtwork
+                category={form.category}
+                className="absolute inset-0 h-full w-full"
+              />
               <span className="absolute inset-0 bg-black/16" />
-              <span className="absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border border-white/16 bg-black/34 p-3 text-white shadow-sm backdrop-blur-xl">
+              <span className="glass-overlay absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border p-3 text-white">
                 <span>
                   <span className="block text-sm font-bold">
                     Using the {form.category} default
@@ -322,7 +411,7 @@ export default function CreateQuestForm({
                     Upload a photo anytime.
                   </span>
                 </span>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-zinc-800">
+                <span className="glass-action grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-800">
                   <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
                 </span>
               </span>

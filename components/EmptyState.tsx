@@ -12,7 +12,7 @@ export default function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="rounded-3xl border border-dashed border-zinc-300 bg-white p-6 text-center">
+    <div className="glass-panel rounded-3xl border border-dashed p-6 text-center">
       <h3 className="text-base font-bold text-zinc-950">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-500">{body}</p>
       {actionLabel && onAction ? (

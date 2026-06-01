@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, MapPin, Users } from "lucide-react";
+import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import type { Quest } from "@/types/quest";
 
 type HomeQuestRowProps = {
@@ -16,6 +16,9 @@ export default function HomeQuestRow({
 }: HomeQuestRowProps) {
   const actionState = getActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
+  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
+  const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
+  const socialProof = `${quest.goingCount}/${quest.maxPeople} going · ${openSpots} open`;
 
   return (
     <article
@@ -39,59 +42,26 @@ export default function HomeQuestRow({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="holo-thumb-fallback h-full w-full" />
+            <QuestCategoryArtwork
+              category={quest.category}
+              className="h-full w-full"
+            />
           )}
         </div>
 
         <div className="min-w-0 py-0.5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <span className="min-w-0 truncate text-[0.66rem] font-bold uppercase tracking-[0.12em] text-zinc-400">
-              {quest.category}
-            </span>
-            {quest.matchesCurrentUserInterests ? (
-              <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[0.62rem] font-bold text-zinc-600">
-                For you
-              </span>
-            ) : null}
-          </div>
-          <h3 className="mt-1 line-clamp-2 text-[1.02rem] font-bold leading-[1.08] tracking-normal text-zinc-950">
+          <h3 className="line-clamp-2 text-[1.02rem] font-bold leading-[1.08] tracking-normal text-zinc-950">
             {quest.title}
           </h3>
-          <dl className="mt-2 grid gap-1 text-[0.72rem] font-semibold leading-4 text-zinc-500">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <dt className="sr-only">When</dt>
-              <CalendarDays
-                className="shrink-0 text-zinc-400"
-                size={13}
-                strokeWidth={2}
-                aria-hidden="true"
-              />
-              <dd className="min-w-0 truncate">{when}</dd>
-            </div>
-            <div className="flex min-w-0 items-center gap-1.5">
-              <dt className="sr-only">Where</dt>
-              <MapPin
-                className="shrink-0 text-zinc-400"
-                size={13}
-                strokeWidth={2}
-                aria-hidden="true"
-              />
-              <dd className="min-w-0 truncate">{quest.location}</dd>
-            </div>
-          </dl>
+          <p className="mt-1.5 line-clamp-2 text-[0.72rem] font-semibold leading-4 text-zinc-500">
+            {context}
+          </p>
+          <p className="mt-1 truncate text-[0.72rem] font-bold leading-4 text-zinc-700">
+            {socialProof}
+          </p>
         </div>
 
-        <div className="flex h-full flex-col items-end justify-between gap-2 py-0.5">
-          <ChevronRight
-            className="text-zinc-300"
-            size={18}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-          <div className="flex items-center gap-1 text-[0.7rem] font-bold text-zinc-400">
-            <Users size={13} strokeWidth={2} aria-hidden="true" />
-            {quest.goingCount}/{quest.maxPeople}
-          </div>
+        <div className="flex h-full flex-col items-end justify-end gap-2 py-0.5">
           <button
             type="button"
             onClick={(event) => {
@@ -99,10 +69,10 @@ export default function HomeQuestRow({
               onJoin(quest.id);
             }}
             disabled={actionState.isDisabled}
-            className={`pointer-events-auto min-h-9 min-w-[4.9rem] rounded-full px-3 py-1.5 text-xs font-bold transition active:scale-95 ${
+            className={`pointer-events-auto min-h-9 min-w-[5.7rem] rounded-full px-3 py-1.5 text-xs font-bold transition active:scale-95 ${
               actionState.isPrimary
                 ? "bg-zinc-950 text-white hover:bg-zinc-800"
-                : "bg-zinc-100 text-zinc-400"
+                : "glass-chip border text-zinc-500"
             }`}
           >
             {actionState.label}
@@ -118,7 +88,7 @@ function getActionState(quest: Quest, isJoining: boolean) {
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
 
   if (isJoined) {
-    return { isDisabled: true, isPrimary: false, label: "In" };
+    return { isDisabled: true, isPrimary: false, label: "You're in" };
   }
 
   if (quest.status !== "open") {
@@ -134,7 +104,7 @@ function getActionState(quest: Quest, isJoining: boolean) {
   }
 
   if (isJoining) {
-    return { isDisabled: true, isPrimary: false, label: "..." };
+    return { isDisabled: true, isPrimary: false, label: "Joining..." };
   }
 
   return { isDisabled: false, isPrimary: true, label: "Join" };

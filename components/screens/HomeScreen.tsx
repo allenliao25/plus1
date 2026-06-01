@@ -7,7 +7,6 @@ import HomeSpotlightCard from "@/components/HomeSpotlightCard";
 import type { Profile, Quest } from "@/types/quest";
 import {
   buildHomeFeedModel,
-  filterHomeQuests,
   getDefaultHomeFilter,
   getHomeFilterOptions,
   type HomeFeedFilter,
@@ -63,14 +62,17 @@ export default function HomeScreen({
       }),
     [activeFilter, profile, quests],
   );
-  const canPreviewGrid =
-    process.env.NODE_ENV !== "production" || hasPreviewParam;
+  const canPreviewGrid = hasPreviewParam;
   const activeLayoutMode = canPreviewGrid ? layoutMode : "hybrid";
 
   if (quests.length === 0) {
     return (
       <div className="space-y-5">
-        <HomeHeader matchCount={0} />
+        <HomeFilterRail
+          activeFilter={activeFilter}
+          filters={filterOptions}
+          onSelect={setSelectedFilter}
+        />
         <EmptyState
           title="No open events right now"
           body="Create one and it will appear here for people nearby."
@@ -83,44 +85,18 @@ export default function HomeScreen({
 
   return (
     <div className="space-y-5">
-      <HomeHeader matchCount={feedModel.forYouCount} />
-
-      <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {filterOptions.map((filter) => {
-          const isActive = activeFilter === filter;
-          const count = getFilterCount(filter, quests, profile);
-
-          return (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setSelectedFilter(filter)}
-              aria-pressed={isActive}
-              className={`flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-bold transition ${
-                isActive
-                  ? "border-zinc-950 bg-zinc-950 text-white"
-                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
-              }`}
-            >
-              <span>{filter}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[0.64rem] ${
-                  isActive ? "bg-white/16 text-white" : "bg-zinc-100 text-zinc-500"
-                }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <HomeFilterRail
+        activeFilter={activeFilter}
+        filters={filterOptions}
+        onSelect={setSelectedFilter}
+      />
 
       {canPreviewGrid ? (
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
             Preview
           </p>
-          <div className="grid grid-cols-2 rounded-full border border-zinc-200 bg-zinc-100 p-1">
+          <div className="glass-panel grid grid-cols-2 rounded-full border p-1">
             <button
               type="button"
               onClick={() => setLayoutMode("hybrid")}
@@ -155,8 +131,8 @@ export default function HomeScreen({
         <EmptyState
           title={`No ${activeFilter.toLowerCase()} events yet`}
           body="Try all open events or create the next move."
-          actionLabel="Show all"
-          onAction={() => setSelectedFilter("All")}
+          actionLabel="Show For you"
+          onAction={() => setSelectedFilter("For you")}
         />
       ) : activeLayoutMode === "grid" ? (
         <HomeGridPreview
@@ -205,32 +181,38 @@ export default function HomeScreen({
   );
 }
 
-function HomeHeader({ matchCount }: { matchCount: number }) {
+function HomeFilterRail({
+  activeFilter,
+  filters,
+  onSelect,
+}: {
+  activeFilter: HomeFeedFilter;
+  filters: HomeFeedFilter[];
+  onSelect: (filter: HomeFeedFilter) => void;
+}) {
   return (
-    <div className="flex items-end justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">
-          For you
-        </p>
-        <h2 className="mt-1 text-2xl font-bold leading-none tracking-tight text-zinc-950">
-          Tonight&apos;s move
-        </h2>
-      </div>
-      {matchCount > 0 ? (
-        <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700">
-          {matchCount} match{matchCount === 1 ? "" : "es"}
-        </span>
-      ) : null}
+    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {filters.map((filter) => {
+        const isActive = activeFilter === filter;
+
+        return (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => onSelect(filter)}
+            aria-pressed={isActive}
+            className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[15px] font-extrabold transition active:scale-[0.98] ${
+              isActive
+                ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
+                : "glass-chip border text-zinc-700 hover:bg-white/80"
+            }`}
+          >
+            {filter}
+          </button>
+        );
+      })}
     </div>
   );
-}
-
-function getFilterCount(
-  filter: HomeFeedFilter,
-  quests: Quest[],
-  profile: Profile,
-) {
-  return filterHomeQuests(quests, profile, filter).length;
 }
 
 function subscribeToUrlChanges(onStoreChange: () => void) {

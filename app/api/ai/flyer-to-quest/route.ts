@@ -1,4 +1,8 @@
 import { requestQuestDraft } from "@/lib/aiQuestDraft";
+import {
+  checkAiRateLimit,
+  requireAuthenticatedUserId,
+} from "@/lib/aiRequestGuards";
 
 export const runtime = "nodejs";
 
@@ -8,6 +12,24 @@ const EXTRACT_PROMPT =
   "Extract an event draft from this flyer image. Read the title, location, date/time, and any details, then map them to the required JSON fields.";
 
 export async function POST(request: Request) {
+  const auth = await requireAuthenticatedUserId(request);
+
+  if ("response" in auth) {
+    return auth.response;
+  }
+
+  const rateLimit = checkAiRateLimit(auth.userId, "flyer-to-quest");
+
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { error: "Smart Draft is busy. Try again in a minute." },
+      {
+        status: 429,
+        headers: { "Retry-After": `${rateLimit.retryAfterSeconds}` },
+      },
+    );
+  }
+
   let file: File | null = null;
   try {
     const formData = await request.formData();

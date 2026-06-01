@@ -2,11 +2,11 @@
 
 Hangouts, without the group text.
 
-plus1 is a mobile-first social app for lightweight events. Students can sign in with phone OTP, discover plans, join or host events, and use AI to draft event details from text or flyers.
+plus1 is a mobile-first social app for lightweight events. People can sign in with phone OTP, discover realistic nearby plans, join or host events, and use AI to draft event details from text or flyers.
 
 ## Why this project
 
-Most campus coordination happens in fragmented group chats. plus1 tries to reduce that friction with:
+Most casual coordination happens in fragmented group chats. plus1 tries to reduce that friction with:
 
 - one-tap event discovery
 - frictionless joins/leaves
@@ -20,22 +20,26 @@ Most campus coordination happens in fragmented group chats. plus1 tries to reduc
 - Phone-only OTP authentication (Supabase Auth)
 - Session persistence across refresh and native app relaunch
 - Automatic profile bootstrap on first sign-in
-- Profile editing (display name, unique @handle, bio)
+- Profile editing (display name, unique @handle, local area, bio)
 
 ### Events
 
 - Home feed of open events
-- Explore screen with search + category filters
+- Lightweight local-area filtering so users see realistic nearby events
+- Events screen with search + category filters
+- People screen with search, suggestions, friend requests, and friends
 - Create event flow with form validation
 - Join / leave event
 - Host edit / close event
 - Event detail with attendees and status badges
 - Shareable event card with native share sheet / clipboard fallback
 
-### Activity and realtime
+### Activity, messages, and realtime
 
 - Activity feed for joins, edits, and closures
-- Unread activity badge on tab bar
+- Home header bell with unread activity badge
+- Friends-only direct messages and host/attendee event chats
+- Home header messages button with unread chat badge
 - Supabase Realtime subscriptions for live updates
 - Local notifications on native iOS (best-effort)
 
@@ -44,6 +48,7 @@ Most campus coordination happens in fragmented group chats. plus1 tries to reduc
 - Text-to-event drafting: `app/api/ai/quest-draft/route.ts`
 - Flyer-image-to-event extraction: `app/api/ai/flyer-to-quest/route.ts`
 - Server-side validation/clamping of AI JSON output in `lib/aiQuestDraft.ts`
+- AI routes require a signed-in user and include basic input/rate limits
 
 ## Architecture
 
@@ -84,6 +89,7 @@ Required vars in `.env.local`:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL` (used for public share preview links; production is `https://plus1-livid.vercel.app`)
 - `OPENAI_API_KEY` (required for AI draft routes)
 
 Optional vars:
@@ -102,12 +108,22 @@ Minimum migrations for current feature set:
 - `supabase/migrations/20260530045200_phone_auth_profiles.sql`
 - `supabase/migrations/20260530045300_profile_bio_interests.sql`
 - `supabase/migrations/20260530045400_activity_events.sql`
-- `supabase/migrations/20260530054500_profile_website_url.sql`
 - `supabase/migrations/20260530053000_profile_handles.sql`
+- `supabase/migrations/20260530054500_profile_website_url.sql`
+- `supabase/migrations/20260530060000_profile_photos_events_categories.sql`
+- `supabase/migrations/20260530061000_quest_card_images.sql`
+- `supabase/migrations/20260531020500_nullable_quest_start_time.sql`
+- `supabase/migrations/20260531030000_profile_pronouns.sql`
+- `supabase/migrations/20260531040000_course_hardening.sql`
+- `supabase/migrations/20260531043000_local_area_boundary.sql`
+- `supabase/migrations/20260531052000_event_visibility_invites.sql`
+- `supabase/migrations/20260531060000_local_visibility_name.sql`
+- `supabase/migrations/20260531223000_public_quest_share_links.sql`
+- `supabase/migrations/20260531233000_messaging_threads.sql`
 
-### 4) Enable Realtime for activity feed
+### 4) Enable Realtime for activity and messages
 
-Ensure `activity_events` is part of publication `supabase_realtime`.
+Ensure `activity_events`, `message_threads`, `message_thread_participants`, and `messages` are part of publication `supabase_realtime`.
 
 ### 5) Configure phone auth (choose one)
 
@@ -163,10 +179,26 @@ npx vercel deploy --prod
 2. Confirm first-run profile setup appears for new users.
 3. Create an event manually.
 4. Create another event draft via AI text prompt.
-5. Open Explore and filter/search events.
-6. Join an event and verify Activity tab updates.
-7. Open event detail and share the event card.
-8. Edit profile bio/interests and verify persistence.
+5. Open Events and filter/search events.
+6. Join an event and verify the Home bell opens Activity.
+7. Open event detail and verify Chat appears after joining.
+8. Open Messages from Home and verify Inbox loads.
+9. Edit profile bio/interests and verify persistence.
+
+## Supabase integration test environment
+
+`npm run test` always runs unit tests. The RLS integration tests in
+`lib/questService.test.mjs` run when these variables are present:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `PLUS1_TEST_PASSWORD`
+- `PLUS1_TEST_EMAIL_HOST`
+- `PLUS1_TEST_EMAIL_JOINER`
+- `PLUS1_TEST_EMAIL_THIRD` (needed for capacity and outside-area rejection)
+
+Use disposable test users and a disposable Supabase project or schema. The test
+updates those users' `profiles.area` values and creates temporary events.
 
 ## Project documentation for submission
 
@@ -179,4 +211,19 @@ npx vercel deploy --prod
 - Real SMS delivery in US may require Twilio A2P 10DLC registration.
 - AI flyer extraction can miss or hallucinate event details from noisy images.
 - Native push token registration is best-effort in development builds.
-- Network effects are limited without enough active campus users.
+- Network effects are limited without enough active local users.
+- Local area is profile-selected for demo purposes; it is not GPS or address verification.
+- Activity for joins/host edits/closures is server-side, while reminder activity remains best-effort.
+- Message push notifications are not implemented; unread chat badges are in-app only.
+- Internal database and TypeScript names still use legacy `quest` naming for this pass; user-facing copy treats them as events.
+
+## Future trust/safety work
+
+The current course-hardening pass documents but does not implement the full
+trust/safety surface. Before treating plus1 as production-ready, add:
+
+- report flows for events and users
+- block/mute controls that hide blocked users and their events
+- host reputation or verification signals
+- moderator takedown tools for unsafe events or profiles
+- a clear escalation/review process for reports

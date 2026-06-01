@@ -6,7 +6,7 @@ This document maps plus1's current state to the CS 153 project rubric and record
 
 ### Problem
 
-Students often coordinate casual events (food, study, walks, sidequests) through fragmented group chats. That workflow has high friction:
+People often coordinate casual events (food, study, walks, errands) through fragmented group chats. That workflow has high friction:
 
 - no shared browse surface for plans nearby
 - unclear host ownership and participant capacity
@@ -28,10 +28,11 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 ### Product capabilities implemented
 
 - Phone OTP auth and persistent sessions
-- Unique @handle setup and profile editing
-- Instagram-style 5-tab app shell (Home, Explore, Create, Activity, Profile)
+- Unique @handle setup, local area selection, and profile editing
+- Familiar 5-tab app shell (Home, Events, Create, People, Profile) with Home header Activity/Messages icons
 - Event lifecycle (create, join, leave, edit, close)
 - Activity feed with unread indicators
+- Friends-only DMs and event chats for hosts/attendees
 - AI text-to-event and flyer-to-event draft routes
 - Shareable event card flow
 - Capacitor iOS wrapper and native-safe-area UI polish
@@ -39,8 +40,9 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 ### Technical scope evidence
 
 - Auth + profile bootstrap/update logic: `lib/authService.ts`
-- Quest reads/writes and hydration: `lib/questService.ts`
+- Event reads/writes and hydration (legacy service name): `lib/questService.ts`
 - Activity feed + writes: `lib/activityService.ts`
+- Messaging inbox/thread service: `lib/messageService.ts`
 - AI server helper and routes:
   - `lib/aiQuestDraft.ts`
   - `app/api/ai/quest-draft/route.ts`
@@ -53,6 +55,7 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
   - `supabase/migrations/20260530045200_phone_auth_profiles.sql`
   - `supabase/migrations/20260530045300_profile_bio_interests.sql`
   - `supabase/migrations/20260530045400_activity_events.sql`
+  - `supabase/migrations/20260531233000_messaging_threads.sql`
 
 ## 3) Evaluation and evidence
 
@@ -70,7 +73,7 @@ plus1 includes substantial implementation across frontend, backend routes, auth,
 - Production build gate: `npm run build`
 - RLS integration test coverage in:
   - `lib/questService.test.mjs`
-  - validates over-capacity join rejection and host self-join rejection behavior
+  - validates atomic capacity, host self-join rejection, and outside-area rejection when Supabase test env vars are configured
 
 ### C. Iteration evidence from development
 
@@ -96,13 +99,16 @@ Capture one clean screenshot for each of these states (device frame optional):
 
 - Dedicated phone login screen
 - Home feed with multiple open events
-- Explore screen with search + category filter active
+- Events screen with search + category filter active
+- People screen with suggestions/friend actions
+- Inbox and chat thread screens
 - Create screen with AI text draft populated
 - Create screen with flyer upload flow
 - Event detail + attendee list
 - Activity feed with unread indicator
 - Profile screen with updated bio/interests
 - Profile screen with handle, bio, photo, and event tabs
+- Profile setup/edit with local area selected
 
 ## 4) Limitations and failure analysis
 
@@ -110,7 +116,11 @@ Capture one clean screenshot for each of these states (device frame optional):
 - **AI extraction reliability:** flyer parsing may miss details or produce imperfect defaults; human review before posting is still required
 - **Push notifications:** native push token registration is best-effort in development; full production push pipeline still requires deployment hardening
 - **Network effects:** utility depends on active local user density
-- **Moderation/safety:** no automated moderation pipeline yet
+- **Local relevance:** profile-selected area filtering limits demo visibility, but it is not GPS or address verification
+- **Moderation/safety:** report, block, takedown, and reputation tools are documented future work, not implemented product surfaces yet
+- **Reminder activity:** join/edit/close activity is database-backed; reminder events remain client-orchestrated polish
+- **Message notifications:** in-app unread badges exist, but message push notifications are not implemented yet
+- **Internal naming:** some files, tables, and TypeScript types still use legacy `quest` naming while the product copy uses "events"
 
 ## 5) Success criteria and status
 
@@ -118,8 +128,8 @@ Capture one clean screenshot for each of these states (device frame optional):
 |---|---|---|
 | User can authenticate with phone OTP | End-to-end sign-in works | Met (test OTP path) |
 | User can create and join events | Core lifecycle works | Met |
-| User sees updates after interactions | Activity feed + unread works | Met |
-| AI can bootstrap event fields | Text + flyer routes return validated draft JSON | Met (with quality limits) |
+| User sees updates after interactions | Activity feed + unread works | Met for join/edit/close; reminders are best-effort |
+| AI can bootstrap event fields | Text + flyer routes return validated draft JSON | Met for signed-in users, with quality and rate limits |
 | Project is reproducible by grader | Setup + migration + demo checklist documented | In progress (README/docs updated this pass) |
 | Evidence of iteration and technical depth | Commit history + architecture + validation artifacts | Met, with ongoing polish |
 
@@ -128,7 +138,8 @@ Capture one clean screenshot for each of these states (device frame optional):
 - 10DLC-compliant SMS production rollout
 - richer matching/recommendation using profile interests + time/location proximity
 - deep-link based share/open event flow
-- moderation and trust/safety controls
+- report/block flows, moderator takedown tools, and host reputation/verification
+- stronger locality using ZIP/radius, GPS radius, or explicit travel-distance preferences
 
 ## 7) Final verification protocol
 

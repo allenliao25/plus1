@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { AREA_OPTIONS, DEFAULT_AREA } from "@/lib/area";
 import {
   PROFILE_PRONOUNS_MAX_LENGTH,
   isValidHandle,
@@ -21,6 +22,7 @@ export type ProfileIdentityChanges = {
   handle: string;
   bio: string | null;
   pronouns: string | null;
+  area: string;
   avatarFile?: File | null;
 };
 
@@ -52,6 +54,7 @@ export default function ProfileEditSheet({
   const [handle, setHandle] = useState(profile.handle);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [pronouns, setPronouns] = useState(profile.pronouns ?? "");
+  const [area, setArea] = useState(profile.area || DEFAULT_AREA);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(profile.avatarUrl);
   const [avatarError, setAvatarError] = useState("");
@@ -89,6 +92,7 @@ export default function ProfileEditSheet({
     normalizedHandle !== profile.handle ||
     normalizedBio !== (profile.bio ?? "") ||
     pronounsChanged ||
+    area !== profile.area ||
     Boolean(avatarFile);
   const canSave = isDirty && !isSaving && !cropSourceUrl;
   const displayedError =
@@ -126,6 +130,7 @@ export default function ProfileEditSheet({
         handle: normalizedHandle,
         bio: normalizedBio || null,
         pronouns: pronounsValidation.value,
+        area,
         avatarFile,
       });
     } catch (error) {
@@ -310,12 +315,12 @@ export default function ProfileEditSheet({
     : CROP_PREVIEW_SIZE;
 
   const editor = (
-    <div className="fixed inset-0 z-50 bg-white text-zinc-950">
+    <div className="fixed inset-0 z-50 bg-white/72 text-zinc-950 backdrop-blur-2xl">
       <form
         onSubmit={handleSubmit}
         className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
       >
-        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
+        <div className="glass-bar sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
           <button
             type="button"
             disabled={isSaving}
@@ -360,7 +365,7 @@ export default function ProfileEditSheet({
                 type="button"
                 disabled={isSaving}
                 onClick={() => cameraFileInputRef.current?.click()}
-                className="min-h-10 rounded-full bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                className="glass-ignite min-h-10 rounded-full px-4 text-sm font-bold text-white shadow-[0_14px_28px_rgba(244,114,182,0.2)] transition hover:brightness-105 disabled:opacity-50"
               >
                 Take photo
               </button>
@@ -368,7 +373,7 @@ export default function ProfileEditSheet({
                 type="button"
                 disabled={isSaving}
                 onClick={() => libraryFileInputRef.current?.click()}
-                className="min-h-10 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200 disabled:opacity-50"
+                className="glass-chip min-h-10 rounded-full border px-4 text-sm font-bold text-zinc-950 transition hover:bg-white/80 disabled:opacity-50"
               >
                 Choose photo
               </button>
@@ -395,7 +400,7 @@ export default function ProfileEditSheet({
             </p>
           ) : null}
 
-          <div className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-200">
+          <div className="glass-panel mt-6 divide-y divide-zinc-100 rounded-2xl border">
             <ProfileField label="Name">
               <input
                 type="text"
@@ -444,6 +449,23 @@ export default function ProfileEditSheet({
               />
             </ProfileField>
 
+            <ProfileField label="Local area">
+              <select
+                value={area}
+                onChange={(event) => {
+                  clearLocalErrors();
+                  setArea(event.target.value);
+                }}
+                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none"
+              >
+                {AREA_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </ProfileField>
+
             <ProfileField label="Bio">
               <textarea
                 value={bio}
@@ -465,7 +487,7 @@ export default function ProfileEditSheet({
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white/94 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur-xl">
+        <div className="glass-bar sticky bottom-0 z-20 shrink-0 border-t px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
           {displayedError ? (
             <p className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {displayedError}
@@ -482,8 +504,8 @@ export default function ProfileEditSheet({
       </form>
 
       {cropSourceUrl ? (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-white/95 px-5 backdrop-blur-xl">
-          <div className="w-full max-w-[360px] rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+        <div className="absolute inset-0 z-30 grid place-items-center bg-white/62 px-5 backdrop-blur-2xl">
+          <div className="glass-panel w-full max-w-[360px] rounded-[2rem] border p-5">
             <div className="text-center">
               <h3 className="text-lg font-bold text-zinc-950">
                 Adjust profile photo

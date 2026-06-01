@@ -1,15 +1,21 @@
-import { Camera, ImagePlus, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import InvitePicker from "@/components/InvitePicker";
+import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import type {
   NewQuestInput,
   Quest,
   QuestCardImageChanges,
   QuestCategory,
+  QuestInviteProfile,
+  QuestVisibility,
 } from "@/types/quest";
 import { questCategories } from "@/data/demoQuests";
 import { validateQuestCardImageFile } from "@/lib/questService";
 
 type EditQuestModalProps = {
+  currentUserId: string;
+  friendProfiles?: QuestInviteProfile[];
   isSubmitting: boolean;
   quest: Quest;
   onCancel: () => void;
@@ -20,6 +26,28 @@ type EditQuestModalProps = {
 };
 
 type TimeMode = "asap" | "scheduled";
+
+const visibilityOptions: Array<{
+  value: QuestVisibility;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "local",
+    label: "Local",
+    helper: "Anyone in your area can discover and join.",
+  },
+  {
+    value: "friends",
+    label: "Friends",
+    helper: "Your friends can discover and join. Invited people can also join.",
+  },
+  {
+    value: "invite_only",
+    label: "Invite-only",
+    helper: "Only invited people can see and join.",
+  },
+];
 
 function toDatetimeLocal(value: string | null) {
   if (!value) {
@@ -38,6 +66,8 @@ function toDatetimeLocal(value: string | null) {
 }
 
 export default function EditQuestModal({
+  currentUserId,
+  friendProfiles = [],
   isSubmitting,
   quest,
   onCancel,
@@ -51,6 +81,7 @@ export default function EditQuestModal({
       startTime: toDatetimeLocal(quest.startTimeISO),
       description: quest.description,
       maxPeople: quest.maxPeople,
+      visibility: quest.visibility,
     }),
     [quest],
   );
@@ -65,6 +96,9 @@ export default function EditQuestModal({
   );
   const [removeCardImage, setRemoveCardImage] = useState(false);
   const [cardImageError, setCardImageError] = useState("");
+  const [invitees, setInvitees] = useState<QuestInviteProfile[]>(
+    quest.invitedProfiles ?? [],
+  );
   const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,6 +153,8 @@ export default function EditQuestModal({
           location: form.location.trim(),
           startTime: timeMode === "asap" ? "" : form.startTime.trim(),
           maxPeople,
+          visibility: form.visibility ?? "local",
+          inviteeIds: invitees.map((invitee) => invitee.id),
           description: form.description.trim() || "No extra details yet. Just show up.",
         },
         { cardImageFile, removeCardImage },
@@ -169,12 +205,12 @@ export default function EditQuestModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white text-zinc-950">
+    <div className="fixed inset-0 z-50 bg-white/72 text-zinc-950 backdrop-blur-2xl">
       <form
         onSubmit={handleSubmit}
         className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
       >
-        <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/92 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
+        <div className="glass-bar sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
           <button
             type="button"
             onClick={onCancel}
@@ -216,8 +252,8 @@ export default function EditQuestModal({
                     onClick={() => updateForm("category", category as QuestCategory)}
                     className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
                       isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                        ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
+                        : "glass-chip border text-zinc-700 hover:bg-white/80"
                     }`}
                   >
                     {category}
@@ -244,7 +280,7 @@ export default function EditQuestModal({
                     setRemoveCardImage(true);
                     setCardImageError("");
                   }}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+                  className="glass-chip inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
                 >
                   <X size={14} strokeWidth={2} aria-hidden="true" />
                   Remove
@@ -255,7 +291,8 @@ export default function EditQuestModal({
               type="button"
               disabled={isSubmitting}
               onClick={() => cardImageInputRef.current?.click()}
-              className="mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
+              data-category={form.category}
+              className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
             >
               {cardImagePreviewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -265,13 +302,24 @@ export default function EditQuestModal({
                   className="h-44 w-full object-cover"
                 />
               ) : (
-                <span className="flex min-h-36 flex-col items-center justify-center gap-3 px-4 text-center">
-                  <span className="grid h-11 w-11 place-items-center rounded-full bg-zinc-100 text-zinc-700">
-                    <ImagePlus size={20} strokeWidth={1.9} aria-hidden="true" />
-                  </span>
-                  <span className="inline-flex items-center gap-2 text-sm font-bold text-zinc-700">
-                    <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
-                    Add photo
+                <span className="relative block h-40">
+                  <QuestCategoryArtwork
+                    category={form.category}
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  <span className="absolute inset-0 bg-black/16" />
+                  <span className="glass-overlay absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border p-3 text-white">
+                    <span>
+                      <span className="block text-sm font-bold">
+                        Using the {form.category} default
+                      </span>
+                      <span className="mt-0.5 block text-xs font-semibold text-white/75">
+                        Upload a photo anytime.
+                      </span>
+                    </span>
+                    <span className="glass-action grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-800">
+                      <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
+                    </span>
                   </span>
                 </span>
               )}
@@ -302,7 +350,7 @@ export default function EditQuestModal({
 
           <div>
             <p className="text-sm font-bold text-zinc-800">Time</p>
-            <div className="mt-2 grid grid-cols-2 gap-2 rounded-full bg-zinc-100 p-1">
+            <div className="glass-panel mt-2 grid grid-cols-2 gap-2 rounded-full border p-1">
               {(["asap", "scheduled"] as TimeMode[]).map((mode) => (
                 <button
                   key={mode}
@@ -357,9 +405,49 @@ export default function EditQuestModal({
             />
           </label>
 
+          <div>
+            <p className="text-sm font-bold text-zinc-800">Who can see this?</p>
+            <div className="glass-panel mt-2 grid grid-cols-3 gap-1 rounded-full border p-1">
+              {visibilityOptions.map((option) => {
+                const isSelected = (form.visibility ?? "local") === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => updateForm("visibility", option.value)}
+                    className={`min-h-10 rounded-full px-2 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                      isSelected
+                        ? "bg-zinc-950 text-white shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-800"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold leading-6 text-zinc-600">
+              {
+                visibilityOptions.find(
+                  (option) => option.value === (form.visibility ?? "local"),
+                )?.helper
+              }
+            </p>
+          </div>
+
+          <InvitePicker
+            currentUserId={currentUserId}
+            disabled={isSubmitting}
+            friendProfiles={friendProfiles}
+            selectedProfiles={invitees}
+            onChange={setInvitees}
+          />
+
         </div>
 
-        <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-200 bg-white/94 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur-xl">
+        <div className="glass-bar sticky bottom-0 z-20 shrink-0 border-t px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
           {error ? (
             <p className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {error}
@@ -370,7 +458,7 @@ export default function EditQuestModal({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="min-h-12 flex-1 rounded-full border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+              className="glass-chip min-h-12 flex-1 rounded-full border px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
             >
               Cancel
             </button>

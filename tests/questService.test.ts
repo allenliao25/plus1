@@ -2,12 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { formatQuestTime, normalizeQuestCategory } from "@/lib/questService";
 
-test("normalizeQuestCategory maps legacy Errand rows to Sidequest", () => {
-  assert.equal(normalizeQuestCategory("Errand"), "Sidequest");
+test("normalizeQuestCategory maps legacy Errand rows to Other", () => {
+  assert.equal(normalizeQuestCategory("Errand"), "Other");
+  assert.equal(normalizeQuestCategory("Sidequest"), "Other");
 });
 
 test("normalizeQuestCategory keeps valid event categories", () => {
-  assert.equal(normalizeQuestCategory("Sidequest"), "Sidequest");
+  assert.equal(normalizeQuestCategory("Other"), "Other");
   assert.equal(normalizeQuestCategory("Food"), "Food");
 });
 

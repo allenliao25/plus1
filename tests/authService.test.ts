@@ -73,7 +73,7 @@ test("isLikelyAutoDisplayName detects generated fallback names", () => {
 
 test("isLikelyAutoDisplayName ignores custom display names", () => {
   assert.equal(isLikelyAutoDisplayName("Allen"), false);
-  assert.equal(isLikelyAutoDisplayName("Campus Crew"), false);
+  assert.equal(isLikelyAutoDisplayName("Study Crew"), false);
 });
 
 test("normalizeHandle lowercases and removes a leading at sign", () => {

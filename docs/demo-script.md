@@ -6,9 +6,9 @@ Use this script for the CS 153 final video. It follows the course prompt structu
 
 Talking points:
 
-- "Campus plans usually happen in scattered group chats and DMs."
+- "Casual plans usually happen in scattered group chats and DMs."
 - "I built plus1 to make plans easy to discover and join."
-- "The core idea is a lightweight event feed where students can post and join quickly."
+- "The core idea is a lightweight event feed where people can post and join quickly."
 
 On-screen:
 
@@ -75,7 +75,7 @@ Use cases:
 
 - spontaneous food/study/workout plans
 - club micro-events and flyer-to-post conversion
-- low-friction social coordination for campus communities
+- low-friction local social coordination
 
 Future work:
 

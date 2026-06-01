@@ -1,7 +1,7 @@
 import { questCategories } from "@/data/demoQuests";
 import type { Profile, Quest, QuestCategory } from "@/types/quest";
 
-export type HomeFeedFilter = "All" | "Tonight" | "For you" | QuestCategory;
+export type HomeFeedFilter = "For you" | QuestCategory;
 export type HomeLayoutMode = "hybrid" | "grid";
 
 type HomeFeedModelInput = {
@@ -43,31 +43,21 @@ export function getDefaultHomeFilter(
   profile: Profile,
   now = new Date(),
 ): HomeFeedFilter {
-  if (countForYouQuests(quests, profile) > 0) {
-    return "For you";
-  }
+  void quests;
+  void profile;
+  void now;
 
-  if (countTonightQuests(quests, now) > 0) {
-    return "Tonight";
-  }
-
-  return "All";
+  return "For you";
 }
 
 export function getHomeFilterOptions(
   quests: Quest[],
   profile: Profile,
 ): HomeFeedFilter[] {
-  const populatedCategories = questCategories.filter((category) =>
-    quests.some((quest) => quest.category === category),
-  );
-  const filters: HomeFeedFilter[] = ["All", "Tonight"];
+  void quests;
+  void profile;
 
-  if (profile.interests.length > 0) {
-    filters.push("For you");
-  }
-
-  return [...filters, ...populatedCategories];
+  return ["For you", ...questCategories];
 }
 
 export function rankHomeQuests(
@@ -102,17 +92,12 @@ export function filterHomeQuests(
   filter: HomeFeedFilter,
   now = new Date(),
 ) {
+  void profile;
+  void now;
+
   return quests.filter((quest) => {
-    if (filter === "All") {
-      return true;
-    }
-
-    if (filter === "Tonight") {
-      return isTonightQuest(quest, now);
-    }
-
     if (filter === "For you") {
-      return profile.interests.includes(quest.category);
+      return true;
     }
 
     return quest.category === filter;

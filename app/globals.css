@@ -112,9 +112,9 @@ textarea {
   --holo-c: #38bdf8;
 }
 
-.event-card[data-category="Sidequest"],
-.holo-card[data-category="Sidequest"],
-.holo-thumb[data-category="Sidequest"] {
+.event-card[data-category="Other"],
+.holo-card[data-category="Other"],
+.holo-thumb[data-category="Other"] {
   --holo-a: #94a3b8;
   --holo-b: #f59e0b;
   --holo-c: #22d3ee;
@@ -125,17 +125,111 @@ textarea {
   backdrop-filter: blur(18px) saturate(1.2);
 }
 
-.holo-card-fallback,
-.holo-thumb-fallback {
+.glass-bar,
+.glass-panel,
+.glass-chip,
+.glass-overlay,
+.glass-action {
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 12px 36px rgba(15, 23, 42, 0.08);
+}
+
+.glass-bar {
+  border-color: rgba(212, 212, 216, 0.72);
   background:
-    radial-gradient(
-      circle at 20% 18%,
-      rgba(255, 255, 255, 0.95),
-      transparent 20%
-    ),
-    radial-gradient(circle at 78% 22%, var(--holo-c), transparent 28%),
-    radial-gradient(circle at 30% 78%, var(--holo-b), transparent 35%),
-    linear-gradient(135deg, var(--holo-a), #111827 72%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.64)),
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.92), transparent 32%);
+  -webkit-backdrop-filter: blur(24px) saturate(1.45);
+  backdrop-filter: blur(24px) saturate(1.45);
+}
+
+.glass-panel {
+  border-color: rgba(228, 228, 231, 0.78);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.56)),
+    radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.9), transparent 28%);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.glass-chip {
+  border-color: rgba(212, 212, 216, 0.74);
+  background: rgba(255, 255, 255, 0.64);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  backdrop-filter: blur(18px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.glass-overlay {
+  border-color: rgba(255, 255, 255, 0.22);
+  background:
+    linear-gradient(145deg, rgba(16, 16, 18, 0.42), rgba(16, 16, 18, 0.26)),
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.2), transparent 26%);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.glass-action {
+  border-color: rgba(255, 255, 255, 0.52);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72)),
+    radial-gradient(circle at 8% 0%, rgba(244, 114, 182, 0.28), transparent 30%),
+    radial-gradient(circle at 100% 20%, rgba(251, 146, 60, 0.22), transparent 34%);
+  -webkit-backdrop-filter: blur(22px) saturate(1.45);
+  backdrop-filter: blur(22px) saturate(1.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 14px 34px rgba(15, 23, 42, 0.13);
+}
+
+.glass-ignite {
+  background:
+    radial-gradient(circle at 28% 18%, rgba(244, 114, 182, 0.64), transparent 34%),
+    radial-gradient(circle at 82% 74%, rgba(251, 146, 60, 0.58), transparent 36%),
+    linear-gradient(135deg, #18181b, #27272a 54%, #09090b);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass-bar,
+  .glass-panel,
+  .glass-chip,
+  .glass-action {
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .glass-overlay {
+    background: rgba(20, 20, 24, 0.86);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-bar,
+  .glass-panel,
+  .glass-chip,
+  .glass-action,
+  .glass-overlay,
+  .event-card-deck {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .glass-bar,
+  .glass-panel,
+  .glass-chip,
+  .glass-action {
+    background: #ffffff;
+  }
+
+  .glass-overlay {
+    background: rgba(24, 24, 27, 0.9);
+  }
 }
 
 .holo-thumb::after {

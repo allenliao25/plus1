@@ -7,18 +7,37 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
-import { AtSign, ChevronLeft, UserRound } from "lucide-react";
+import {
+  AtSign,
+  Bell,
+  ChevronLeft,
+  MapPin,
+  MessageCircle,
+  UserRound,
+} from "lucide-react";
 import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
 import EditQuestModal from "@/components/EditQuestModal";
 import QuestDetail from "@/components/QuestDetail";
 import ActivityScreen from "@/components/screens/ActivityScreen";
-import ExploreScreen from "@/components/screens/ExploreScreen";
+import ChatThreadScreen from "@/components/screens/ChatThreadScreen";
+import EventsScreen from "@/components/screens/EventsScreen";
 import HomeScreen from "@/components/screens/HomeScreen";
+import InboxScreen from "@/components/screens/InboxScreen";
+import PeopleScreen from "@/components/screens/PeopleScreen";
 import ProfileScreen from "@/components/screens/ProfileScreen";
+import PublicProfileScreen from "@/components/screens/PublicProfileScreen";
 import { questCategories } from "@/data/demoQuests";
+import { AREA_OPTIONS, DEFAULT_AREA } from "@/lib/area";
+import {
+  buildLocalDemoQuests,
+  getInitialLocalDemoJoinedQuestIds,
+  isLocalDemoQuestId,
+  shouldShowLocalDemoQuests,
+} from "@/data/localDemoQuests";
 import {
   completeProfileSetup,
   ensureProfile,
@@ -42,16 +61,38 @@ import {
   fetchFeedQuests,
   fetchMyQuests,
   fetchProfilesByIds,
+  fetchVisibleProfileQuests,
   joinQuest,
   leaveQuest,
   updateQuest,
   uploadQuestCardImage,
 } from "@/lib/questService";
 import {
+  acceptFriendRequest,
+  cancelFriendRequest,
+  declineFriendRequest,
+  fetchFriends,
+  fetchIncomingFriendRequests,
+  fetchOutgoingFriendRequests,
+  fetchPublicProfile,
+  fetchSuggestedFriends,
+  removeFriend,
+  sendFriendRequest,
+} from "@/lib/friendService";
+import {
   fetchActivityEvents,
   markActivityRead,
   recordActivityEvents,
 } from "@/lib/activityService";
+import {
+  countUnreadThreads,
+  fetchMessageThreads,
+  fetchThreadMessages,
+  getOrCreateDirectThread,
+  getOrCreateEventThread,
+  markThreadRead,
+  sendMessage,
+} from "@/lib/messageService";
 import {
   notifyLocalEvent,
   registerPushToken,
@@ -61,10 +102,16 @@ import { getQuestIdFromSearch } from "@/lib/questLinks";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
   ActivityEvent,
+  ChatMessage,
+  FriendConnection,
+  MessageThread,
   QuestCardImageChanges,
   NewQuestInput,
+  PeopleSearchResult,
   Profile,
   Quest,
+  QuestInviteProfile,
+  SmartQuestDraft,
 } from "@/types/quest";
 
 type AuthState = "loading" | "signed_out" | "signed_in";
@@ -79,10 +126,34 @@ export default function AppShell() {
   const [feedQuests, setFeedQuests] = useState<Quest[]>([]);
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [messageThreads, setMessageThreads] = useState<MessageThread[]>([]);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [friends, setFriends] = useState<FriendConnection[]>([]);
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState<
+    FriendConnection[]
+  >([]);
+  const [outgoingFriendRequests, setOutgoingFriendRequests] = useState<
+    FriendConnection[]
+  >([]);
+  const [suggestedPeople, setSuggestedPeople] = useState<PeopleSearchResult[]>(
+    [],
+  );
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
+    null,
+  );
+  const [selectedPublicProfile, setSelectedPublicProfile] =
+    useState<PeopleSearchResult | null>(null);
+  const [selectedProfileQuests, setSelectedProfileQuests] = useState<Quest[]>(
+    [],
+  );
   const [editingQuestId, setEditingQuestId] = useState<string | null>(null);
   const [createInitialValues, setCreateInitialValues] =
     useState<NewQuestInput | null>(null);
+  const [createInitialInvitees, setCreateInitialInvitees] = useState<
+    QuestInviteProfile[]
+  >([]);
   const [createFormKey, setCreateFormKey] = useState(0);
   const [openedQuestLinkId, setOpenedQuestLinkId] = useState<string | null>(
     null,
@@ -90,6 +161,8 @@ export default function AppShell() {
   const [isAiAvailable, setIsAiAvailable] = useState<boolean | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingQuests, setIsLoadingQuests] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -99,9 +172,19 @@ export default function AppShell() {
     useState(false);
   const [profileSetupError, setProfileSetupError] = useState("");
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
+  const [localDemoJoinedQuestIds, setLocalDemoJoinedQuestIds] = useState(
+    getInitialLocalDemoJoinedQuestIds,
+  );
   const [joiningQuestId, setJoiningQuestId] = useState<string | null>(null);
+  const [friendActionProfileId, setFriendActionProfileId] = useState<
+    string | null
+  >(null);
+  const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(false);
   const [leavingQuestId, setLeavingQuestId] = useState<string | null>(null);
   const [closingQuestId, setClosingQuestId] = useState<string | null>(null);
+  const [utilityView, setUtilityView] = useState<"activity" | "inbox" | null>(
+    null,
+  );
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const authSyncIdRef = useRef(0);
@@ -118,12 +201,12 @@ export default function AppShell() {
   const allVisibleQuests = useMemo(() => {
     const questsById = new Map<string, Quest>();
 
-    for (const quest of [...feedQuests, ...myQuests]) {
+    for (const quest of [...feedQuests, ...myQuests, ...selectedProfileQuests]) {
       questsById.set(quest.id, quest);
     }
 
     return [...questsById.values()];
-  }, [feedQuests, myQuests]);
+  }, [feedQuests, myQuests, selectedProfileQuests]);
 
   const selectedQuest = useMemo(
     () =>
@@ -137,20 +220,53 @@ export default function AppShell() {
     [allVisibleQuests, editingQuestId],
   );
 
+  const selectedThread = useMemo(
+    () =>
+      messageThreads.find((thread) => thread.id === selectedThreadId) ?? null,
+    [messageThreads, selectedThreadId],
+  );
+
   const unreadActivityCount = useMemo(
     () => activityEvents.filter((event) => !event.isRead).length,
     [activityEvents],
   );
+  const unreadMessageCount = useMemo(
+    () => countUnreadThreads(messageThreads),
+    [messageThreads],
+  );
+  const acceptedFriendIds = useMemo(
+    () => friends.map((friend) => friend.profile.id),
+    [friends],
+  );
+  const friendInviteProfiles = useMemo(
+    () => friends.map((friend) => friend.profile),
+    [friends],
+  );
 
-  const refreshData = useCallback(async (userId: string) => {
+  const refreshData = useCallback(async (profile: Profile) => {
+    const userId = profile.id;
     const [nextFeedQuests, nextMyQuests, loadedActivity] = await Promise.all([
-      fetchFeedQuests(userId),
+      fetchFeedQuests(userId, profile.area),
       fetchMyQuests(userId),
       fetchActivityEvents(userId).catch(() => [] as ActivityEvent[]),
     ]);
+    const localDemoQuests = shouldShowLocalDemoQuests()
+      ? buildLocalDemoQuests(profile, localDemoJoinedQuestIds)
+      : [];
+    const localDemoQuestIds = new Set(localDemoQuests.map((quest) => quest.id));
+    const mergedFeedQuests = [
+      ...localDemoQuests,
+      ...nextFeedQuests.filter((quest) => !localDemoQuestIds.has(quest.id)),
+    ];
+    const mergedMyQuests = [
+      ...nextMyQuests,
+      ...localDemoQuests.filter(
+        (quest) => quest.joinedByCurrentUser || quest.createdByCurrentUser,
+      ),
+    ];
     const reminderEvents = buildQuestReminderEvents(
       userId,
-      nextMyQuests,
+      mergedMyQuests,
       loadedActivity,
     );
     let nextActivity = loadedActivity;
@@ -164,9 +280,34 @@ export default function AppShell() {
       );
     }
 
-    setFeedQuests(nextFeedQuests);
-    setMyQuests(nextMyQuests);
+    setFeedQuests(mergedFeedQuests);
+    setMyQuests(mergedMyQuests);
     setActivityEvents(nextActivity);
+  }, [localDemoJoinedQuestIds]);
+
+  const refreshSocialData = useCallback(async (profile: Profile) => {
+    const [nextFriends, nextIncoming, nextOutgoing, nextSuggested] =
+      await Promise.all([
+        fetchFriends(profile.id),
+        fetchIncomingFriendRequests(profile.id),
+        fetchOutgoingFriendRequests(profile.id),
+        fetchSuggestedFriends(profile.id, profile.area).catch(
+          () => [] as PeopleSearchResult[],
+        ),
+      ]);
+
+    setFriends(nextFriends);
+    setIncomingFriendRequests(nextIncoming);
+    setOutgoingFriendRequests(nextOutgoing);
+    setSuggestedPeople(nextSuggested);
+  }, []);
+
+  const refreshMessages = useCallback(async (profile: Profile) => {
+    const nextThreads = await fetchMessageThreads(profile.id).catch(
+      () => [] as MessageThread[],
+    );
+
+    setMessageThreads(nextThreads);
   }, []);
 
   const syncAuthAndData = useCallback(async () => {
@@ -192,7 +333,17 @@ export default function AppShell() {
         setFeedQuests([]);
         setMyQuests([]);
         setActivityEvents([]);
+        setMessageThreads([]);
+        setSelectedThreadId(null);
+        setChatMessages([]);
+        setFriends([]);
+        setIncomingFriendRequests([]);
+        setOutgoingFriendRequests([]);
+        setSuggestedPeople([]);
         setSelectedQuestId(null);
+        setSelectedProfileId(null);
+        setSelectedPublicProfile(null);
+        setSelectedProfileQuests([]);
         setEditingQuestId(null);
         setOpenedQuestLinkId(null);
         setNeedsProfileSetup(false);
@@ -219,6 +370,16 @@ export default function AppShell() {
         setFeedQuests([]);
         setMyQuests([]);
         setActivityEvents([]);
+        setMessageThreads([]);
+        setSelectedThreadId(null);
+        setChatMessages([]);
+        setFriends([]);
+        setIncomingFriendRequests([]);
+        setOutgoingFriendRequests([]);
+        setSuggestedPeople([]);
+        setSelectedProfileId(null);
+        setSelectedPublicProfile(null);
+        setSelectedProfileQuests([]);
       }
 
       setCurrentProfile(profile);
@@ -231,7 +392,11 @@ export default function AppShell() {
       setIsBooting(false);
 
       try {
-        await refreshData(profile.id);
+        await Promise.all([
+          refreshData(profile),
+          refreshSocialData(profile),
+          refreshMessages(profile),
+        ]);
 
         if (isStaleSync()) {
           return;
@@ -265,6 +430,19 @@ export default function AppShell() {
       setAuthMessage("");
       setAuthState("signed_out");
       setCurrentProfile(null);
+      setFeedQuests([]);
+      setMyQuests([]);
+      setActivityEvents([]);
+      setMessageThreads([]);
+      setSelectedThreadId(null);
+      setChatMessages([]);
+      setFriends([]);
+      setIncomingFriendRequests([]);
+      setOutgoingFriendRequests([]);
+      setSuggestedPeople([]);
+      setSelectedProfileId(null);
+      setSelectedPublicProfile(null);
+      setSelectedProfileQuests([]);
       setNeedsProfileSetup(false);
       setProfileSetupError("");
       setHasLoadedInitialData(false);
@@ -275,7 +453,7 @@ export default function AppShell() {
         setIsBooting(false);
       }
     }
-  }, [refreshData]);
+  }, [refreshData, refreshMessages, refreshSocialData]);
 
   useEffect(() => {
     requestLocalNotificationPermission().catch(() => {
@@ -331,6 +509,8 @@ export default function AppShell() {
     const supabase = getSupabaseClient();
     const channel = supabase.channel(`plus1-mobile-events-${currentProfileId}`);
     let refreshTimer: number | undefined;
+    let socialRefreshTimer: number | undefined;
+    let messageRefreshTimer: number | undefined;
 
     function scheduleFeedRefresh() {
       if (refreshTimer) {
@@ -338,7 +518,46 @@ export default function AppShell() {
       }
 
       refreshTimer = window.setTimeout(() => {
-        void refreshData(currentProfileId).catch(() => {
+        if (!currentProfile) {
+          return;
+        }
+
+        void refreshData(currentProfile).catch(() => {
+          // Realtime refresh is best-effort; manual Retry remains available.
+        });
+      }, 250);
+    }
+
+    function scheduleSocialRefresh() {
+      if (socialRefreshTimer) {
+        window.clearTimeout(socialRefreshTimer);
+      }
+
+      socialRefreshTimer = window.setTimeout(() => {
+        if (!currentProfile) {
+          return;
+        }
+
+        void Promise.all([
+          refreshSocialData(currentProfile),
+          refreshData(currentProfile),
+        ]).catch(() => {
+          // Realtime refresh is best-effort; manual Retry remains available.
+        });
+      }, 250);
+    }
+
+    function scheduleMessageRefresh() {
+      if (messageRefreshTimer) {
+        window.clearTimeout(messageRefreshTimer);
+      }
+
+      messageRefreshTimer = window.setTimeout(() => {
+        if (!currentProfile) {
+          return;
+        }
+
+        void refreshMessages(currentProfile).catch(() => {
           // Realtime refresh is best-effort; manual Retry remains available.
         });
       }, 250);
@@ -355,11 +574,16 @@ export default function AppShell() {
         const quest = payload.new as {
           title?: string | null;
           creator_id?: string | null;
+          area?: string | null;
         };
 
         scheduleFeedRefresh();
 
-        if (!quest.creator_id || quest.creator_id === currentProfileId) {
+        if (
+          !quest.creator_id ||
+          quest.creator_id === currentProfileId ||
+          quest.area !== currentProfile?.area
+        ) {
           return;
         }
 
@@ -435,6 +659,93 @@ export default function AppShell() {
     channel.on(
       "postgres_changes",
       {
+        event: "*",
+        schema: "public",
+        table: "quest_invites",
+      },
+      () => {
+        scheduleFeedRefresh();
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "friendships",
+      },
+      (payload) => {
+        const next = payload.new as {
+          requester_id?: string | null;
+          addressee_id?: string | null;
+        };
+        const old = payload.old as {
+          requester_id?: string | null;
+          addressee_id?: string | null;
+        };
+        const isRelevant =
+          next.requester_id === currentProfileId ||
+          next.addressee_id === currentProfileId ||
+          old.requester_id === currentProfileId ||
+          old.addressee_id === currentProfileId;
+
+        if (isRelevant) {
+          scheduleSocialRefresh();
+        }
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "message_threads",
+      },
+      () => {
+        scheduleMessageRefresh();
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "message_thread_participants",
+      },
+      () => {
+        scheduleMessageRefresh();
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      },
+      (payload) => {
+        const message = payload.new as { thread_id?: string | null };
+
+        scheduleMessageRefresh();
+
+        if (message.thread_id && message.thread_id === selectedThreadId) {
+          void fetchThreadMessages(message.thread_id, currentProfileId)
+            .then(setChatMessages)
+            .then(() => markThreadRead(message.thread_id!, currentProfileId))
+            .catch(() => {
+              // The visible chat can be refreshed by reopening it if realtime fails.
+            });
+        }
+      },
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
         event: "INSERT",
         schema: "public",
         table: "activity_events",
@@ -457,9 +768,23 @@ export default function AppShell() {
       if (refreshTimer) {
         window.clearTimeout(refreshTimer);
       }
+      if (socialRefreshTimer) {
+        window.clearTimeout(socialRefreshTimer);
+      }
+      if (messageRefreshTimer) {
+        window.clearTimeout(messageRefreshTimer);
+      }
       supabase.removeChannel(channel);
     };
-  }, [currentProfileId, myQuests, refreshData]);
+  }, [
+    currentProfile,
+    currentProfileId,
+    myQuests,
+    refreshData,
+    refreshMessages,
+    refreshSocialData,
+    selectedThreadId,
+  ]);
 
   useEffect(() => {
     if (
@@ -493,6 +818,8 @@ export default function AppShell() {
       window.history.replaceState({}, "", url.toString());
       setOpenedQuestLinkId(questId);
       setActionError("");
+      setUtilityView(null);
+      setSelectedThreadId(null);
       setSelectedQuestId(linkedQuest.id);
       setActiveTab("home");
     }, 0);
@@ -508,16 +835,96 @@ export default function AppShell() {
     openedQuestLinkId,
   ]);
 
+  useEffect(() => {
+    if (!selectedProfileId || !currentProfile) {
+      const timer = window.setTimeout(() => {
+        setSelectedPublicProfile(null);
+        setSelectedProfileQuests([]);
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+
+    let isStale = false;
+    const loadingTimer = window.setTimeout(() => {
+      setIsLoadingPublicProfile(true);
+    }, 0);
+
+    Promise.all([
+      fetchPublicProfile(selectedProfileId, currentProfile.id),
+      fetchVisibleProfileQuests(selectedProfileId, currentProfile.id),
+    ])
+      .then(([profile, quests]) => {
+        if (isStale) {
+          return;
+        }
+
+        setSelectedPublicProfile(profile);
+        setSelectedProfileQuests(quests);
+        setActionError("");
+      })
+      .catch((profileError) => {
+        if (isStale) {
+          return;
+        }
+
+        setSelectedPublicProfile(null);
+        setSelectedProfileQuests([]);
+        setActionError(readErrorMessage(profileError));
+      })
+      .finally(() => {
+        if (!isStale) {
+          setIsLoadingPublicProfile(false);
+        }
+      });
+
+    return () => {
+      isStale = true;
+      window.clearTimeout(loadingTimer);
+    };
+  }, [currentProfile, selectedProfileId]);
+
+  function handleOpenProfile(profileId: string) {
+    setSelectedQuestId(null);
+    setSelectedThreadId(null);
+    setUtilityView(null);
+    setSelectedProfileId(profileId);
+    setActionError("");
+  }
+
+  function handleOpenQuest(questId: string) {
+    setSelectedProfileId(null);
+    setSelectedThreadId(null);
+    setUtilityView(null);
+    setSelectedQuestId(questId);
+    setActionError("");
+  }
+
   function handleTabChange(tab: AppTab) {
     if (isAppLocked) {
       return;
     }
 
     setSelectedQuestId(null);
+    setSelectedProfileId(null);
+    setSelectedThreadId(null);
+    setChatMessages([]);
+    setUtilityView(null);
     setActionError("");
     setActiveTab(tab);
+  }
 
-    if (tab === "activity" && currentProfileId && unreadActivityCount > 0) {
+  function handleOpenActivity() {
+    setSelectedQuestId(null);
+    setSelectedProfileId(null);
+    setSelectedThreadId(null);
+    setChatMessages([]);
+    setUtilityView("activity");
+    setActionError("");
+
+    if (currentProfileId && unreadActivityCount > 0) {
       void markActivityRead(currentProfileId).catch(() => {
         // Marking read is best-effort; the feed still renders.
       });
@@ -527,8 +934,109 @@ export default function AppShell() {
     }
   }
 
-  function handleApplyDraft(draft: NewQuestInput) {
+  async function handleOpenInbox() {
+    if (!currentProfile) {
+      return;
+    }
+
+    setSelectedQuestId(null);
+    setSelectedProfileId(null);
+    setSelectedThreadId(null);
+    setChatMessages([]);
+    setUtilityView("inbox");
+    setActionError("");
+    await refreshMessages(currentProfile);
+  }
+
+  async function handleOpenThread(threadId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setIsLoadingMessages(true);
+      setActionError("");
+      setUtilityView("inbox");
+      setSelectedQuestId(null);
+      setSelectedProfileId(null);
+      setSelectedThreadId(threadId);
+      const nextMessages = await fetchThreadMessages(threadId, currentProfile.id);
+      setChatMessages(nextMessages);
+      await markThreadRead(threadId, currentProfile.id).catch(() => {
+        // Read receipts should never block opening a chat.
+      });
+      await refreshMessages(currentProfile);
+    } catch (messageError) {
+      setActionError(readErrorMessage(messageError));
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }
+
+  async function handleMessageProfile(profileId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setIsLoadingMessages(true);
+      setActionError("");
+      const threadId = await getOrCreateDirectThread(profileId);
+      await refreshMessages(currentProfile);
+      await handleOpenThread(threadId);
+    } catch (messageError) {
+      setActionError(readErrorMessage(messageError));
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }
+
+  async function handleOpenEventChat(questId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setIsLoadingMessages(true);
+      setActionError("");
+      const threadId = await getOrCreateEventThread(questId);
+      await refreshMessages(currentProfile);
+      await handleOpenThread(threadId);
+    } catch (messageError) {
+      setActionError(readErrorMessage(messageError));
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }
+
+  async function handleSendChatMessage(body: string) {
+    if (!currentProfile || !selectedThreadId) {
+      return;
+    }
+
+    try {
+      setIsSendingMessage(true);
+      setActionError("");
+      await sendMessage(selectedThreadId, currentProfile.id, body);
+      const nextMessages = await fetchThreadMessages(
+        selectedThreadId,
+        currentProfile.id,
+      );
+      setChatMessages(nextMessages);
+      await markThreadRead(selectedThreadId, currentProfile.id).catch(() => {
+        // Read receipts should never block sending a chat.
+      });
+      await refreshMessages(currentProfile);
+    } catch (messageError) {
+      setActionError(readErrorMessage(messageError));
+    } finally {
+      setIsSendingMessage(false);
+    }
+  }
+
+  function handleApplyDraft(draft: SmartQuestDraft) {
     setCreateInitialValues(draft);
+    setCreateInitialInvitees(draft.inviteeProfiles ?? []);
     setCreateFormKey((key) => key + 1);
   }
 
@@ -574,12 +1082,133 @@ export default function AppShell() {
     }
   }
 
+  function getFriendActionProfileId(friendshipId: string) {
+    const connection = [
+      ...friends,
+      ...incomingFriendRequests,
+      ...outgoingFriendRequests,
+    ].find((friend) => friend.id === friendshipId);
+
+    return connection?.profile.id ?? null;
+  }
+
+  async function refreshAfterFriendAction() {
+    if (!currentProfile) {
+      return;
+    }
+
+    await Promise.all([
+      refreshSocialData(currentProfile),
+      refreshData(currentProfile),
+      refreshMessages(currentProfile),
+    ]);
+
+    if (selectedProfileId) {
+      const [profile, quests] = await Promise.all([
+        fetchPublicProfile(selectedProfileId, currentProfile.id),
+        fetchVisibleProfileQuests(selectedProfileId, currentProfile.id),
+      ]);
+      setSelectedPublicProfile(profile);
+      setSelectedProfileQuests(quests);
+    }
+  }
+
+  async function handleSendFriendRequest(profileId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    try {
+      setFriendActionProfileId(profileId);
+      setActionError("");
+      await sendFriendRequest(currentProfile.id, profileId, currentProfile.displayName);
+      await refreshAfterFriendAction();
+    } catch (friendError) {
+      setActionError(readErrorMessage(friendError));
+    } finally {
+      setFriendActionProfileId(null);
+    }
+  }
+
+  async function handleAcceptFriend(friendshipId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    const profileId = getFriendActionProfileId(friendshipId);
+
+    try {
+      setFriendActionProfileId(profileId);
+      setActionError("");
+      await acceptFriendRequest(
+        friendshipId,
+        currentProfile.id,
+        currentProfile.displayName,
+      );
+      await refreshAfterFriendAction();
+    } catch (friendError) {
+      setActionError(readErrorMessage(friendError));
+    } finally {
+      setFriendActionProfileId(null);
+    }
+  }
+
+  async function handleDeclineFriend(friendshipId: string) {
+    if (!currentProfile) {
+      return;
+    }
+
+    const profileId = getFriendActionProfileId(friendshipId);
+
+    try {
+      setFriendActionProfileId(profileId);
+      setActionError("");
+      await declineFriendRequest(friendshipId, currentProfile.id);
+      await refreshAfterFriendAction();
+    } catch (friendError) {
+      setActionError(readErrorMessage(friendError));
+    } finally {
+      setFriendActionProfileId(null);
+    }
+  }
+
+  async function handleCancelFriendRequest(friendshipId: string) {
+    const profileId = getFriendActionProfileId(friendshipId);
+
+    try {
+      setFriendActionProfileId(profileId);
+      setActionError("");
+      await cancelFriendRequest(friendshipId);
+      await refreshAfterFriendAction();
+    } catch (friendError) {
+      setActionError(readErrorMessage(friendError));
+    } finally {
+      setFriendActionProfileId(null);
+    }
+  }
+
+  async function handleRemoveFriend(friendshipId: string) {
+    const profileId = getFriendActionProfileId(friendshipId);
+
+    try {
+      setFriendActionProfileId(profileId);
+      setActionError("");
+      await removeFriend(friendshipId);
+      await refreshAfterFriendAction();
+    } catch (friendError) {
+      setActionError(readErrorMessage(friendError));
+    } finally {
+      setFriendActionProfileId(null);
+    }
+  }
+
   async function handleSaveProfile(changes: {
     displayName: string;
     handle: string;
     avatarFile?: File | null;
     bio: string | null;
     pronouns: string | null;
+    area: string;
   }) {
     if (!currentProfile) {
       return;
@@ -596,6 +1225,7 @@ export default function AppShell() {
         avatarUrl,
       });
       setCurrentProfile(updated);
+      await refreshSocialData(updated);
     } catch (saveError) {
       const message = readErrorMessage(saveError);
       setProfileError(message);
@@ -608,6 +1238,7 @@ export default function AppShell() {
   async function handleCompleteProfile(changes: {
     displayName: string;
     handle: string;
+    area: string;
     interests: string[];
   }) {
     if (!currentProfile) {
@@ -620,11 +1251,34 @@ export default function AppShell() {
       const updated = await completeProfileSetup(currentProfile.id, changes);
       setCurrentProfile(updated);
       setNeedsProfileSetup(false);
+      await refreshSocialData(updated);
     } catch (setupError) {
       setProfileSetupError(readErrorMessage(setupError));
     } finally {
       setIsCompletingProfileSetup(false);
     }
+  }
+
+  function applyLocalDemoJoinedQuestIds(joinedQuestIds: string[]) {
+    if (!currentProfile || !shouldShowLocalDemoQuests()) {
+      return;
+    }
+
+    const localDemoQuests = buildLocalDemoQuests(
+      currentProfile,
+      joinedQuestIds,
+    );
+
+    setFeedQuests((quests) => [
+      ...localDemoQuests,
+      ...quests.filter((quest) => !isLocalDemoQuestId(quest.id)),
+    ]);
+    setMyQuests((quests) => [
+      ...quests.filter((quest) => !isLocalDemoQuestId(quest.id)),
+      ...localDemoQuests.filter(
+        (quest) => quest.joinedByCurrentUser || quest.createdByCurrentUser,
+      ),
+    ]);
   }
 
   async function handleJoinQuest(questId: string) {
@@ -636,9 +1290,18 @@ export default function AppShell() {
     try {
       setJoiningQuestId(questId);
       setActionError("");
+      if (isLocalDemoQuestId(questId)) {
+        const nextJoinedQuestIds = localDemoJoinedQuestIds.includes(questId)
+          ? localDemoJoinedQuestIds
+          : [...localDemoJoinedQuestIds, questId];
+
+        setLocalDemoJoinedQuestIds(nextJoinedQuestIds);
+        applyLocalDemoJoinedQuestIds(nextJoinedQuestIds);
+        return;
+      }
+
       await joinQuest(questId, currentProfile.id);
-      await recordJoinActivity(questId, currentProfile);
-      await refreshData(currentProfile.id);
+      await Promise.all([refreshData(currentProfile), refreshMessages(currentProfile)]);
     } catch (joinError) {
       setActionError(readErrorMessage(joinError));
     } finally {
@@ -655,8 +1318,19 @@ export default function AppShell() {
     try {
       setLeavingQuestId(questId);
       setActionError("");
+      if (isLocalDemoQuestId(questId)) {
+        const nextJoinedQuestIds = localDemoJoinedQuestIds.filter(
+          (id) => id !== questId,
+        );
+
+        setLocalDemoJoinedQuestIds(nextJoinedQuestIds);
+        applyLocalDemoJoinedQuestIds(nextJoinedQuestIds);
+        setSelectedQuestId(null);
+        return;
+      }
+
       await leaveQuest(questId, currentProfile.id);
-      await refreshData(currentProfile.id);
+      await Promise.all([refreshData(currentProfile), refreshMessages(currentProfile)]);
       setSelectedQuestId(null);
     } catch (leaveError) {
       setActionError(readErrorMessage(leaveError));
@@ -674,12 +1348,8 @@ export default function AppShell() {
     try {
       setClosingQuestId(questId);
       setActionError("");
-      const quest = allVisibleQuests.find((item) => item.id === questId);
       await closeQuest(questId, currentProfile.id);
-      if (quest) {
-        await recordQuestUpdateActivity(quest, currentProfile, "close");
-      }
-      await refreshData(currentProfile.id);
+      await refreshData(currentProfile);
       setSelectedQuestId(null);
     } catch (closeError) {
       setActionError(readErrorMessage(closeError));
@@ -705,11 +1375,14 @@ export default function AppShell() {
       const newQuest = await createQuest(
         { ...input, cardImageUrl },
         currentProfile.id,
+        currentProfile.area,
       );
-      await refreshData(currentProfile.id);
+      await refreshData(currentProfile);
       setCreateInitialValues(null);
+      setCreateInitialInvitees([]);
       setCreateFormKey((key) => key + 1);
       setSelectedQuestId(newQuest.id);
+      setUtilityView(null);
       setActiveTab("home");
     } finally {
       setIsCreating(false);
@@ -744,64 +1417,11 @@ export default function AppShell() {
         { ...input, cardImageUrl },
         currentProfile.id,
       );
-      await recordQuestUpdateActivity(quest, currentProfile, "edit");
-      await refreshData(currentProfile.id);
+      await refreshData(currentProfile);
       setEditingQuestId(null);
     } finally {
       setIsEditing(false);
     }
-  }
-
-  function recordJoinActivity(questId: string, profile: Profile) {
-    const quest = allVisibleQuests.find((item) => item.id === questId);
-    const host = quest?.attendees.find((attendee) => attendee.isHost);
-
-    if (!quest || !host || host.id === profile.id) {
-      return Promise.resolve();
-    }
-
-    return recordActivityEvents([
-      {
-        userId: host.id,
-        actorId: profile.id,
-        questId: quest.id,
-        type: "join",
-        title: `${profile.displayName} joined ${quest.title}`,
-      },
-    ]).catch(() => {
-      // Activity is a best-effort feed.
-    });
-  }
-
-  function recordQuestUpdateActivity(
-    quest: Quest,
-    profile: Profile,
-    type: "edit" | "close",
-  ) {
-    const recipients = quest.attendees
-      .filter((attendee) => !attendee.isHost && attendee.id !== profile.id)
-      .map((attendee) => attendee.id);
-
-    if (recipients.length === 0) {
-      return Promise.resolve();
-    }
-
-    const title =
-      type === "close"
-        ? `${quest.title} was closed`
-        : `${quest.title} was updated`;
-
-    return recordActivityEvents(
-      recipients.map((userId) => ({
-        userId,
-        actorId: profile.id,
-        questId: quest.id,
-        type,
-        title,
-      })),
-    ).catch(() => {
-      // Activity is a best-effort feed.
-    });
   }
 
   async function handleRetry() {
@@ -815,7 +1435,13 @@ export default function AppShell() {
       }
 
       setIsLoadingQuests(true);
-      await refreshData(currentProfileId);
+      if (currentProfile) {
+        await Promise.all([
+          refreshData(currentProfile),
+          refreshMessages(currentProfile),
+          refreshSocialData(currentProfile),
+        ]);
+      }
       loadedProfileIdRef.current = currentProfileId;
       setHasLoadedInitialData(true);
     } catch (retryError) {
@@ -846,6 +1472,7 @@ export default function AppShell() {
       <ProfileSetupScreen
         initialDisplayName={currentProfile.displayName}
         initialHandle={currentProfile.handle}
+        initialArea={currentProfile.area}
         initialInterests={currentProfile.interests}
         isSubmitting={isCompletingProfileSetup}
         error={profileSetupError}
@@ -856,36 +1483,88 @@ export default function AppShell() {
 
   const headerTitle = selectedQuest
     ? selectedQuest.title
+    : selectedThreadId
+      ? selectedThread?.title ?? "Messages"
+    : selectedProfileId
+      ? selectedPublicProfile
+        ? `@${selectedPublicProfile.handle}`
+        : "Profile"
+    : utilityView === "activity"
+      ? "Activity"
+    : utilityView === "inbox"
+      ? "Messages"
     : activeTab === "home"
       ? "plus1"
-      : activeTab === "explore"
-        ? "Explore"
+      : activeTab === "events"
+        ? "Events"
+        : activeTab === "people"
+          ? "People"
         : activeTab === "create"
           ? "New event"
-          : activeTab === "activity"
-            ? "Activity"
-            : currentProfile
-              ? `@${currentProfile.handle}`
-              : "Profile";
+          : currentProfile
+            ? `@${currentProfile.handle}`
+            : "Profile";
+
+  const isHomeRoot =
+    activeTab === "home" &&
+    !selectedQuest &&
+    !selectedProfileId &&
+    !selectedThreadId &&
+    !utilityView;
 
   return (
     <main
-      className="app-viewport flex flex-col bg-white text-zinc-950"
+      className="app-viewport flex flex-col bg-zinc-50 text-zinc-950"
       style={STABLE_VIEWPORT_STYLE}
     >
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         <AppHeader
-          isBrand={activeTab === "home" && !selectedQuest}
+          actions={
+            isHomeRoot ? (
+              <HomeHeaderActions
+                unreadActivityCount={unreadActivityCount}
+                unreadMessageCount={unreadMessageCount}
+                onOpenActivity={handleOpenActivity}
+                onOpenInbox={() => {
+                  void handleOpenInbox();
+                }}
+              />
+            ) : null
+          }
+          isBrand={isHomeRoot}
           title={headerTitle}
-          onBack={selectedQuest ? () => setSelectedQuestId(null) : undefined}
+          onBack={
+            selectedQuest
+              ? () => setSelectedQuestId(null)
+              : selectedThreadId
+                ? () => {
+                    setSelectedThreadId(null);
+                    setChatMessages([]);
+                    setUtilityView("inbox");
+                  }
+                : selectedProfileId
+                  ? () => setSelectedProfileId(null)
+                  : utilityView
+                    ? () => setUtilityView(null)
+                    : undefined
+          }
         />
 
-        <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5">
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
           {actionError ? <ActionError message={actionError} /> : null}
 
           {isInitialContentLoading && !error ? (
             <TabSkeleton activeTab={activeTab} />
+          ) : selectedThreadId ? (
+            <ChatThreadScreen
+              currentUserId={currentProfileId}
+              isLoading={isLoadingMessages}
+              isSending={isSendingMessage}
+              messages={chatMessages}
+              thread={selectedThread}
+              onSend={handleSendChatMessage}
+            />
           ) : selectedQuest ? (
             <QuestDetail
               isClosing={closingQuestId === selectedQuest.id}
@@ -894,8 +1573,44 @@ export default function AppShell() {
               quest={selectedQuest}
               onClose={handleCloseQuest}
               onEdit={(quest) => setEditingQuestId(quest.id)}
+              onOpenChat={handleOpenEventChat}
               onJoin={handleJoinQuest}
               onLeave={handleLeaveQuest}
+              onOpenProfile={handleOpenProfile}
+            />
+          ) : selectedProfileId ? (
+            <PublicProfileScreen
+              actionProfileId={friendActionProfileId}
+              isLoading={isLoadingPublicProfile}
+              profile={selectedPublicProfile}
+              quests={selectedProfileQuests}
+              onAcceptFriend={handleAcceptFriend}
+              onCancelFriendRequest={handleCancelFriendRequest}
+              onDeclineFriend={handleDeclineFriend}
+              onJoin={handleJoinQuest}
+              onOpenQuest={handleOpenQuest}
+              onRemoveFriend={handleRemoveFriend}
+              onMessageProfile={handleMessageProfile}
+              onSendFriendRequest={handleSendFriendRequest}
+            />
+          ) : utilityView === "activity" ? (
+            <ActivityScreen
+              actionProfileId={friendActionProfileId}
+              events={activityEvents}
+              incomingFriendRequests={incomingFriendRequests}
+              onAcceptFriend={handleAcceptFriend}
+              onBrowse={() => handleTabChange("home")}
+              onDeclineFriend={handleDeclineFriend}
+              onOpenProfile={handleOpenProfile}
+              onOpenQuest={handleOpenQuest}
+            />
+          ) : utilityView === "inbox" ? (
+            <InboxScreen
+              friends={friends}
+              isLoading={isLoadingMessages}
+              threads={messageThreads}
+              onMessageFriend={handleMessageProfile}
+              onOpenThread={handleOpenThread}
             />
           ) : activeTab === "home" ? (
             <HomeScreen
@@ -904,43 +1619,63 @@ export default function AppShell() {
               joiningQuestId={joiningQuestId}
               onCreate={() => handleTabChange("create")}
               onJoin={handleJoinQuest}
-              onOpen={setSelectedQuestId}
+              onOpen={handleOpenQuest}
             />
-          ) : activeTab === "explore" ? (
-            <ExploreScreen
+          ) : activeTab === "events" ? (
+            <EventsScreen
+              acceptedFriendIds={acceptedFriendIds}
               quests={feedQuests}
               joiningQuestId={joiningQuestId}
               onJoin={handleJoinQuest}
-              onOpen={setSelectedQuestId}
+              onOpen={handleOpenQuest}
             />
           ) : activeTab === "create" ? (
             <div className="space-y-5">
               <AiQuestDraft
+                currentProfile={currentProfile!}
+                currentUserId={currentProfileId}
                 isAvailable={isAiAvailable}
                 onApplyDraft={handleApplyDraft}
               />
               <CreateQuestForm
                 key={createFormKey}
+                currentUserId={currentProfileId}
+                friendProfiles={friendInviteProfiles}
+                initialInvitees={createInitialInvitees}
                 initialValues={createInitialValues ?? undefined}
                 isSubmitting={isCreating}
                 onCreateQuest={handleCreateQuest}
               />
             </div>
-          ) : activeTab === "activity" ? (
-            <ActivityScreen
-              events={activityEvents}
-              onBrowse={() => handleTabChange("home")}
-              onOpenQuest={setSelectedQuestId}
+          ) : activeTab === "people" ? (
+            <PeopleScreen
+              actionProfileId={friendActionProfileId}
+              currentProfile={currentProfile!}
+              suggestedPeople={suggestedPeople}
+              onAcceptFriend={handleAcceptFriend}
+              onCancelFriendRequest={handleCancelFriendRequest}
+              onDeclineFriend={handleDeclineFriend}
+              onOpenProfile={handleOpenProfile}
+              onRemoveFriend={handleRemoveFriend}
+              onSendFriendRequest={handleSendFriendRequest}
             />
           ) : currentProfile ? (
             <ProfileScreen
+              actionProfileId={friendActionProfileId}
+              friends={friends}
               profile={currentProfile}
               myQuests={myQuests}
               joiningQuestId={joiningQuestId}
               isSaving={isSavingProfile}
               saveError={profileError}
+              onAcceptFriend={handleAcceptFriend}
+              onCancelFriendRequest={handleCancelFriendRequest}
+              onDeclineFriend={handleDeclineFriend}
               onJoin={handleJoinQuest}
-              onOpen={setSelectedQuestId}
+              onOpen={handleOpenQuest}
+              onOpenProfile={handleOpenProfile}
+              onRemoveFriend={handleRemoveFriend}
+              onSendFriendRequest={handleSendFriendRequest}
               onSaveProfile={handleSaveProfile}
               onSignOut={handleSignOut}
             />
@@ -952,12 +1687,13 @@ export default function AppShell() {
           isDisabled={isAppLocked}
           profileAvatarInitials={currentProfile?.avatarInitials}
           profileAvatarUrl={currentProfile?.avatarUrl}
-          unreadActivityCount={unreadActivityCount}
           onTabChange={handleTabChange}
         />
       </section>
       {editingQuest ? (
         <EditQuestModal
+          currentUserId={currentProfileId}
+          friendProfiles={friendInviteProfiles}
           isSubmitting={isEditing}
           quest={editingQuest}
           onCancel={() => setEditingQuestId(null)}
@@ -969,25 +1705,29 @@ export default function AppShell() {
 }
 
 const KEYBOARD_HEIGHT_GAP = 120;
-const STABLE_VIEWPORT_STYLE = { height: "var(--plus1-app-height, 100vh)" };
+const STABLE_VIEWPORT_STYLE = {
+  minHeight: "var(--plus1-app-height, 100vh)",
+};
 
 function AppHeader({
+  actions,
   isBrand,
   onBack,
   title,
 }: {
+  actions?: ReactNode;
   isBrand: boolean;
   onBack?: () => void;
   title: string;
 }) {
   return (
-    <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 bg-white/88 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] backdrop-blur-xl">
+    <header className="glass-bar flex shrink-0 items-center gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
       {onBack ? (
         <button
           type="button"
           onClick={onBack}
           aria-label="Back"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-950 transition hover:bg-zinc-100"
+          className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
         >
           <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
         </button>
@@ -999,7 +1739,67 @@ function AppHeader({
       >
         {title}
       </h1>
+      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
     </header>
+  );
+}
+
+function HomeHeaderActions({
+  onOpenActivity,
+  onOpenInbox,
+  unreadActivityCount,
+  unreadMessageCount,
+}: {
+  onOpenActivity: () => void;
+  onOpenInbox: () => void;
+  unreadActivityCount: number;
+  unreadMessageCount: number;
+}) {
+  return (
+    <>
+      <HeaderIconButton
+        count={unreadActivityCount}
+        label="Activity"
+        onClick={onOpenActivity}
+      >
+        <Bell size={21} strokeWidth={2.15} aria-hidden="true" />
+      </HeaderIconButton>
+      <HeaderIconButton
+        count={unreadMessageCount}
+        label="Messages"
+        onClick={onOpenInbox}
+      >
+        <MessageCircle size={21} strokeWidth={2.15} aria-hidden="true" />
+      </HeaderIconButton>
+    </>
+  );
+}
+
+function HeaderIconButton({
+  children,
+  count,
+  label,
+  onClick,
+}: {
+  children: ReactNode;
+  count: number;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="glass-chip relative grid h-10 w-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
+    >
+      {children}
+      {count > 0 ? (
+        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-extrabold text-white">
+          {count > 9 ? "9+" : count}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -1300,6 +2100,7 @@ function AuthScreen({
 function ProfileSetupScreen({
   initialDisplayName,
   initialHandle,
+  initialArea,
   initialInterests,
   isSubmitting,
   error,
@@ -1307,12 +2108,14 @@ function ProfileSetupScreen({
 }: {
   initialDisplayName: string;
   initialHandle: string;
+  initialArea: string;
   initialInterests: string[];
   isSubmitting: boolean;
   error: string;
   onComplete: (changes: {
     displayName: string;
     handle: string;
+    area: string;
     interests: string[];
   }) => Promise<void> | void;
 }) {
@@ -1320,6 +2123,7 @@ function ProfileSetupScreen({
     isLikelyAutoDisplayName(initialDisplayName) ? "" : initialDisplayName,
   );
   const [handle, setHandle] = useState(initialHandle);
+  const [area, setArea] = useState(initialArea || DEFAULT_AREA);
   const [selectedInterests, setSelectedInterests] = useState(initialInterests);
 
   const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
@@ -1338,6 +2142,7 @@ function ProfileSetupScreen({
     await onComplete({
       displayName: normalizedDisplayName,
       handle: normalizedHandle,
+      area,
       interests: selectedInterests,
     });
   }
@@ -1364,7 +2169,7 @@ function ProfileSetupScreen({
             Finish your profile
           </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Pick the name people see and the @handle they can recognize.
+            Pick the name people see, the @handle they can recognize, and your local area.
           </p>
         </div>
 
@@ -1416,6 +2221,29 @@ function ProfileSetupScreen({
             <span className="mt-1 block text-xs font-semibold text-zinc-400">
               3-30 characters. Letters, numbers, periods, and underscores.
             </span>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-bold text-zinc-800">Local area</span>
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+              <MapPin
+                size={18}
+                strokeWidth={1.9}
+                className="shrink-0 text-zinc-400"
+                aria-hidden="true"
+              />
+              <select
+                value={area}
+                onChange={(event) => setArea(event.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-zinc-950 outline-none"
+              >
+                {AREA_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
           </label>
 
           <div>
@@ -1506,7 +2334,7 @@ function buildQuestReminderEvents(
 }
 
 function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
-  if (activeTab === "explore") {
+  if (activeTab === "events") {
     return <ExploreSkeleton />;
   }
 
@@ -1514,8 +2342,8 @@ function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
     return <CreateSkeleton />;
   }
 
-  if (activeTab === "activity") {
-    return <ActivitySkeleton />;
+  if (activeTab === "people") {
+    return <PeopleSkeleton />;
   }
 
   if (activeTab === "profile") {
@@ -1564,6 +2392,27 @@ function ExploreSkeleton() {
   );
 }
 
+function PeopleSkeleton() {
+  return (
+    <div role="status" aria-label="Loading people" className="space-y-5 animate-pulse">
+      <span className="sr-only">Loading people</span>
+      <div className="h-12 rounded-full bg-zinc-100" />
+      <div className="space-y-3">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3">
+            <div className="h-12 w-12 shrink-0 rounded-full bg-zinc-100" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-32 rounded-full bg-zinc-100" />
+              <div className="h-3 w-24 rounded-full bg-zinc-100" />
+            </div>
+            <div className="h-9 w-20 rounded-full bg-zinc-100" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CreateSkeleton() {
   return (
     <div role="status" aria-label="Loading create" className="space-y-5 animate-pulse">
@@ -1582,30 +2431,6 @@ function CreateSkeleton() {
         <div className="h-12 rounded-2xl bg-zinc-100" />
         <div className="h-24 rounded-2xl bg-zinc-100" />
       </div>
-    </div>
-  );
-}
-
-function ActivitySkeleton() {
-  return (
-    <div role="status" aria-label="Loading activity" className="space-y-5 animate-pulse">
-      <span className="sr-only">Loading activity</span>
-      <div className="space-y-2">
-        <div className="h-7 w-24 rounded-full bg-zinc-100" />
-        <div className="h-4 w-72 max-w-full rounded-full bg-zinc-100" />
-      </div>
-      <ul className="space-y-3">
-        {[0, 1, 2].map((item) => (
-          <li key={item} className="rounded-3xl border border-zinc-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-20 rounded-full bg-zinc-100" />
-              <div className="ml-auto h-4 w-12 rounded-full bg-zinc-100" />
-            </div>
-            <div className="mt-3 h-4 w-4/5 rounded-full bg-zinc-100" />
-            <div className="mt-2 h-4 w-2/3 rounded-full bg-zinc-100" />
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

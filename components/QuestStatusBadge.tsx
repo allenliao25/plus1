@@ -13,7 +13,7 @@ export default function QuestStatusBadge({ quest }: { quest: Quest }) {
   }
 
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${badge.className}`}>
+    <span className={`glass-chip rounded-full border px-2.5 py-1 text-xs font-bold ${badge.className}`}>
       {badge.label}
     </span>
   );
@@ -25,35 +25,35 @@ function getQuestBadgeConfig(quest: Quest): BadgeConfig | null {
   if (quest.createdByCurrentUser) {
     return {
       label: "Hosting",
-      className: "bg-zinc-950 text-white",
+      className: "text-zinc-950",
     };
   }
 
   if (quest.joinedByCurrentUser) {
     return {
       label: "Going",
-      className: "bg-emerald-50 text-emerald-700",
+      className: "text-emerald-700",
     };
   }
 
   if (quest.status === "closed") {
     return {
       label: "Closed",
-      className: "bg-zinc-200 text-zinc-700",
+      className: "text-zinc-700",
     };
   }
 
   if (quest.status === "past") {
     return {
       label: "Past",
-      className: "bg-zinc-100 text-zinc-600",
+      className: "text-zinc-600",
     };
   }
 
   if (isFull) {
     return {
       label: "Full",
-      className: "bg-amber-100 text-amber-800",
+      className: "text-amber-800",
     };
   }
 

@@ -1,15 +1,34 @@
 import { getSupabaseClient, type Database } from "@/lib/supabaseClient";
-import type { ActivityEvent, ActivityEventType } from "@/types/quest";
+import { isMissingRelationError } from "@/lib/schemaCompat";
+import type {
+  ActivityActor,
+  ActivityEvent,
+  ActivityEventType,
+  ActivityFriendRequest,
+  ActivityQuestSummary,
+  QuestCategory,
+} from "@/types/quest";
 
 type ActivityEventRow = Database["public"]["Tables"]["activity_events"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
+type FriendshipRow = Database["public"]["Tables"]["friendships"]["Row"];
 
-const validTypes: ActivityEventType[] = ["join", "edit", "close", "reminder"];
+const validTypes: ActivityEventType[] = [
+  "join",
+  "edit",
+  "close",
+  "reminder",
+  "invite",
+  "friend_request",
+  "friend_accept",
+];
 
 export async function fetchActivityEvents(userId: string) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("activity_events")
-    .select("id, type, title, body, quest_id, read_at, created_at")
+    .select("id, type, title, body, actor_id, quest_id, read_at, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -18,7 +37,24 @@ export async function fetchActivityEvents(userId: string) {
     throw new Error(`Could not load activity: ${error.message}`);
   }
 
-  return (data ?? []).map(mapActivityEventRow);
+  const rows = data ?? [];
+  const actorIds = uniqueValues(rows.map((row) => row.actor_id));
+  const questIds = uniqueValues(rows.map((row) => row.quest_id));
+
+  const [actorsById, questsById, friendRequestsByActorId] = await Promise.all([
+    fetchActivityActors(actorIds),
+    fetchActivityQuests(questIds),
+    fetchPendingFriendRequests(userId, rows),
+  ]);
+
+  return rows.map((row) =>
+    mapActivityEventRow(
+      row,
+      actorsById.get(row.actor_id ?? ""),
+      questsById.get(row.quest_id ?? ""),
+      friendRequestsByActorId.get(row.actor_id ?? ""),
+    ),
+  );
 }
 
 export async function markActivityRead(userId: string) {
@@ -37,7 +73,7 @@ export async function markActivityRead(userId: string) {
 type NewActivityEvent = {
   userId: string;
   actorId: string;
-  questId: string;
+  questId?: string | null;
   type: ActivityEventType;
   title: string;
   body?: string | null;
@@ -58,7 +94,7 @@ export async function recordActivityEvents(events: NewActivityEvent[]) {
     events.map((event) => ({
       user_id: event.userId,
       actor_id: event.actorId,
-      quest_id: event.questId,
+      quest_id: event.questId ?? null,
       type: event.type,
       title: event.title,
       body: event.body ?? null,
@@ -74,23 +110,180 @@ export async function recordActivityEvents(events: NewActivityEvent[]) {
 function mapActivityEventRow(
   row: Pick<
     ActivityEventRow,
-    "id" | "type" | "title" | "body" | "quest_id" | "read_at" | "created_at"
+    | "id"
+    | "type"
+    | "title"
+    | "body"
+    | "actor_id"
+    | "quest_id"
+    | "read_at"
+    | "created_at"
   >,
+  actor?: ActivityActor,
+  quest?: ActivityQuestSummary,
+  friendRequest?: ActivityFriendRequest,
 ): ActivityEvent {
   return {
     id: row.id,
     type: normalizeType(row.type),
     title: row.title,
     body: row.body,
+    actorId: row.actor_id,
+    actor: actor ?? null,
     questId: row.quest_id,
+    quest: quest ?? null,
+    friendRequest: friendRequest ?? null,
     createdAtISO: row.created_at,
     createdAtRelative: formatRelativeTime(row.created_at),
     isRead: Boolean(row.read_at),
   };
 }
 
+async function fetchActivityActors(actorIds: string[]) {
+  if (actorIds.length === 0) {
+    return new Map<string, ActivityActor>();
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, display_name, handle, avatar_initials, avatar_url")
+    .in("id", actorIds);
+
+  if (error) {
+    throw new Error(`Could not load activity profiles: ${error.message}`);
+  }
+
+  return new Map((data ?? []).map((profile) => [profile.id, mapActivityActor(profile)]));
+}
+
+async function fetchActivityQuests(questIds: string[]) {
+  if (questIds.length === 0) {
+    return new Map<string, ActivityQuestSummary>();
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("quests")
+    .select("id, title, category, card_image_url")
+    .in("id", questIds);
+
+  if (error) {
+    throw new Error(`Could not load activity events: ${error.message}`);
+  }
+
+  return new Map((data ?? []).map((quest) => [quest.id, mapActivityQuest(quest)]));
+}
+
+async function fetchPendingFriendRequests(
+  userId: string,
+  rows: Pick<ActivityEventRow, "actor_id" | "type">[],
+) {
+  const requesterIds = uniqueValues(
+    rows
+      .filter((row) => normalizeType(row.type) === "friend_request")
+      .map((row) => row.actor_id),
+  );
+
+  if (requesterIds.length === 0) {
+    return new Map<string, ActivityFriendRequest>();
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("friendships")
+    .select("id, requester_id, addressee_id, status, created_at, updated_at")
+    .eq("addressee_id", userId)
+    .in("requester_id", requesterIds)
+    .order("created_at", { ascending: false });
+
+  if (isMissingRelationError(error, "friendships")) {
+    return new Map<string, ActivityFriendRequest>();
+  }
+
+  if (error) {
+    throw new Error(`Could not load friend requests: ${error.message}`);
+  }
+
+  const requests = new Map<string, ActivityFriendRequest>();
+
+  for (const row of data ?? []) {
+    if (!requests.has(row.requester_id)) {
+      requests.set(row.requester_id, mapActivityFriendRequest(row));
+    }
+  }
+
+  return requests;
+}
+
+function mapActivityActor(
+  profile: Pick<
+    ProfileRow,
+    "id" | "display_name" | "handle" | "avatar_initials" | "avatar_url"
+  >,
+): ActivityActor {
+  const displayName = profile.display_name ?? "Someone";
+
+  return {
+    id: profile.id,
+    displayName,
+    handle: profile.handle,
+    avatarInitials: profile.avatar_initials ?? initials(displayName),
+    avatarUrl: profile.avatar_url,
+  };
+}
+
+function mapActivityQuest(
+  quest: Pick<QuestRow, "id" | "title" | "category" | "card_image_url">,
+): ActivityQuestSummary {
+  return {
+    id: quest.id,
+    title: quest.title ?? "Untitled event",
+    category: normalizeQuestCategory(quest.category),
+    cardImageUrl: quest.card_image_url,
+  };
+}
+
+function mapActivityFriendRequest(
+  friendship: Pick<FriendshipRow, "id" | "status">,
+): ActivityFriendRequest {
+  return {
+    friendshipId: friendship.id,
+    status: friendship.status,
+  };
+}
+
 function normalizeType(value: string): ActivityEventType {
   return validTypes.find((option) => option === value) ?? "join";
+}
+
+function normalizeQuestCategory(value: string | null): QuestCategory {
+  const validCategories: QuestCategory[] = [
+    "Food",
+    "Study",
+    "Fitness",
+    "Outdoors",
+    "Social",
+    "Other",
+  ];
+
+  return validCategories.find((category) => category === value) ?? "Other";
+}
+
+function uniqueValues(values: Array<string | null>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  );
 }
 
 function formatRelativeTime(value: string | null) {
@@ -110,16 +303,16 @@ function formatRelativeTime(value: string | null) {
   const dayMs = 24 * hourMs;
 
   if (diffMs < minuteMs) {
-    return "Just now";
+    return "Now";
   }
 
   if (diffMs < hourMs) {
-    return `${Math.round(diffMs / minuteMs)}m ago`;
+    return `${Math.round(diffMs / minuteMs)}m`;
   }
 
   if (diffMs < dayMs) {
-    return `${Math.round(diffMs / hourMs)}h ago`;
+    return `${Math.round(diffMs / hourMs)}h`;
   }
 
-  return `${Math.round(diffMs / dayMs)}d ago`;
+  return `${Math.round(diffMs / dayMs)}d`;
 }

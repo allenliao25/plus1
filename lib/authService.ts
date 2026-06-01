@@ -1,4 +1,6 @@
 import type { AuthChangeEvent, User } from "@supabase/supabase-js";
+import { normalizeArea } from "@/lib/area";
+import { isMissingColumnError } from "@/lib/schemaCompat";
 import { getSupabaseClient } from "@/lib/supabaseClient";
 import type { Profile } from "@/types/quest";
 
@@ -119,7 +121,23 @@ export async function ensureProfile(user: User): Promise<Profile> {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (loadError) {
+  if (isMissingColumnError(loadError, "area")) {
+    const legacyResult = await supabase
+      .from("profiles")
+      .select(legacyProfileSelect)
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (legacyResult.error) {
+      throw new Error(`Could not load profile: ${legacyResult.error.message}`);
+    }
+
+    if (legacyResult.data) {
+      return mapProfileRow(legacyResult.data, fallbackName);
+    }
+  }
+
+  if (loadError && !isMissingColumnError(loadError, "area")) {
     throw new Error(`Could not load profile: ${loadError.message}`);
   }
 
@@ -145,7 +163,12 @@ export async function ensureProfile(user: User): Promise<Profile> {
 
 export async function completeProfileSetup(
   userId: string,
-  changes: { displayName: string; handle: string; interests?: string[] },
+  changes: {
+    displayName: string;
+    handle: string;
+    area?: string;
+    interests?: string[];
+  },
 ): Promise<Profile> {
   const nextDisplayName = normalizeDisplayName(changes.displayName);
   const nextHandle = normalizeHandle(changes.handle);
@@ -156,17 +179,34 @@ export async function completeProfileSetup(
   validateHandle(nextHandle);
 
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase
+  let update = await supabase
     .from("profiles")
     .update({
       display_name: nextDisplayName,
       handle: nextHandle,
+      area: normalizeArea(changes.area),
       interests: changes.interests ?? [],
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId)
     .select(profileSelect)
     .single();
+
+  if (isMissingColumnError(update.error, "area")) {
+    update = await supabase
+      .from("profiles")
+      .update({
+        display_name: nextDisplayName,
+        handle: nextHandle,
+        interests: changes.interests ?? [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select(legacyProfileSelect)
+      .single();
+  }
+
+  const { data, error } = update;
 
   if (isDuplicateHandleError(error)) {
     throw new Error("That handle is already taken. Try another.");
@@ -189,6 +229,7 @@ export async function updateProfile(
     bio: string | null;
     pronouns?: string | null;
     avatarUrl?: string | null;
+    area?: string | null;
     websiteUrl?: string | null;
     interests?: string[];
   },
@@ -211,21 +252,40 @@ export async function updateProfile(
 
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
+  const updatePayload = {
+    display_name: nextDisplayName,
+    handle: nextHandle,
+    ...(changes.avatarUrl !== undefined ? { avatar_url: changes.avatarUrl } : {}),
+    ...(nextWebsiteUrl !== undefined ? { website_url: nextWebsiteUrl } : {}),
+    bio: normalizeBio(changes.bio),
+    ...(nextPronouns !== undefined ? { pronouns: nextPronouns } : {}),
+    ...(changes.area !== undefined
+      ? { area: normalizeArea(changes.area) }
+      : {}),
+    ...(changes.interests ? { interests: changes.interests } : {}),
+    updated_at: new Date().toISOString(),
+  };
+  let update = await supabase
     .from("profiles")
-    .update({
-      display_name: nextDisplayName,
-      handle: nextHandle,
-      ...(changes.avatarUrl !== undefined ? { avatar_url: changes.avatarUrl } : {}),
-      ...(nextWebsiteUrl !== undefined ? { website_url: nextWebsiteUrl } : {}),
-      bio: normalizeBio(changes.bio),
-      ...(nextPronouns !== undefined ? { pronouns: nextPronouns } : {}),
-      ...(changes.interests ? { interests: changes.interests } : {}),
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", userId)
     .select(profileSelect)
     .single();
+
+  if (isMissingColumnError(update.error, "area")) {
+    const legacyPayload = Object.fromEntries(
+      Object.entries(updatePayload).filter(([key]) => key !== "area"),
+    );
+
+    update = await supabase
+      .from("profiles")
+      .update(legacyPayload)
+      .eq("id", userId)
+      .select(legacyProfileSelect)
+      .single();
+  }
+
+  const { data, error } = update;
 
   if (isDuplicateHandleError(error)) {
     throw new Error("That handle is already taken. Try another.");
@@ -374,6 +434,8 @@ function validateHandle(handle: string) {
 }
 
 const profileSelect =
+  "id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, area, interests, created_at, updated_at";
+const legacyProfileSelect =
   "id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at";
 
 function insertProfile(input: {
@@ -386,6 +448,38 @@ function insertProfile(input: {
 }) {
   const supabase = getSupabaseClient();
 
+  return insertProfileWithArea(supabase, input);
+}
+
+async function insertProfileWithArea(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  input: {
+    id: string;
+    displayName: string;
+    handle: string;
+    email: string | null;
+    phone: string | null;
+    avatarInitials: string;
+  },
+) {
+  const result = await supabase
+    .from("profiles")
+    .insert({
+      id: input.id,
+      display_name: input.displayName,
+      handle: input.handle,
+      email: input.email,
+      phone: input.phone,
+      avatar_initials: input.avatarInitials,
+      area: normalizeArea(null),
+    })
+    .select(profileSelect)
+    .single();
+
+  if (!isMissingColumnError(result.error, "area")) {
+    return result;
+  }
+
   return supabase
     .from("profiles")
     .insert({
@@ -396,7 +490,7 @@ function insertProfile(input: {
       phone: input.phone,
       avatar_initials: input.avatarInitials,
     })
-    .select(profileSelect)
+    .select(legacyProfileSelect)
     .single();
 }
 
@@ -412,6 +506,7 @@ function mapProfileRow(
     website_url: string | null;
     bio: string | null;
     pronouns: string | null;
+    area?: string | null;
     interests: string[] | null;
   },
   fallbackName: string,
@@ -429,6 +524,7 @@ function mapProfileRow(
     websiteUrl: profile.website_url,
     bio: profile.bio,
     pronouns: profile.pronouns,
+    area: normalizeArea(profile.area),
     interests: profile.interests ?? [],
   };
 }

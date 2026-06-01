@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildQuestShareUrl, getQuestIdFromSearch } from "@/lib/questLinks";
+import {
+  buildPublicQuestShareUrl,
+  buildQuestShareUrl,
+  getQuestIdFromSearch,
+} from "@/lib/questLinks";
 
 test("getQuestIdFromSearch reads shared quest id", () => {
   assert.equal(getQuestIdFromSearch("?quest=abc-123"), "abc-123");
@@ -24,5 +28,12 @@ test("buildQuestShareUrl preserves origin and sets quest param", () => {
   assert.equal(
     buildQuestShareUrl("quest-1", "https://plus1.example/?tab=home"),
     "https://plus1.example/?tab=home&quest=quest-1",
+  );
+});
+
+test("buildPublicQuestShareUrl creates event landing links", () => {
+  assert.equal(
+    buildPublicQuestShareUrl("share token", "https://plus1.example/?quest=old"),
+    "https://plus1.example/e/share%20token",
   );
 });

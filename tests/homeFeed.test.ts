@@ -4,6 +4,7 @@ import {
   buildHomeFeedModel,
   filterHomeQuests,
   getDefaultHomeFilter,
+  getHomeFilterOptions,
   selectHomeSpotlight,
 } from "@/components/screens/homeFeed";
 import type { Profile, Quest, QuestCategory } from "@/types/quest";
@@ -67,7 +68,7 @@ test("selectHomeSpotlight skips full, joined, and hosted events when a joinable 
   );
 });
 
-test("home filters return category, Tonight, and For you sets", () => {
+test("home filters return ranked for you picks and category sets", () => {
   const profile = makeProfile({ interests: ["Food", "Study"] });
   const foodAsap = makeQuest({
     id: "food-asap",
@@ -87,12 +88,8 @@ test("home filters return category, Tonight, and For you sets", () => {
   const quests = [foodAsap, studyTonight, socialTomorrow];
 
   assert.deepEqual(
-    filterHomeQuests(quests, profile, "Tonight", now).map((quest) => quest.id),
-    ["food-asap", "study-tonight"],
-  );
-  assert.deepEqual(
     filterHomeQuests(quests, profile, "For you", now).map((quest) => quest.id),
-    ["food-asap", "study-tonight"],
+    ["food-asap", "study-tonight", "social-tomorrow"],
   );
   assert.deepEqual(
     filterHomeQuests(quests, profile, "Social", now).map((quest) => quest.id),
@@ -100,7 +97,21 @@ test("home filters return category, Tonight, and For you sets", () => {
   );
 });
 
-test("home model defaults to For you, then Tonight, then All", () => {
+test("home filters are fixed with For you first", () => {
+  const profile = makeProfile({ interests: [] });
+
+  assert.deepEqual(getHomeFilterOptions([], profile), [
+    "For you",
+    "Food",
+    "Study",
+    "Fitness",
+    "Outdoors",
+    "Social",
+    "Other",
+  ]);
+});
+
+test("home model always defaults to For you", () => {
   const interestedProfile = makeProfile({ interests: ["Food"] });
   const neutralProfile = makeProfile({ interests: [] });
   const tomorrowOnly = [
@@ -118,8 +129,8 @@ test("home model defaults to For you, then Tonight, then All", () => {
     }),
   ];
 
-  assert.equal(getDefaultHomeFilter(tomorrowOnly, interestedProfile, now), "All");
-  assert.equal(getDefaultHomeFilter(tonightOnly, neutralProfile, now), "Tonight");
+  assert.equal(getDefaultHomeFilter(tomorrowOnly, interestedProfile, now), "For you");
+  assert.equal(getDefaultHomeFilter(tonightOnly, neutralProfile, now), "For you");
   assert.equal(
     getDefaultHomeFilter(
       [
@@ -143,7 +154,7 @@ test("buildHomeFeedModel removes the spotlight from the compact rows", () => {
   const model = buildHomeFeedModel({
     profile,
     quests: [study, food],
-    selectedFilter: "All",
+    selectedFilter: "For you",
     now,
   });
 
@@ -159,6 +170,7 @@ function makeProfile(changes: Partial<Profile> = {}): Profile {
     avatarInitials: "AL",
     avatarUrl: null,
     bio: null,
+    area: "Demo Area",
     displayName: "Allen",
     email: null,
     handle: "allen",
@@ -179,16 +191,18 @@ function makeQuest(changes: Partial<Quest> = {}): Quest {
     cardImageUrl: null,
     category,
     creator: "Maya",
+    creatorId: "profile-2",
     description: "Bring a plus one.",
     goingCount: 1,
     id: "quest-1",
-    location: "Campus",
+    location: "Nearby",
     maxPeople: 4,
     startTime: "Thu, Jan 15, 6:00 PM",
     startTimeISO: "2026-01-15T18:00:00.000Z",
     startTimeRelative: "Starts in 1h",
     status: "open",
     title: "Study break",
+    visibility: "local",
     ...changes,
   };
 }

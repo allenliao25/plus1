@@ -1,0 +1,3 @@
+export const AI_TEXT_PROMPT_MAX_LENGTH = 1800;
+export const AI_RATE_LIMIT_MAX_REQUESTS = 6;
+export const AI_RATE_LIMIT_WINDOW_MS = 60_000;

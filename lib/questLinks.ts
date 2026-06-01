@@ -17,3 +17,27 @@ export function buildQuestShareUrl(questId: string, href: string) {
   url.searchParams.set("quest", questId);
   return url.toString();
 }
+
+export function buildPublicQuestShareUrl(token: string, originOrHref?: string | null) {
+  const origin = getSiteOrigin(originOrHref);
+  return `${origin}/e/${encodeURIComponent(token)}`;
+}
+
+export function getSiteOrigin(originOrHref?: string | null) {
+  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (configuredOrigin) {
+    return normalizeOrigin(configuredOrigin);
+  }
+
+  if (originOrHref) {
+    return normalizeOrigin(originOrHref);
+  }
+
+  return "https://plus1-livid.vercel.app";
+}
+
+function normalizeOrigin(value: string) {
+  const url = new URL(value);
+  return url.origin;
+}

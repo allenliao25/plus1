@@ -1,7 +1,7 @@
 {
   "name": "plus1",
   "short_name": "plus1",
-  "description": "Find low-pressure campus plans with people nearby.",
+  "description": "Find low-pressure local plans with people nearby.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

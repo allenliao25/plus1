@@ -1,4 +1,4 @@
-import { CalendarDays, MapPin, Users } from "lucide-react";
+import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import type { Quest } from "@/types/quest";
 
 type HomeGridPreviewProps = {
@@ -45,6 +45,9 @@ function HomeGridTile({
 }) {
   const actionState = getActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
+  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
+  const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
+  const socialProof = `${quest.goingCount}/${quest.maxPeople} going · ${openSpots} open`;
 
   return (
     <article
@@ -59,10 +62,13 @@ function HomeGridTile({
           <img
             src={quest.cardImageUrl}
             alt=""
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.018]"
+            className="h-full w-full object-cover"
           />
         ) : (
-          <div className="holo-card-fallback h-full w-full" />
+          <QuestCategoryArtwork
+            category={quest.category}
+            className="h-full w-full"
+          />
         )}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.12)_36%,rgba(0,0,0,0.82))]" />
       </div>
@@ -74,43 +80,17 @@ function HomeGridTile({
         aria-label={`Open details for ${quest.title}`}
       />
 
-      <div className="pointer-events-none absolute inset-x-2.5 top-2.5 z-20 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate rounded-full border border-white/16 bg-black/28 px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-md">
-          {quest.matchesCurrentUserInterests ? "For you" : quest.category}
-        </span>
-      </div>
-
-      <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 z-20 rounded-[0.95rem] border border-white/12 bg-black/36 p-2.5 backdrop-blur-xl">
+      <div className="glass-overlay pointer-events-none absolute inset-x-2.5 bottom-2.5 z-20 rounded-[0.95rem] border p-2.5">
         <h3 className="line-clamp-2 text-[1.02rem] font-bold leading-[1.02] tracking-normal text-white [text-shadow:0_3px_14px_rgba(0,0,0,0.68)]">
           {quest.title}
         </h3>
-        <dl className="mt-2 grid gap-1 text-[0.67rem] font-bold leading-4 text-white/82">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <dt className="sr-only">When</dt>
-            <CalendarDays
-              className="shrink-0 text-white/62"
-              size={12}
-              strokeWidth={2}
-              aria-hidden="true"
-            />
-            <dd className="min-w-0 truncate">{when}</dd>
-          </div>
-          <div className="flex min-w-0 items-center gap-1.5">
-            <dt className="sr-only">Where</dt>
-            <MapPin
-              className="shrink-0 text-white/62"
-              size={12}
-              strokeWidth={2}
-              aria-hidden="true"
-            />
-            <dd className="min-w-0 truncate">{quest.location}</dd>
-          </div>
-        </dl>
+        <p className="mt-1.5 line-clamp-2 text-[0.67rem] font-semibold leading-4 text-white/78">
+          {context}
+        </p>
+        <p className="mt-1 truncate text-[0.66rem] font-bold leading-4 text-white/88">
+          {socialProof}
+        </p>
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1 text-[0.66rem] font-bold text-white/72">
-            <Users size={12} strokeWidth={2} aria-hidden="true" />
-            {quest.goingCount}/{quest.maxPeople}
-          </span>
           <button
             type="button"
             onClick={(event) => {
@@ -118,9 +98,9 @@ function HomeGridTile({
               onJoin(quest.id);
             }}
             disabled={actionState.isDisabled}
-            className={`pointer-events-auto min-h-8 min-w-[3.85rem] rounded-full px-2.5 py-1 text-[0.68rem] font-bold transition active:scale-95 ${
+            className={`pointer-events-auto ml-auto min-h-8 min-w-[5.35rem] rounded-full px-2.5 py-1 text-[0.68rem] font-bold transition active:scale-95 ${
               actionState.isPrimary
-                ? "bg-white text-zinc-950 hover:bg-white/90"
+                ? "glass-action border text-zinc-950 hover:bg-white/90"
                 : "bg-white/12 text-white/52 ring-1 ring-white/12"
             }`}
           >
@@ -137,7 +117,7 @@ function getActionState(quest: Quest, isJoining: boolean) {
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
 
   if (isJoined) {
-    return { isDisabled: true, isPrimary: false, label: "In" };
+    return { isDisabled: true, isPrimary: false, label: "You're in" };
   }
 
   if (quest.status !== "open") {
@@ -153,7 +133,7 @@ function getActionState(quest: Quest, isJoining: boolean) {
   }
 
   if (isJoining) {
-    return { isDisabled: true, isPrimary: false, label: "..." };
+    return { isDisabled: true, isPrimary: false, label: "Joining..." };
   }
 
   return { isDisabled: false, isPrimary: true, label: "Join" };

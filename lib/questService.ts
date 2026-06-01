@@ -1,3 +1,9 @@
+import { normalizeArea } from "@/lib/area";
+import {
+  isMissingColumnError,
+  isMissingRelationError,
+  isMissingRpcError,
+} from "@/lib/schemaCompat";
 import { getSupabaseClient, type Database } from "@/lib/supabaseClient";
 import type {
   NewQuestInput,
@@ -5,12 +11,27 @@ import type {
   Quest,
   QuestCategory,
   QuestStatus,
+  QuestVisibility,
   UpdateQuestInput,
 } from "@/types/quest";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
 type QuestJoinRow = Database["public"]["Tables"]["quest_joins"]["Row"];
+type QuestInviteRow = Database["public"]["Tables"]["quest_invites"]["Row"];
+type PublicProfileRow = Pick<
+  ProfileRow,
+  | "id"
+  | "display_name"
+  | "handle"
+  | "avatar_initials"
+  | "avatar_url"
+  | "website_url"
+  | "bio"
+  | "pronouns"
+  | "interests"
+> &
+  Partial<Pick<ProfileRow, "email" | "phone" | "area">>;
 
 const BOOT_TIMEOUT_MS = 10_000;
 export const QUEST_CARD_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
@@ -21,8 +42,18 @@ const validCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
-  "Sidequest",
+  "Other",
 ];
+const validVisibility: QuestVisibility[] = [
+  "invite_only",
+  "friends",
+  "local",
+];
+const legacyLocalVisibilityValue = "campus";
+export const publicProfileSelect =
+  "id, display_name, handle, avatar_initials, avatar_url, website_url, bio, pronouns, area, interests, created_at, updated_at";
+const legacyPublicProfileSelect =
+  "id, display_name, handle, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at";
 
 export async function fetchDemoProfiles() {
   return withTimeout(
@@ -36,14 +67,26 @@ async function loadDemoProfiles() {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at")
+    .select(publicProfileSelect)
     .in("display_name", demoUserNames);
+  let rows: PublicProfileRow[] = data ?? [];
+  let loadError = error;
 
-  if (error) {
-    throw new Error(`Could not load demo users: ${error.message}`);
+  if (isMissingColumnError(error, "area")) {
+    const legacyResult = await supabase
+      .from("profiles")
+      .select(legacyPublicProfileSelect)
+      .in("display_name", demoUserNames);
+
+    rows = legacyResult.data ?? [];
+    loadError = legacyResult.error;
   }
 
-  const profiles = (data ?? []).map(mapProfileRow);
+  if (loadError) {
+    throw new Error(`Could not load demo users: ${loadError.message}`);
+  }
+
+  const profiles = rows.map(mapProfileRow);
   const missingNames = demoUserNames.filter(
     (name) => !profiles.some((profile) => profile.displayName === name),
   );
@@ -59,27 +102,63 @@ async function loadDemoProfiles() {
     .filter((profile): profile is Profile => Boolean(profile));
 }
 
-export async function fetchFeedQuests(currentUserId: string) {
+export async function fetchFeedQuests(currentUserId: string, currentArea?: string) {
   const supabase = getSupabaseClient();
   const now = new Date().toISOString();
-  const { data, error } = await supabase
+  const normalizedArea = currentArea ? normalizeArea(currentArea) : "";
+  let query = supabase
     .from("quests")
     .select("*")
     .eq("status", "open")
-    .or(`start_time.is.null,start_time.gte.${now}`)
-    .order("start_time", { ascending: true });
+    .or(`start_time.is.null,start_time.gte.${now}`);
+
+  if (normalizedArea) {
+    query = query.eq("area", normalizedArea);
+  }
+
+  let { data, error } = await query.order("start_time", { ascending: true });
+
+  if (normalizedArea && isMissingColumnError(error, "area")) {
+    const fallback = await supabase
+      .from("quests")
+      .select("*")
+      .eq("status", "open")
+      .or(`start_time.is.null,start_time.gte.${now}`)
+      .order("start_time", { ascending: true });
+
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw new Error(`Could not load events: ${error.message}`);
   }
 
-  return hydrateQuests(data ?? [], currentUserId);
+  return hydrateQuests(
+    filterLegacyAreaRows(data ?? [], currentArea),
+    currentUserId,
+  );
+}
+
+function filterLegacyAreaRows(rows: QuestRow[], currentArea?: string) {
+  if (!currentArea || rows.some((row) => row.area === undefined)) {
+    return rows;
+  }
+
+  const normalizedArea = normalizeArea(currentArea);
+  return rows.filter((row) => {
+    if (normalizeQuestVisibility(row.visibility) !== "local") {
+      return true;
+    }
+
+    return normalizeArea(row.area) === normalizedArea;
+  });
 }
 
 export async function fetchMyQuests(currentUserId: string) {
   const supabase = getSupabaseClient();
 
-  const [{ data: createdQuests, error: createdError }, joinedQuestIds] =
+  const [{ data: createdQuests, error: createdError }, joinedQuestIds, invitedQuestIds] =
     await Promise.all([
       supabase
         .from("quests")
@@ -87,6 +166,7 @@ export async function fetchMyQuests(currentUserId: string) {
         .eq("creator_id", currentUserId)
         .order("created_at", { ascending: false }),
       fetchJoinedQuestIds(currentUserId),
+      fetchInvitedQuestIds(currentUserId),
     ]);
 
   if (createdError) {
@@ -95,11 +175,13 @@ export async function fetchMyQuests(currentUserId: string) {
 
   let joinedQuests: QuestRow[] = [];
 
-  if (joinedQuestIds.length > 0) {
+  const relatedQuestIds = [...new Set([...joinedQuestIds, ...invitedQuestIds])];
+
+  if (relatedQuestIds.length > 0) {
     const { data, error } = await supabase
       .from("quests")
       .select("*")
-      .in("id", joinedQuestIds)
+      .in("id", relatedQuestIds)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -118,33 +200,132 @@ export async function fetchMyQuests(currentUserId: string) {
   return hydrateQuests([...uniqueQuests.values()], currentUserId);
 }
 
+export async function fetchVisibleProfileQuests(
+  profileId: string,
+  currentUserId: string,
+) {
+  const supabase = getSupabaseClient();
+  const [{ data: createdQuests, error: createdError }, { data: joins, error: joinsError }] =
+    await Promise.all([
+      supabase
+        .from("quests")
+        .select("*")
+        .eq("creator_id", profileId)
+        .order("created_at", { ascending: false }),
+      supabase.from("quest_joins").select("quest_id").eq("user_id", profileId),
+    ]);
+
+  if (createdError) {
+    throw new Error(`Could not load profile events: ${createdError.message}`);
+  }
+
+  if (joinsError) {
+    throw new Error(`Could not load profile joined events: ${joinsError.message}`);
+  }
+
+  let joinedQuests: QuestRow[] = [];
+  const joinedQuestIds = [
+    ...new Set(
+      (joins ?? [])
+        .map((join) => join.quest_id)
+        .filter((questId): questId is string => Boolean(questId)),
+    ),
+  ];
+
+  if (joinedQuestIds.length > 0) {
+    const { data, error } = await supabase
+      .from("quests")
+      .select("*")
+      .in("id", joinedQuestIds)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw new Error(`Could not load profile joined events: ${error.message}`);
+    }
+
+    joinedQuests = data ?? [];
+  }
+
+  const uniqueQuests = new Map<string, QuestRow>();
+
+  for (const quest of [...(createdQuests ?? []), ...joinedQuests]) {
+    uniqueQuests.set(quest.id, quest);
+  }
+
+  return hydrateQuests([...uniqueQuests.values()], currentUserId);
+}
+
 export async function createQuest(
   input: NewQuestInput,
   currentUserId: string,
+  currentArea?: string,
 ) {
   const supabase = getSupabaseClient();
   const startTime = parseStartTime(input.startTime);
   const maxPeople = Math.min(12, Math.max(2, input.maxPeople || 4));
 
-  const { data, error } = await supabase
+  const insertPayload = {
+    creator_id: currentUserId,
+    title: input.title,
+    category: input.category,
+    location: input.location,
+    start_time: startTime,
+    description: input.description,
+    card_image_url: input.cardImageUrl ?? null,
+    area: normalizeArea(currentArea),
+    visibility: normalizeQuestVisibility(input.visibility),
+    max_people: maxPeople,
+    status: "open",
+  };
+  let insert = await supabase
     .from("quests")
-    .insert({
-      creator_id: currentUserId,
-      title: input.title,
-      category: input.category,
-      location: input.location,
-      start_time: startTime,
-      description: input.description,
-      card_image_url: input.cardImageUrl ?? null,
-      max_people: maxPeople,
-      status: "open",
-    })
+    .insert(insertPayload)
     .select("*")
     .single();
+
+  if (
+    insertPayload.visibility === "local" &&
+    isLegacyVisibilityCheckError(insert.error)
+  ) {
+    insert = await supabase
+      .from("quests")
+      .insert({
+        ...insertPayload,
+        visibility: legacyLocalVisibilityValue as QuestVisibility,
+      })
+      .select("*")
+      .single();
+  }
+
+  if (
+    isMissingColumnError(insert.error, "area") ||
+    isMissingColumnError(insert.error, "visibility")
+  ) {
+    const legacyPayload = Object.fromEntries(
+      Object.entries(insertPayload).filter(
+        ([key]) => key !== "area" && key !== "visibility",
+      ),
+    );
+
+    insert = await supabase
+      .from("quests")
+      .insert(legacyPayload)
+      .select("*")
+      .single();
+  }
+
+  const { data, error } = insert;
 
   if (error) {
     throw new Error(`Could not create event: ${error.message}`);
   }
+
+  await replaceQuestInvites({
+    actorId: currentUserId,
+    inviteeIds: input.inviteeIds ?? [],
+    questId: data.id,
+    questTitle: data.title ?? input.title,
+  });
 
   const [quest] = await hydrateQuests([data], currentUserId);
   return quest;
@@ -159,20 +340,53 @@ export async function updateQuest(
   const startTime = parseStartTime(input.startTime);
   const maxPeople = Math.min(12, Math.max(2, input.maxPeople || 4));
 
-  const { data, error } = await supabase
+  const updatePayload = {
+    title: input.title,
+    category: input.category,
+    location: input.location,
+    start_time: startTime,
+    description: input.description,
+    card_image_url: input.cardImageUrl ?? null,
+    visibility: normalizeQuestVisibility(input.visibility),
+    max_people: maxPeople,
+  };
+
+  let update = await supabase
     .from("quests")
-    .update({
-      title: input.title,
-      category: input.category,
-      location: input.location,
-      start_time: startTime,
-      description: input.description,
-      card_image_url: input.cardImageUrl ?? null,
-      max_people: maxPeople,
-    })
+    .update(updatePayload)
     .eq("id", questId)
     .eq("creator_id", currentUserId)
     .select("*");
+
+  if (
+    updatePayload.visibility === "local" &&
+    isLegacyVisibilityCheckError(update.error)
+  ) {
+    update = await supabase
+      .from("quests")
+      .update({
+        ...updatePayload,
+        visibility: legacyLocalVisibilityValue as QuestVisibility,
+      })
+      .eq("id", questId)
+      .eq("creator_id", currentUserId)
+      .select("*");
+  }
+
+  if (isMissingColumnError(update.error, "visibility")) {
+    const legacyPayload = Object.fromEntries(
+      Object.entries(updatePayload).filter(([key]) => key !== "visibility"),
+    );
+
+    update = await supabase
+      .from("quests")
+      .update(legacyPayload)
+      .eq("id", questId)
+      .eq("creator_id", currentUserId)
+      .select("*");
+  }
+
+  const { data, error } = update;
 
   const quest = data?.[0] ?? null;
 
@@ -183,10 +397,41 @@ export async function updateQuest(
   }
 
   const [hydratedQuest] = await hydrateQuests([quest], currentUserId);
+
+  if (input.inviteeIds) {
+    await replaceQuestInvites({
+      actorId: currentUserId,
+      inviteeIds: input.inviteeIds,
+      questId: quest.id,
+      questTitle: quest.title ?? input.title,
+    });
+  }
+
   return hydratedQuest;
 }
 
 export async function joinQuest(questId: string, currentUserId: string) {
+  void currentUserId;
+
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase.rpc("join_quest_atomic", {
+    target_quest_id: questId,
+  });
+
+  if (isMissingRpcError(error, "join_quest_atomic")) {
+    await joinQuestLegacy(questId, currentUserId);
+    return;
+  }
+
+  if (error) {
+    throw new Error(mapJoinQuestError(error.message));
+  }
+
+  await acceptQuestInvite(questId, currentUserId);
+}
+
+async function joinQuestLegacy(questId: string, currentUserId: string) {
   const supabase = getSupabaseClient();
 
   const [{ data: quest, error: questError }, { data: joins, error: joinsError }] =
@@ -236,10 +481,11 @@ export async function joinQuest(questId: string, currentUserId: string) {
     user_id: currentUserId,
   });
 
-  // Postgres unique violations mean the user already joined; that is safe here.
   if (error && error.code !== "23505") {
     throw new Error(`Could not join event: ${error.message}`);
   }
+
+  await acceptQuestInvite(questId, currentUserId);
 }
 
 export async function leaveQuest(questId: string, currentUserId: string) {
@@ -346,6 +592,27 @@ async function fetchJoinedQuestIds(currentUserId: string) {
     .filter((questId): questId is string => Boolean(questId));
 }
 
+async function fetchInvitedQuestIds(currentUserId: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("quest_invites")
+    .select("quest_id")
+    .eq("invitee_id", currentUserId)
+    .neq("status", "declined");
+
+  if (isMissingRelationError(error, "quest_invites")) {
+    return [];
+  }
+
+  if (error) {
+    throw new Error(`Could not load invited event ids: ${error.message}`);
+  }
+
+  return (data ?? [])
+    .map((invite) => invite.quest_id)
+    .filter((questId): questId is string => Boolean(questId));
+}
+
 async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
   if (rows.length === 0) {
     return [];
@@ -361,16 +628,31 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
     ),
   ];
 
-  const { data: joins, error: joinsError } = await supabase
-    .from("quest_joins")
-    .select("id, quest_id, user_id, created_at")
-    .in("quest_id", questIds);
+  const [{ data: joins, error: joinsError }, inviteResult] = await Promise.all([
+    supabase
+      .from("quest_joins")
+      .select("id, quest_id, user_id, created_at")
+      .in("quest_id", questIds),
+    supabase
+      .from("quest_invites")
+      .select("id, quest_id, inviter_id, invitee_id, status, created_at, updated_at")
+      .in("quest_id", questIds),
+  ]);
 
   if (joinsError) {
     throw new Error(`Could not load event joins: ${joinsError.message}`);
   }
 
+  if (
+    inviteResult.error &&
+    !isMissingRelationError(inviteResult.error, "quest_invites")
+  ) {
+    throw new Error(`Could not load event invites: ${inviteResult.error.message}`);
+  }
+
   const joinsByQuestId = groupJoinsByQuestId(joins ?? []);
+  const invites = inviteResult.error ? [] : (inviteResult.data ?? []);
+  const invitesByQuestId = groupInvitesByQuestId(invites);
   const joinerIds = [
     ...new Set(
       (joins ?? [])
@@ -378,7 +660,10 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
         .filter((userId): userId is string => Boolean(userId)),
     ),
   ];
-  const profileIds = [...new Set([...creatorIds, ...joinerIds])];
+  const inviteeIds = invites
+    .map((invite) => invite.invitee_id)
+    .filter((userId): userId is string => Boolean(userId));
+  const profileIds = [...new Set([...creatorIds, ...joinerIds, ...inviteeIds])];
 
   const profiles =
     profileIds.length > 0
@@ -389,6 +674,7 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
   return rows.map((quest) =>
     mapQuestRow({
       currentUserId,
+      invites: invitesByQuestId.get(quest.id) ?? [],
       joins: joinsByQuestId.get(quest.id) ?? [],
       profile: quest.creator_id ? profilesById.get(quest.creator_id) : null,
       profilesById,
@@ -401,14 +687,26 @@ export async function fetchProfilesByIds(profileIds: string[]) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, handle, email, phone, avatar_initials, avatar_url, website_url, bio, pronouns, interests, created_at, updated_at")
+    .select(publicProfileSelect)
     .in("id", profileIds);
+  let rows: PublicProfileRow[] = data ?? [];
+  let loadError = error;
 
-  if (error) {
-    throw new Error(`Could not load event profiles: ${error.message}`);
+  if (isMissingColumnError(error, "area")) {
+    const legacyResult = await supabase
+      .from("profiles")
+      .select(legacyPublicProfileSelect)
+      .in("id", profileIds);
+
+    rows = legacyResult.data ?? [];
+    loadError = legacyResult.error;
   }
 
-  return (data ?? []).map(mapProfileRow);
+  if (loadError) {
+    throw new Error(`Could not load event profiles: ${loadError.message}`);
+  }
+
+  return rows.map(mapProfileRow);
 }
 
 function groupJoinsByQuestId(joins: QuestJoinRow[]) {
@@ -425,14 +723,33 @@ function groupJoinsByQuestId(joins: QuestJoinRow[]) {
   return grouped;
 }
 
+function groupInvitesByQuestId(invites: QuestInviteRow[]) {
+  const grouped = new Map<string, QuestInviteRow[]>();
+
+  for (const invite of invites) {
+    if (!invite.quest_id) {
+      continue;
+    }
+
+    grouped.set(invite.quest_id, [
+      ...(grouped.get(invite.quest_id) ?? []),
+      invite,
+    ]);
+  }
+
+  return grouped;
+}
+
 function mapQuestRow({
   currentUserId,
+  invites,
   joins,
   profile,
   profilesById,
   quest,
 }: {
   currentUserId: string;
+  invites: QuestInviteRow[];
   joins: QuestJoinRow[];
   profile: Profile | null | undefined;
   profilesById: Map<string, Profile>;
@@ -442,7 +759,12 @@ function mapQuestRow({
     (join) => join.user_id === currentUserId,
   );
   const createdByCurrentUser = quest.creator_id === currentUserId;
+  const invitedByCurrentUser = invites.some(
+    (invite) =>
+      invite.invitee_id === currentUserId && invite.status !== "declined",
+  );
   const attendees = buildAttendees(joins, profile, profilesById);
+  const invitedProfiles = buildInvitedProfiles(invites, profilesById);
   const startTime = formatQuestTime(quest.start_time);
 
   return {
@@ -450,18 +772,22 @@ function mapQuestRow({
     title: quest.title ?? "Untitled event",
     category: normalizeQuestCategory(quest.category),
     status: normalizeStatus(quest.status, quest.start_time),
-    location: quest.location ?? "Campus",
+    location: quest.location ?? "Nearby",
     startTimeISO: quest.start_time,
     startTime,
     startTimeRelative: formatRelativeTime(quest.start_time),
     description: quest.description ?? "No extra details yet.",
     cardImageUrl: quest.card_image_url,
     creator: profile?.displayName ?? "Someone nearby",
+    creatorId: quest.creator_id,
+    visibility: normalizeQuestVisibility(quest.visibility),
     goingCount: 1 + joins.length,
     maxPeople: quest.max_people ?? 4,
     attendees,
+    invitedProfiles,
     createdByCurrentUser,
     joinedByCurrentUser,
+    invitedByCurrentUser,
   };
 }
 
@@ -497,29 +823,223 @@ function buildAttendees(
   return [...hostAttendee, ...joiners];
 }
 
-function mapProfileRow(profile: ProfileRow): Profile {
+function buildInvitedProfiles(
+  invites: QuestInviteRow[],
+  profilesById: Map<string, Profile>,
+) {
+  return invites
+    .filter((invite) => invite.status !== "declined")
+    .map((invite) => profilesById.get(invite.invitee_id))
+    .filter((profile): profile is Profile => Boolean(profile))
+    .sort((left, right) => left.displayName.localeCompare(right.displayName))
+    .map((profile) => ({
+      id: profile.id,
+      displayName: profile.displayName,
+      handle: profile.handle,
+      avatarInitials: profile.avatarInitials,
+      avatarUrl: profile.avatarUrl,
+    }));
+}
+
+function mapProfileRow(profile: PublicProfileRow): Profile {
   return {
     id: profile.id,
     displayName: profile.display_name ?? "Demo user",
     handle: profile.handle ?? profile.id.slice(0, 8),
-    email: profile.email,
-    phone: profile.phone,
+    email: "email" in profile ? profile.email ?? null : null,
+    phone: "phone" in profile ? profile.phone ?? null : null,
     avatarInitials: profile.avatar_initials ?? initials(profile.display_name),
     avatarUrl: profile.avatar_url,
     websiteUrl: profile.website_url,
     bio: profile.bio,
     pronouns: profile.pronouns,
+    area: normalizeArea(profile.area),
     interests: profile.interests ?? [],
   };
 }
 
+async function replaceQuestInvites({
+  actorId,
+  inviteeIds,
+  questId,
+  questTitle,
+}: {
+  actorId: string;
+  inviteeIds: string[];
+  questId: string;
+  questTitle: string;
+}) {
+  const supabase = getSupabaseClient();
+  const uniqueInviteeIds = [
+    ...new Set(inviteeIds.filter((inviteeId) => inviteeId !== actorId)),
+  ];
+
+  const existing = await supabase
+    .from("quest_invites")
+    .select("invitee_id, status")
+    .eq("quest_id", questId);
+
+  if (isMissingRelationError(existing.error, "quest_invites")) {
+    return;
+  }
+
+  if (existing.error) {
+    throw new Error(`Could not load event invites: ${existing.error.message}`);
+  }
+
+  const existingIds = new Set(
+    (existing.data ?? [])
+      .filter((row) => row.status !== "declined")
+      .map((row) => row.invitee_id),
+  );
+  const nextIds = new Set(uniqueInviteeIds);
+  const removedIds = [...existingIds].filter((inviteeId) => !nextIds.has(inviteeId));
+  const addedIds = uniqueInviteeIds.filter((inviteeId) => !existingIds.has(inviteeId));
+
+  if (removedIds.length > 0) {
+    const { error } = await supabase
+      .from("quest_invites")
+      .delete()
+      .eq("quest_id", questId)
+      .in("invitee_id", removedIds);
+
+    if (error) {
+      throw new Error(`Could not remove event invites: ${error.message}`);
+    }
+  }
+
+  if (addedIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("quest_invites")
+    .upsert(
+      addedIds.map((inviteeId) => ({
+        quest_id: questId,
+        inviter_id: actorId,
+        invitee_id: inviteeId,
+        status: "pending",
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "quest_id,invitee_id" },
+    );
+
+  if (error && error.code !== "23505") {
+    throw new Error(`Could not invite people: ${error.message}`);
+  }
+
+  await recordInviteActivity({
+    actorId,
+    inviteeIds: addedIds,
+    questId,
+    questTitle,
+  });
+}
+
+async function recordInviteActivity({
+  actorId,
+  inviteeIds,
+  questId,
+  questTitle,
+}: {
+  actorId: string;
+  inviteeIds: string[];
+  questId: string;
+  questTitle: string;
+}) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from("activity_events").insert(
+    inviteeIds.map((inviteeId) => ({
+      user_id: inviteeId,
+      actor_id: actorId,
+      quest_id: questId,
+      type: "invite",
+      title: `You were invited to ${questTitle}`,
+    })),
+  );
+
+  if (error) {
+    throw new Error(`Could not send invite activity: ${error.message}`);
+  }
+}
+
+async function acceptQuestInvite(questId: string, currentUserId: string) {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("quest_invites")
+    .update({ status: "accepted", updated_at: new Date().toISOString() })
+    .eq("quest_id", questId)
+    .eq("invitee_id", currentUserId);
+
+  if (isMissingRelationError(error, "quest_invites")) {
+    return;
+  }
+
+  if (error) {
+    throw new Error(`Could not accept invite: ${error.message}`);
+  }
+}
+
+function mapJoinQuestError(message: string) {
+  if (message.includes("event_closed")) {
+    return "This event is no longer open.";
+  }
+
+  if (message.includes("event_full")) {
+    return "This event is full.";
+  }
+
+  if (message.includes("host_cannot_join")) {
+    return "You're already hosting this event.";
+  }
+
+  if (message.includes("event_not_found")) {
+    return "That event is not available in your area.";
+  }
+
+  return `Could not join event: ${message}`;
+}
+
 export function normalizeQuestCategory(category: string | null): QuestCategory {
-  if (category === "Errand") {
-    return "Sidequest";
+  if (category === "Errand" || category === "Sidequest") {
+    return "Other";
   }
 
   const match = validCategories.find((option) => option === category);
   return match ?? "Social";
+}
+
+function normalizeQuestVisibility(
+  visibility: string | null | undefined,
+): QuestVisibility {
+  if (visibility === legacyLocalVisibilityValue) {
+    return "local";
+  }
+
+  const match = validVisibility.find((option) => option === visibility);
+  return match ?? "local";
+}
+
+function isLegacyVisibilityCheckError(
+  error:
+    | {
+        code?: string;
+        details?: string | null;
+        message?: string;
+      }
+    | null
+    | undefined,
+) {
+  if (!error) {
+    return false;
+  }
+
+  const message = `${error.message ?? ""} ${error.details ?? ""}`;
+  return (
+    message.includes("quests_visibility_check") ||
+    (error.code === "23514" && message.includes("visibility"))
+  );
 }
 
 function getQuestCardImageExtension(type: string) {

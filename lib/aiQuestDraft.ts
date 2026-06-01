@@ -1,5 +1,5 @@
 import { questCategories } from "@/data/demoQuests";
-import type { NewQuestInput, QuestCategory } from "@/types/quest";
+import type { QuestCategory, SmartQuestDraft } from "@/types/quest";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
@@ -12,7 +12,8 @@ Return ONLY a single JSON object (no markdown, no commentary) with exactly these
 - "startTime": local datetime in "YYYY-MM-DDTHH:mm" 24-hour format, or "" if unknown
 - "description": always "" (do not write a caption or description)
 - "maxPeople": integer between 2 and 12 for total group size
-Pick the closest category from the allowed list. If a value is missing, use a sensible default rather than inventing fake specifics.`;
+- "inviteHints": array of names or @handles explicitly mentioned as invitees, without filler words
+Pick the closest category from the allowed list. If a value is missing, use a sensible default rather than inventing fake specifics. Treat meal words as time clues: breakfast/morning is AM, lunch/afternoon/dinner/evening/tonight is PM. Interpret "6 30" as 6:30.`;
 
 type ChatTextContent = { type: "text"; text: string };
 type ChatImageContent = { type: "image_url"; image_url: { url: string } };
@@ -44,22 +45,28 @@ export function parseQuestDraft(
     sourceText?: string;
     nowLocal?: string;
   } = {},
-): NewQuestInput {
+): SmartQuestDraft {
   const record = (raw && typeof raw === "object" ? raw : {}) as Record<
     string,
     unknown
   >;
-
-  const maxPeopleNumber = Number(record.maxPeople);
-  const maxPeople = Number.isFinite(maxPeopleNumber)
-    ? Math.min(12, Math.max(2, Math.round(maxPeopleNumber)))
-    : 4;
 
   const rawStartTime = asString(record.startTime);
   const inferredStartTime = inferRelativeStartTime(
     options.sourceText,
     options.nowLocal,
   );
+  const inviteHints = mergeInviteHints(
+    readInviteHints(record.inviteHints),
+    extractInviteHints(options.sourceText),
+  );
+  const inferredMaxPeople = inferMaxPeople(options.sourceText, inviteHints);
+  const maxPeopleNumber = Number(record.maxPeople);
+  const maxPeople =
+    inferredMaxPeople ??
+    (Number.isFinite(maxPeopleNumber)
+      ? Math.min(12, Math.max(2, Math.round(maxPeopleNumber)))
+      : 4);
 
   return {
     title: asString(record.title),
@@ -70,6 +77,8 @@ export function parseQuestDraft(
       normalizeFutureStartTime(rawStartTime, options.nowLocal),
     description: "",
     maxPeople,
+    visibility: "local",
+    ...(inviteHints.length > 0 ? { inviteHints } : {}),
   };
 }
 
@@ -91,7 +100,7 @@ function getOpenAiKey(): string {
 export async function requestQuestDraft(
   userContent: ChatUserContent,
   context: QuestDraftContext = {},
-): Promise<NewQuestInput> {
+): Promise<SmartQuestDraft> {
   const apiKey = getOpenAiKey();
   const model = process.env.OPENAI_MODEL || DEFAULT_MODEL;
   const sourceText = typeof userContent === "string" ? userContent : "";
@@ -168,12 +177,21 @@ function inferRelativeStartTime(sourceText = "", nowLocal?: string) {
     text,
   );
   const hasTomorrow = /\b(tomorrow|tmrw|tmr)\b/.test(text);
+  const hasPmCue =
+    hasTonight ||
+    /\b(lunch|afternoon|dinner|supper|evening|night|movie|drinks?|party|concert)\b/.test(
+      text,
+    );
+  const hasAmCue = /\b(breakfast|brunch|morning|coffee)\b/.test(text);
 
-  if (!hasToday && !hasTomorrow) {
+  if (!hasToday && !hasTomorrow && !hasPmCue && !hasAmCue) {
     return null;
   }
 
-  const time = readPromptTime(text, hasTonight);
+  const time = readPromptTime(
+    text,
+    hasPmCue ? "pm" : hasAmCue ? "am" : undefined,
+  );
   if (!time) {
     return null;
   }
@@ -195,28 +213,36 @@ function inferRelativeStartTime(sourceText = "", nowLocal?: string) {
   return formatLocalDateTime(target);
 }
 
-function readPromptTime(text: string, preferPm: boolean) {
-  const meridiemMatch = text.match(
-    /\b(?:at|around|by|@)?\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/,
-  );
-  if (meridiemMatch) {
-    return normalizeHour(
-      Number(meridiemMatch[1]),
-      Number(meridiemMatch[2] ?? 0),
-      meridiemMatch[3].startsWith("p") ? "pm" : "am",
-    );
+function readPromptTime(text: string, meridiemHint?: "am" | "pm") {
+  const patterns = [
+    /\b(?:at|around|by|@)?\s*(\d{1,2})\s*(a\.?m\.?|p\.?m\.?)\b/g,
+    /\b(?:at|around|by|@)?\s*(\d{1,2})(?::|\.|\s+)([0-5]\d)\s*(a\.?m\.?|p\.?m\.?)\b/g,
+    /\b(?:at|around|by|@)\s*(\d{1,2})(?::|\.|\s+)?([0-5]\d)?\b/g,
+    /\b(\d{1,2})(?::|\.|\s+)([0-5]\d)\b/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const explicitMeridiem = match[3]?.startsWith("p")
+        ? "pm"
+        : match[3]?.startsWith("a") || match[2]?.startsWith("a")
+          ? "am"
+          : match[2]?.startsWith("p")
+            ? "pm"
+          : undefined;
+      const time = normalizeHour(
+        Number(match[1]),
+        Number(match[2] && /^\d+$/.test(match[2]) ? match[2] : 0),
+        explicitMeridiem ?? meridiemHint,
+      );
+
+      if (time) {
+        return time;
+      }
+    }
   }
 
-  const looseMatch = text.match(/\b(?:at|around|by|@)\s*(\d{1,2})(?::(\d{2}))?\b/);
-  if (!looseMatch) {
-    return null;
-  }
-
-  return normalizeHour(
-    Number(looseMatch[1]),
-    Number(looseMatch[2] ?? 0),
-    preferPm ? "pm" : undefined,
-  );
+  return null;
 }
 
 function normalizeHour(
@@ -244,6 +270,92 @@ function normalizeHour(
   }
 
   return { hours: normalizedHour, minutes };
+}
+
+function readInviteHints(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map(asString).filter(Boolean);
+}
+
+function extractInviteHints(sourceText = "") {
+  const text = sourceText.trim();
+  if (!text) {
+    return [];
+  }
+
+  const hints: string[] = [];
+  const patterns = [
+    /\b(?:invite|inviting|ask|add)\s+(@?[\p{L}\p{N}._ -]{2,40})/giu,
+    /\bwith\s+(@?[\p{L}\p{N}._ -]{2,40})/giu,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const hint = cleanInviteHint(match[1]);
+
+      if (hint) {
+        hints.push(hint);
+      }
+    }
+  }
+
+  return hints;
+}
+
+function cleanInviteHint(value: string) {
+  const cleaned = value
+    .replace(/\b(?:to|for|at|around|about|tonight|today|tomorrow|tmrw|tmr)\b.*$/i, "")
+    .replace(/[,.!?;:]+$/g, "")
+    .trim()
+    .replace(/^@+/, "");
+
+  return cleaned.length >= 2 ? cleaned : "";
+}
+
+function mergeInviteHints(...groups: string[][]) {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const hint of groups.flat()) {
+    const normalized = normalizeInviteHint(hint);
+
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    merged.push(hint.trim().replace(/^@+/, ""));
+  }
+
+  return merged.slice(0, 5);
+}
+
+function normalizeInviteHint(value: string) {
+  return value.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function inferMaxPeople(sourceText = "", inviteHints: string[]) {
+  const text = sourceText.toLowerCase();
+  const explicitCount = text.match(
+    /\b(?:need|needs|looking for|for|with|bring|invite)\s+(\d{1,2})\s+(?:people|ppl|friends?|others?|spots?)\b/,
+  );
+
+  if (explicitCount) {
+    return Math.min(12, Math.max(2, Number(explicitCount[1])));
+  }
+
+  if (/\b(one|1)\s+(?:other|person|friend)\b/.test(text)) {
+    return 2;
+  }
+
+  if (inviteHints.length > 0 && !/\b\d{1,2}\s*(?:people|ppl|spots?)\b/.test(text)) {
+    return Math.min(12, inviteHints.length + 1);
+  }
+
+  return null;
 }
 
 function normalizeFutureStartTime(value: string, nowLocal?: string) {

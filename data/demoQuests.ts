@@ -6,5 +6,5 @@ export const questCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
-  "Sidequest",
+  "Other",
 ];

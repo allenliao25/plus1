@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
+import { CalendarDays, Home, Plus, UserRound, UsersRound } from "lucide-react";
 
-export type AppTab = "home" | "explore" | "create" | "activity" | "profile";
+export type AppTab = "home" | "events" | "create" | "people" | "profile";
 
 type NavItem = {
   id: AppTab;
@@ -8,66 +9,31 @@ type NavItem = {
   icon: ReactNode;
 };
 
-const iconProps = {
-  width: 26,
-  height: 26,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.9,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-};
-
 const navItems: NavItem[] = [
   {
     id: "home",
     label: "Home",
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <path d="M3 10.5 12 3l9 7.5" />
-        <path d="M5 9.5V21h14V9.5" />
-      </svg>
-    ),
+    icon: <Home size={25} strokeWidth={2.05} aria-hidden="true" />,
   },
   {
-    id: "explore",
-    label: "Explore",
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.2-3.2" />
-      </svg>
-    ),
+    id: "events",
+    label: "Events",
+    icon: <CalendarDays size={25} strokeWidth={2.05} aria-hidden="true" />,
   },
   {
     id: "create",
     label: "Create",
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <path d="M12 5v14" />
-        <path d="M5 12h14" />
-      </svg>
-    ),
+    icon: <Plus size={27} strokeWidth={2.25} aria-hidden="true" />,
   },
   {
-    id: "activity",
-    label: "Activity",
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <path d="M12 21s-7-4.35-9.5-8.5C.8 9.6 2.3 6 5.8 6c2 0 3.4 1.2 4.2 2.4C10.8 7.2 12.2 6 14.2 6c3.5 0 5 3.6 3.3 6.5C19 16.65 12 21 12 21Z" />
-      </svg>
-    ),
+    id: "people",
+    label: "People",
+    icon: <UsersRound size={25} strokeWidth={2.05} aria-hidden="true" />,
   },
   {
     id: "profile",
     label: "Profile",
-    icon: (
-      <svg {...iconProps} aria-hidden="true">
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-3.9 3.6-7 8-7s8 3.1 8 7" />
-      </svg>
-    ),
+    icon: <UserRound size={25} strokeWidth={2.05} aria-hidden="true" />,
   },
 ];
 
@@ -76,7 +42,6 @@ type BottomNavProps = {
   isDisabled?: boolean;
   profileAvatarInitials?: string;
   profileAvatarUrl?: string | null;
-  unreadActivityCount?: number;
   onTabChange: (tab: AppTab) => void;
 };
 
@@ -85,13 +50,12 @@ export default function BottomNav({
   isDisabled = false,
   profileAvatarInitials = "",
   profileAvatarUrl = null,
-  unreadActivityCount = 0,
   onTabChange,
 }: BottomNavProps) {
   return (
     <nav
       aria-busy={isDisabled}
-      className="relative z-20 flex shrink-0 touch-none transform-gpu select-none items-stretch justify-between border-t border-zinc-200 bg-white/85 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2.5 backdrop-blur-xl"
+      className="glass-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+10px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
     >
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
@@ -107,14 +71,12 @@ export default function BottomNav({
               aria-label="Create"
               className="flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-zinc-950 text-white transition active:scale-95">
+              <span className="glass-ignite grid h-11 w-11 place-items-center rounded-2xl text-white shadow-[0_14px_30px_rgba(244,114,182,0.22)] ring-1 ring-white/40 transition active:scale-95">
                 {item.icon}
               </span>
             </button>
           );
         }
-
-        const showBadge = item.id === "activity" && unreadActivityCount > 0;
 
         return (
           <button
@@ -125,7 +87,9 @@ export default function BottomNav({
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
             className={`group relative flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
-              isActive ? "text-zinc-950" : "text-zinc-300 hover:text-zinc-500"
+              isActive
+                ? "bg-white/46 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                : "text-zinc-400 hover:bg-white/34 hover:text-zinc-600"
             }`}
           >
             <span className="relative">
@@ -139,11 +103,6 @@ export default function BottomNav({
               ) : (
                 item.icon
               )}
-              {showBadge ? (
-                <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-bold text-white">
-                  {unreadActivityCount > 9 ? "9+" : unreadActivityCount}
-                </span>
-              ) : null}
             </span>
           </button>
         );
