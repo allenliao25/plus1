@@ -1784,7 +1784,7 @@ export default function AppShell() {
               <section className="flex h-full flex-col overflow-hidden bg-white">
                 {renderRootHeader(page)}
                 <div
-                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
+                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3.0625rem)] pt-5 ${
                     page === "events"
                       ? "snap-y snap-mandatory"
                       : ""
@@ -1831,7 +1831,7 @@ export default function AppShell() {
 
             <div
               key={activeSurfaceKey}
-              className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5"
+              className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3.0625rem)] pt-5"
             >
               {renderNonRootContent()}
             </div>
