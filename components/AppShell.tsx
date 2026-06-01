@@ -1680,6 +1680,7 @@ export default function AppShell() {
             <ProfileHeaderActions onSignOut={handleSignOut} />
           ) : null
         }
+        compactLargeTitle={isProfilePanel}
         isBrand={isHomePanel}
         title={title}
         titleAlign="large"
@@ -1725,7 +1726,6 @@ export default function AppShell() {
             onAcceptFriend={handleAcceptFriend}
             onCancelFriendRequest={handleCancelFriendRequest}
             onDeclineFriend={handleDeclineFriend}
-            onJoin={handleJoinQuest}
             onOpenQuest={handleOpenQuest}
             onRemoveFriend={handleRemoveFriend}
             onMessageProfile={handleMessageProfile}
@@ -1878,6 +1878,7 @@ function getCurrentRootPage(activeTab: AppTab): RootPage {
 
 function AppHeader({
   actions,
+  compactLargeTitle = false,
   isBrand,
   leading,
   onBack,
@@ -1885,6 +1886,7 @@ function AppHeader({
   titleAlign = "center",
 }: {
   actions?: ReactNode;
+  compactLargeTitle?: boolean;
   isBrand: boolean;
   leading?: ReactNode;
   onBack?: () => void;
@@ -1894,8 +1896,18 @@ function AppHeader({
   if (titleAlign === "large") {
     return (
       <header className="shrink-0 bg-white px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
-        <div className="flex min-h-[3.65rem] items-start justify-between gap-3">
-          <h1 className="min-w-0 flex-1 truncate text-[2.75rem] font-bold leading-none tracking-tight text-zinc-950">
+        <div
+          className={`flex items-start justify-between gap-3 ${
+            compactLargeTitle ? "min-h-[2.75rem]" : "min-h-[3.65rem]"
+          }`}
+        >
+          <h1
+            className={`min-w-0 flex-1 truncate font-bold tracking-tight text-zinc-950 ${
+              compactLargeTitle
+                ? "text-xl leading-tight"
+                : "text-[2.75rem] leading-none"
+            }`}
+          >
             {title}
           </h1>
           {actions ? (
