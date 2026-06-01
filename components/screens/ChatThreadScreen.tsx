@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Send } from "lucide-react";
 import type { ChatMessage, MessageThread } from "@/types/quest";
 
@@ -20,13 +20,13 @@ export default function ChatThreadScreen({
 }: ChatThreadScreenProps) {
   const [body, setBody] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, isLoading]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function sendCurrentMessage() {
     const nextBody = body.trim();
 
     if (!nextBody || isSending) {
@@ -35,6 +35,19 @@ export default function ChatThreadScreen({
 
     await onSend(nextBody);
     setBody("");
+    inputRef.current?.focus();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await sendCurrentMessage();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendCurrentMessage();
+    }
   }
 
   if (!thread) {
@@ -90,9 +103,12 @@ export default function ChatThreadScreen({
       >
         <div className="glass-panel flex min-h-12 items-end gap-2 rounded-[1.35rem] border p-2">
           <textarea
+            ref={inputRef}
             rows={1}
             value={body}
             onChange={(event) => setBody(event.target.value)}
+            onKeyDown={handleKeyDown}
+            enterKeyHint="send"
             placeholder="Message"
             className="max-h-28 min-h-8 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] font-medium leading-5 text-zinc-950 outline-none placeholder:text-zinc-400"
           />
