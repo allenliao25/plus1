@@ -1,10 +1,13 @@
 import FriendActionControls from "@/components/FriendActionControls";
-import QuestList from "@/components/QuestList";
+import {
+  ProfileAvatar,
+  ProfileEventGrid,
+  ProfileStat,
+} from "@/components/ProfileEventGrid";
+import { getProfileEventStats } from "@/lib/profileEventStats";
 import type { PeopleSearchResult, Quest } from "@/types/quest";
 import { MessageCircle } from "lucide-react";
-import { useMemo, useState } from "react";
-
-type PublicProfileTab = "hosted" | "going" | "past";
+import { useMemo } from "react";
 
 type PublicProfileScreenProps = {
   actionProfileId: string | null;
@@ -14,7 +17,6 @@ type PublicProfileScreenProps = {
   onAcceptFriend: (friendshipId: string) => void | Promise<void>;
   onCancelFriendRequest: (friendshipId: string) => void | Promise<void>;
   onDeclineFriend: (friendshipId: string) => void | Promise<void>;
-  onJoin: (questId: string) => void | Promise<void>;
   onOpenQuest: (questId: string) => void;
   onRemoveFriend: (friendshipId: string) => void | Promise<void>;
   onMessageProfile: (profileId: string) => void | Promise<void>;
@@ -27,7 +29,6 @@ export default function PublicProfileScreen({
   onAcceptFriend,
   onCancelFriendRequest,
   onDeclineFriend,
-  onJoin,
   onMessageProfile,
   onOpenQuest,
   onRemoveFriend,
@@ -35,28 +36,23 @@ export default function PublicProfileScreen({
   profile,
   quests,
 }: PublicProfileScreenProps) {
-  const [activeTab, setActiveTab] = useState<PublicProfileTab>("hosted");
-  const sections = useMemo(() => {
-    const hosted = quests.filter((quest) => quest.creatorId === profile?.id);
-    const going = quests.filter(
-      (quest) =>
-        quest.creatorId !== profile?.id &&
-        quest.attendees.some(
-          (attendee) => attendee.id === profile?.id && !attendee.isHost,
-        ),
-    );
-    const past = quests.filter((quest) => quest.status !== "open");
-
-    return { hosted, going, past };
-  }, [profile?.id, quests]);
-
-  const activeQuests = sections[activeTab];
+  const stats = useMemo(
+    () => (profile ? getProfileEventStats(quests, profile.id) : null),
+    [profile, quests],
+  );
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="glass-panel h-44 animate-pulse rounded-[1.75rem] border" />
-        <div className="glass-panel h-64 animate-pulse rounded-[1.75rem] border" />
+        <div className="h-40 animate-pulse rounded-[1.75rem] bg-zinc-100" />
+        <div className="-mx-5 grid grid-cols-3 gap-[1px] bg-zinc-200">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <div
+              key={index}
+              className="aspect-square animate-pulse bg-zinc-100"
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -73,58 +69,81 @@ export default function PublicProfileScreen({
   }
 
   return (
-    <div className="space-y-5 pb-3">
-      <section className="glass-panel rounded-[1.75rem] border p-5">
-        <div className="flex items-start gap-4">
+    <div className="space-y-4 pb-3">
+      <section className="space-y-4">
+        <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
           <ProfileAvatar profile={profile} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-extrabold text-zinc-950">
-              {profile.displayName}
-            </p>
-            <p className="mt-0.5 truncate text-sm font-bold text-zinc-500">
-              @{profile.handle}
-            </p>
-            {profile.pronouns ? (
-              <p className="mt-0.5 text-sm font-semibold text-zinc-500">
-                {profile.pronouns}
-              </p>
-            ) : null}
-            <p className="mt-0.5 text-sm font-semibold text-zinc-500">
-              {profile.area}
-            </p>
+
+          <div className="min-w-0">
+            <div className="grid grid-cols-3 gap-1 text-center">
+              <ProfileStat
+                label="Hosted"
+                value={stats?.hosted.length ?? 0}
+              />
+              <ProfileStat
+                label="Attended"
+                value={stats?.attended.length ?? 0}
+              />
+              <ProfileStat
+                label="Events"
+                value={stats?.events.length ?? 0}
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <p className="truncate text-[17px] font-extrabold leading-6 text-zinc-950">
+            {profile.displayName}
+            {profile.pronouns ? (
+              <span className="ml-2 font-semibold text-zinc-500">
+                {profile.pronouns}
+              </span>
+            ) : null}
+          </p>
+          {profile.area ? (
+            <p className="text-sm text-zinc-500">{profile.area}</p>
+          ) : null}
+          {profile.bio ? (
+            <p className="whitespace-pre-line text-sm leading-6 text-zinc-700">
+              {profile.bio}
+            </p>
+          ) : null}
+        </div>
+
+        <div
+          className={
+            profile.friendshipState === "friends"
+              ? "grid grid-cols-2 gap-2"
+              : "grid gap-2"
+          }
+        >
           <FriendActionControls
             friendshipId={profile.friendshipId}
             isBusy={actionProfileId === profile.id}
             profileId={profile.id}
             state={profile.friendshipState}
+            variant="profile"
             onAccept={onAcceptFriend}
             onCancel={onCancelFriendRequest}
             onDecline={onDeclineFriend}
             onRemove={onRemoveFriend}
             onRequest={onSendFriendRequest}
           />
+          {profile.friendshipState === "friends" ? (
+            <button
+              type="button"
+              onClick={() => onMessageProfile(profile.id)}
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
+            >
+              <MessageCircle size={16} strokeWidth={2.2} aria-hidden="true" />
+              Message
+            </button>
+          ) : null}
         </div>
 
-        {profile.friendshipState === "friends" ? (
-          <button
-            type="button"
-            onClick={() => onMessageProfile(profile.id)}
-            className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-extrabold text-white transition active:scale-95"
-          >
-            <MessageCircle size={17} strokeWidth={2.2} aria-hidden="true" />
-            Message
-          </button>
-        ) : null}
-
-        {profile.bio ? (
-          <p className="mt-4 whitespace-pre-line text-sm leading-6 text-zinc-700">
-            {profile.bio}
-          </p>
-        ) : null}
-
         {profile.interests.length > 0 ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {profile.interests.map((interest) => (
               <span
                 key={interest}
@@ -137,79 +156,14 @@ export default function PublicProfileScreen({
         ) : null}
       </section>
 
-      <section className="space-y-3">
-        <div className="glass-panel grid grid-cols-3 rounded-full border p-1">
-          <TabButton
-            isActive={activeTab === "hosted"}
-            label={`Hosted ${sections.hosted.length}`}
-            onClick={() => setActiveTab("hosted")}
-          />
-          <TabButton
-            isActive={activeTab === "going"}
-            label={`Going ${sections.going.length}`}
-            onClick={() => setActiveTab("going")}
-          />
-          <TabButton
-            isActive={activeTab === "past"}
-            label={`Past ${sections.past.length}`}
-            onClick={() => setActiveTab("past")}
-          />
-        </div>
-
-        <QuestList
+      <section className="-mx-5 mt-2">
+        <ProfileEventGrid
           emptyBody="Visible events for this person will show up here."
-          emptyTitle={`No ${activeTab} events`}
-          joiningQuestId={null}
-          quests={activeQuests}
-          onJoin={onJoin}
+          emptyTitle="No visible events yet."
+          quests={quests}
           onOpen={onOpenQuest}
         />
       </section>
     </div>
-  );
-}
-
-function ProfileAvatar({ profile }: { profile: PeopleSearchResult }) {
-  const [didImageFail, setDidImageFail] = useState(false);
-
-  if (profile.avatarUrl && !didImageFail) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={profile.avatarUrl}
-        alt=""
-        onError={() => setDidImageFail(true)}
-        className="h-20 w-20 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
-      />
-    );
-  }
-
-  return (
-    <span className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-zinc-950 text-2xl font-extrabold text-white">
-      {profile.avatarInitials}
-    </span>
-  );
-}
-
-function TabButton({
-  isActive,
-  label,
-  onClick,
-}: {
-  isActive: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={isActive}
-      onClick={onClick}
-      className={`min-h-10 rounded-full text-xs font-extrabold transition ${
-        isActive ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

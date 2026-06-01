@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
-import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import {
+  ProfileAvatar,
+  ProfileEventGrid,
+  ProfileStat,
+} from "@/components/ProfileEventGrid";
 import ProfileEditSheet, {
   type ProfileIdentityChanges,
 } from "@/components/ProfileEditSheet";
+import { getProfileEventStats } from "@/lib/profileEventStats";
 import type { FriendConnection, Profile, Quest } from "@/types/quest";
 
 type ProfileScreenProps = {
@@ -29,14 +34,13 @@ export default function ProfileScreen({
   const [isEditing, setIsEditing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
 
-  const stats = useMemo(() => {
-    const hosted = myQuests.filter((quest) => quest.createdByCurrentUser);
-    const going = myQuests.filter(
-      (quest) => quest.joinedByCurrentUser && !quest.createdByCurrentUser,
-    );
-
-    return { hosted, going };
-  }, [myQuests]);
+  const stats = useMemo(
+    () =>
+      getProfileEventStats(myQuests, profile.id, {
+        includeCurrentUserFlags: true,
+      }),
+    [myQuests, profile.id],
+  );
 
   async function handleCopyProfile() {
     const text = `${profile.displayName} (@${profile.handle}) on plus1`;
@@ -72,7 +76,7 @@ export default function ProfileScreen({
               />
               <ProfileStat
                 label="Attended"
-                value={stats.going.length}
+                value={stats.attended.length}
               />
               <ProfileStat
                 label="Friends"
@@ -106,14 +110,14 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-extrabold text-zinc-950 transition active:scale-[0.98]"
           >
             Edit profile
           </button>
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-extrabold text-zinc-950 transition active:scale-[0.98]"
           >
             Share
           </button>
@@ -127,20 +131,12 @@ export default function ProfileScreen({
       </section>
 
       <section className="-mx-5 mt-2">
-        {myQuests.length > 0 ? (
-          <div className="grid grid-cols-3 gap-[1px] bg-zinc-200">
-            {myQuests.map((quest) => (
-              <QuestTile key={quest.id} quest={quest} onOpen={onOpen} />
-            ))}
-          </div>
-        ) : (
-          <div className="px-5 py-14 text-center">
-            <p className="text-sm font-bold text-zinc-800">No events yet.</p>
-            <p className="mt-1 text-sm text-zinc-400">
-              Your plus1 moments will show up here.
-            </p>
-          </div>
-        )}
+        <ProfileEventGrid
+          emptyBody="Your plus1 moments will show up here."
+          emptyTitle="No events yet."
+          quests={myQuests}
+          onOpen={onOpen}
+        />
       </section>
 
       {isEditing ? (
@@ -157,110 +153,5 @@ export default function ProfileScreen({
         />
       ) : null}
     </div>
-  );
-}
-
-function ProfileAvatar({ profile }: { profile: Profile }) {
-  const [didImageFail, setDidImageFail] = useState(false);
-
-  if (profile.avatarUrl && !didImageFail) {
-    return (
-      <span className="block aspect-square h-20 w-20 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={profile.avatarUrl}
-          alt=""
-          onError={() => setDidImageFail(true)}
-          className="block h-full w-full object-cover"
-        />
-      </span>
-    );
-  }
-
-  return (
-    <span className="grid aspect-square h-20 w-20 place-items-center overflow-hidden rounded-full bg-zinc-950 text-2xl font-bold text-white shadow-sm">
-      {profile.avatarInitials}
-    </span>
-  );
-}
-
-function ProfileStat({
-  label,
-  onClick,
-  value,
-}: {
-  label: string;
-  onClick?: () => void;
-  value: number;
-}) {
-  const content = (
-    <>
-      <span className="block text-lg font-extrabold leading-none text-zinc-950">
-        {value}
-      </span>
-      <span className="mt-1 block text-xs font-semibold text-zinc-500">
-        {label}
-      </span>
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        aria-label={`${value} ${label}`}
-        onClick={onClick}
-        className="rounded-2xl py-1.5 transition hover:bg-zinc-100/70 active:scale-95"
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return (
-    <div aria-label={`${value} ${label}`} className="py-1.5">
-      {content}
-    </div>
-  );
-}
-
-function QuestTile({
-  quest,
-  onOpen,
-}: {
-  quest: Quest;
-  onOpen: (questId: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(quest.id)}
-      data-category={quest.category}
-      className="holo-thumb group relative aspect-square overflow-hidden bg-zinc-100 text-left transition active:scale-[0.98]"
-      aria-label={`Open ${quest.title}`}
-    >
-      {quest.cardImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={quest.cardImageUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        <QuestCategoryArtwork
-          category={quest.category}
-          className="absolute inset-0 h-full w-full"
-        />
-      )}
-      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
-      <p className="absolute bottom-1.5 left-1.5 right-1.5 truncate text-[11px] font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
-        {quest.title}
-      </p>
-      {quest.status !== "open" ? (
-        <span className="glass-chip absolute right-1.5 top-1.5 rounded-full border px-2 py-0.5 text-[0.6rem] font-bold uppercase text-zinc-700">
-          {quest.status}
-        </span>
-      ) : null}
-    </button>
   );
 }

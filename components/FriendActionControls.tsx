@@ -6,6 +6,7 @@ type FriendActionControlsProps = {
   disabled?: boolean;
   isBusy?: boolean;
   profileId: string;
+  variant?: "compact" | "profile";
   onAccept: (friendshipId: string) => void | Promise<void>;
   onCancel: (friendshipId: string) => void | Promise<void>;
   onDecline: (friendshipId: string) => void | Promise<void>;
@@ -24,21 +25,29 @@ export default function FriendActionControls({
   onRequest,
   profileId,
   state,
+  variant = "compact",
 }: FriendActionControlsProps) {
   const isDisabled = disabled || isBusy;
+  const isProfile = variant === "profile";
+  const secondaryClass = isProfile
+    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98] disabled:opacity-50"
+    : "min-h-9 rounded-full border border-zinc-200 bg-white px-3 text-xs font-extrabold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50";
+  const primaryClass = isProfile
+    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-950 px-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+    : "min-h-9 rounded-full bg-zinc-950 px-3 text-xs font-extrabold text-white transition hover:bg-zinc-800 disabled:opacity-50";
 
   if (state === "self") {
-    return <StatePill label="You" />;
+    return <StatePill label="You" variant={variant} />;
   }
 
   if (state === "incoming" && friendshipId) {
     return (
-      <div className="flex shrink-0 items-center gap-2">
+      <div className={isProfile ? "grid grid-cols-2 gap-2" : "flex shrink-0 items-center gap-2"}>
         <button
           type="button"
           disabled={isDisabled}
           onClick={() => onAccept(friendshipId)}
-          className="min-h-9 rounded-full bg-zinc-950 px-3 text-xs font-extrabold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+          className={primaryClass}
         >
           {isBusy ? "..." : "Accept"}
         </button>
@@ -46,7 +55,7 @@ export default function FriendActionControls({
           type="button"
           disabled={isDisabled}
           onClick={() => onDecline(friendshipId)}
-          className="min-h-9 rounded-full border border-zinc-200 bg-white px-3 text-xs font-extrabold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+          className={secondaryClass}
         >
           Decline
         </button>
@@ -60,7 +69,7 @@ export default function FriendActionControls({
         type="button"
         disabled={isDisabled}
         onClick={() => onCancel(friendshipId)}
-        className="min-h-9 rounded-full border border-zinc-200 bg-white px-3 text-xs font-extrabold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+        className={secondaryClass}
       >
         Requested
       </button>
@@ -73,7 +82,7 @@ export default function FriendActionControls({
         type="button"
         disabled={isDisabled}
         onClick={() => onRemove(friendshipId)}
-        className="min-h-9 rounded-full border border-zinc-200 bg-white px-3 text-xs font-extrabold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+        className={secondaryClass}
       >
         Friends
       </button>
@@ -85,16 +94,28 @@ export default function FriendActionControls({
       type="button"
       disabled={isDisabled}
       onClick={() => onRequest(profileId)}
-      className="min-h-9 rounded-full bg-zinc-950 px-3 text-xs font-extrabold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+      className={primaryClass}
     >
       {isBusy ? "..." : "Add"}
     </button>
   );
 }
 
-function StatePill({ label }: { label: string }) {
+function StatePill({
+  label,
+  variant,
+}: {
+  label: string;
+  variant: "compact" | "profile";
+}) {
   return (
-    <span className="inline-flex min-h-9 items-center rounded-full bg-zinc-100 px-3 text-xs font-extrabold text-zinc-500">
+    <span
+      className={
+        variant === "profile"
+          ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-500"
+          : "inline-flex min-h-9 items-center rounded-full bg-zinc-100 px-3 text-xs font-extrabold text-zinc-500"
+      }
+    >
       {label}
     </span>
   );
