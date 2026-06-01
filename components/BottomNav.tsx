@@ -1,28 +1,47 @@
-import { useState } from "react";
-import {
-  CalendarDays,
-  Home,
-  Plus,
-  UserRound,
-  UsersRound,
-  type LucideProps,
-} from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { CalendarDays, Home, Plus, UserRound, UsersRound } from "lucide-react";
 
 export type AppTab = "home" | "events" | "create" | "people" | "profile";
+
+const ICON_SIZE = 22;
+const ICON_STROKE = 2;
 
 type NavItem = {
   id: AppTab;
   label: string;
-  Icon: React.ComponentType<LucideProps>;
-  filledWhenActive?: boolean;
+  icon: ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { id: "home", label: "Home", Icon: Home, filledWhenActive: true },
-  { id: "events", label: "Events", Icon: CalendarDays },
-  { id: "create", label: "Create", Icon: Plus },
-  { id: "people", label: "People", Icon: UsersRound },
-  { id: "profile", label: "Profile", Icon: UserRound },
+  {
+    id: "home",
+    label: "Home",
+    icon: <Home size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
+  },
+  {
+    id: "events",
+    label: "Events",
+    icon: (
+      <CalendarDays size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+    ),
+  },
+  {
+    id: "create",
+    label: "Create",
+    icon: <Plus size={ICON_SIZE} strokeWidth={2.2} aria-hidden="true" />,
+  },
+  {
+    id: "people",
+    label: "People",
+    icon: (
+      <UsersRound size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+    ),
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    icon: <UserRound size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
+  },
 ];
 
 type BottomNavProps = {
@@ -40,27 +59,57 @@ export default function BottomNav({
   profileAvatarUrl = null,
   onTabChange,
 }: BottomNavProps) {
+  const activeNavIndex = navItems.findIndex((item) => item.id === activeTab);
+  const shouldShowActiveMarker = activeTab !== "create" && activeNavIndex >= 0;
+
   return (
     <nav
       aria-busy={isDisabled}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom,0px)]"
+      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+10px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
     >
-      <div className="mx-auto flex h-[49px] w-full max-w-[480px] items-center justify-around px-1">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
-          const isProfile = item.id === "profile";
-          const { Icon } = item;
+      {shouldShowActiveMarker ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_4px_12px_rgba(15,23,42,0.05)] transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
+        />
+      ) : null}
+      {navItems.map((item) => {
+        const isActive = activeTab === item.id;
+        const isProfile = item.id === "profile";
 
+        if (item.id === "create") {
           return (
             <button
               key={item.id}
               type="button"
               disabled={isDisabled}
               onClick={() => onTabChange(item.id)}
-              aria-label={item.label}
-              aria-current={isActive ? "page" : undefined}
-              className="flex h-full min-w-0 flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Create"
+              className="relative z-10 flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
+              <span className="bottom-nav-create grid h-10 w-10 place-items-center rounded-2xl text-white ring-1 ring-white/50 transition active:scale-95">
+                {item.icon}
+              </span>
+            </button>
+          );
+        }
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            disabled={isDisabled}
+            onClick={() => onTabChange(item.id)}
+            aria-label={item.label}
+            aria-current={isActive ? "page" : undefined}
+            className={`group relative z-10 flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+              isActive
+                ? "text-zinc-950"
+                : "text-zinc-400 hover:bg-white/34 hover:text-zinc-600"
+            }`}
+          >
+            <span className="relative">
               {isProfile ? (
                 <ProfileNavAvatar
                   key={profileAvatarUrl ?? profileAvatarInitials}
@@ -69,24 +118,12 @@ export default function BottomNav({
                   isActive={isActive}
                 />
               ) : (
-                <Icon
-                  size={24}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  aria-hidden="true"
-                  className={
-                    isActive
-                      ? "text-zinc-950"
-                      : "text-zinc-950 opacity-60"
-                  }
-                  {...(item.filledWhenActive && isActive
-                    ? { fill: "currentColor" }
-                    : {})}
-                />
+                item.icon
               )}
-            </button>
-          );
-        })}
-      </div>
+            </span>
+          </button>
+        );
+      })}
     </nav>
   );
 }
@@ -105,27 +142,31 @@ function ProfileNavAvatar({
 
   return (
     <span
-      className={`block h-[26px] w-[26px] shrink-0 overflow-hidden rounded-full bg-zinc-200 transition ${
-        isActive ? "ring-2 ring-zinc-950 ring-offset-1" : "opacity-60"
+      className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full border p-[2px] transition ${
+        isActive
+          ? "border-zinc-950"
+          : "border-transparent group-hover:border-zinc-300"
       }`}
     >
-      {avatarUrl && !didImageFail ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatarUrl}
-          alt=""
-          onError={() => setDidImageFail(true)}
-          className="block h-full w-full object-cover"
-        />
-      ) : (
-        <span
-          className={`grid h-full w-full place-items-center text-[0.6rem] font-bold ${
-            isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
-          }`}
-        >
-          {initials}
-        </span>
-      )}
+      <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-zinc-200">
+        {avatarUrl && !didImageFail ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            onError={() => setDidImageFail(true)}
+            className="block h-full w-full object-cover"
+          />
+        ) : (
+          <span
+            className={`grid h-full w-full place-items-center text-[0.62rem] font-bold ${
+              isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
+            }`}
+          >
+            {initials}
+          </span>
+        )}
+      </span>
     </span>
   );
 }

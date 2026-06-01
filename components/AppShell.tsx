@@ -1784,7 +1784,7 @@ export default function AppShell() {
               <section className="flex h-full flex-col overflow-hidden bg-white">
                 {renderRootHeader(page)}
                 <div
-                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3.0625rem)] pt-5 ${
+                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5 ${
                     page === "events"
                       ? "snap-y snap-mandatory"
                       : ""
@@ -1831,7 +1831,7 @@ export default function AppShell() {
 
             <div
               key={activeSurfaceKey}
-              className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+3.0625rem)] pt-5"
+              className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5`}
             >
               {renderNonRootContent()}
             </div>
@@ -1861,6 +1861,8 @@ export default function AppShell() {
 }
 
 const KEYBOARD_HEIGHT_GAP = 120;
+const BOTTOM_NAV_SCROLL_PADDING =
+  "pb-[calc(env(safe-area-inset-bottom,0px)+7rem)]";
 const STABLE_VIEWPORT_STYLE = {
   minHeight: "var(--plus1-app-height, 100vh)",
 };
