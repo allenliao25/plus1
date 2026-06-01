@@ -7,7 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import {
@@ -18,6 +17,9 @@ import {
   MessageCircle,
   UserRound,
 } from "lucide-react";
+import RootPageCarousel, {
+  type RootPageCarouselHandle,
+} from "@/components/RootPageCarousel";
 import AiQuestDraft from "@/components/AiQuestDraft";
 import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
@@ -119,21 +121,6 @@ type AuthState = "loading" | "signed_out" | "signed_in";
 type RootPage = "messages" | Exclude<AppTab, "create">;
 
 const rootPages: RootPage[] = ["messages", "home", "events", "people", "profile"];
-const DRAG_SNAP_DISTANCE = 88;
-const DRAG_SNAP_VELOCITY = 0.45;
-const SWIPE_MAX_VERTICAL_DRIFT = 78;
-const SWIPE_DIRECTION_LOCK_DISTANCE = 12;
-
-type SwipeStart = {
-  pointerId: number;
-  x: number;
-  y: number;
-  lastX: number;
-  lastTime: number;
-  velocityX: number;
-  pageIndex: number;
-  isHorizontal: boolean | null;
-};
 
 export default function AppShell() {
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -141,9 +128,6 @@ export default function AppShell() {
   const [authMessage, setAuthMessage] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("home");
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDraggingRoot, setIsDraggingRoot] = useState(false);
-  const [isSettlingRoot, setIsSettlingRoot] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [feedQuests, setFeedQuests] = useState<Quest[]>([]);
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
@@ -211,7 +195,7 @@ export default function AppShell() {
   const [actionError, setActionError] = useState("");
   const authSyncIdRef = useRef(0);
   const loadedProfileIdRef = useRef<string | null>(null);
-  const swipeStartRef = useRef<SwipeStart | null>(null);
+  const rootCarouselRef = useRef<RootPageCarouselHandle>(null);
 
   const currentProfileId = currentProfile?.id ?? "";
   const isInitialContentLoading =
@@ -220,16 +204,6 @@ export default function AppShell() {
     authState !== "signed_in" || isBooting || isInitialContentLoading;
 
   useStableKeyboardViewport();
-
-  useEffect(() => {
-    if (!isSettlingRoot) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => setIsSettlingRoot(false), 260);
-
-    return () => window.clearTimeout(timeout);
-  }, [isSettlingRoot]);
 
   const allVisibleQuests = useMemo(() => {
     const questsById = new Map<string, Quest>();
@@ -949,10 +923,10 @@ export default function AppShell() {
       return;
     }
 
-    setDragOffset(0);
-    setIsDraggingRoot(false);
-    setIsSettlingRoot(true);
-    clearActiveSurface();
+    const currentPage = getCurrentRootPage(activeTab, utilityView);
+    if (page !== currentPage) {
+      clearActiveSurface();
+    }
 
     if (page === "messages") {
       setUtilityView("inbox");
@@ -961,7 +935,6 @@ export default function AppShell() {
       setUtilityView(null);
       setActiveTab(page);
     }
-
   }
 
   function handleTabChange(tab: AppTab) {
@@ -974,120 +947,34 @@ export default function AppShell() {
       return;
     }
 
-    setDragOffset(0);
-    setIsDraggingRoot(false);
-    setIsSettlingRoot(true);
     clearActiveSurface();
     setActiveTab("create");
   }
 
-  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (
-      isAppLocked ||
-      editingQuest ||
-      !isRootTrackActive ||
-      shouldIgnoreTabSwipeStart(event.target)
-    ) {
-      swipeStartRef.current = null;
-      return;
-    }
+  const handleRootPageIndexChange = useCallback(
+    (index: number) => {
+      const page = rootPages[index];
+      if (!page) {
+        return;
+      }
 
-    const now = event.timeStamp;
-    swipeStartRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX,
-      y: event.clientY,
-      lastX: event.clientX,
-      lastTime: now,
-      velocityX: 0,
-      pageIndex: currentRootPageIndex,
-      isHorizontal: null,
-    };
-    setIsSettlingRoot(false);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
+      const currentPage = getCurrentRootPage(activeTab, utilityView);
+      if (page === currentPage) {
+        return;
+      }
 
-  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const start = swipeStartRef.current;
+      clearActiveSurface();
 
-    if (!start || start.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const deltaX = event.clientX - start.x;
-    const deltaY = event.clientY - start.y;
-    const now = event.timeStamp;
-    const elapsed = Math.max(now - start.lastTime, 1);
-
-    if (
-      start.isHorizontal === null &&
-      Math.max(Math.abs(deltaX), Math.abs(deltaY)) > SWIPE_DIRECTION_LOCK_DISTANCE
-    ) {
-      start.isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
-    }
-
-    if (start.isHorizontal) {
-      const trackWidth = event.currentTarget.clientWidth;
-      const maxRight = start.pageIndex * trackWidth;
-      const maxLeft = (rootPages.length - 1 - start.pageIndex) * trackWidth;
-
-      event.preventDefault();
-      start.velocityX = (event.clientX - start.lastX) / elapsed;
-      start.lastX = event.clientX;
-      start.lastTime = now;
-      setIsDraggingRoot(true);
-      setDragOffset(clamp(deltaX, -maxLeft, maxRight));
-    }
-  }
-
-  function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
-    const start = swipeStartRef.current;
-    swipeStartRef.current = null;
-    releasePointerCapture(event);
-
-    if (!start || start.pointerId !== event.pointerId || !start.isHorizontal) {
-      return;
-    }
-
-    const deltaX = event.clientX - start.x;
-    const deltaY = event.clientY - start.y;
-    const canMoveBack = start.pageIndex > 0;
-    const canMoveForward = start.pageIndex < rootPages.length - 1;
-    let nextIndex = start.pageIndex;
-
-    if (
-      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_DRIFT &&
-      ((deltaX > DRAG_SNAP_DISTANCE || start.velocityX > DRAG_SNAP_VELOCITY) &&
-        canMoveBack)
-    ) {
-      nextIndex = start.pageIndex - 1;
-    } else if (
-      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_DRIFT &&
-      ((deltaX < -DRAG_SNAP_DISTANCE || start.velocityX < -DRAG_SNAP_VELOCITY) &&
-        canMoveForward)
-    ) {
-      nextIndex = start.pageIndex + 1;
-    }
-
-    setIsDraggingRoot(false);
-    setIsSettlingRoot(true);
-    setDragOffset(0);
-    const nextPage = rootPages[nextIndex];
-
-    if (nextPage) {
-      openRootPage(nextPage);
-    }
-  }
-
-  function handlePointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
-    if (swipeStartRef.current?.pointerId === event.pointerId) {
-      swipeStartRef.current = null;
-    }
-    setIsDraggingRoot(false);
-    setIsSettlingRoot(true);
-    setDragOffset(0);
-    releasePointerCapture(event);
-  }
+      if (page === "messages") {
+        setUtilityView("inbox");
+        setActiveTab("home");
+      } else {
+        setUtilityView(null);
+        setActiveTab(page);
+      }
+    },
+    [activeTab, utilityView],
+  );
 
   function handleOpenActivity() {
     setSelectedQuestId(null);
@@ -1688,8 +1575,6 @@ export default function AppShell() {
     !selectedThreadId &&
     activeTab !== "create" &&
     (utilityView === null || utilityView === "inbox");
-  const isRootTrackMoving = isDraggingRoot || isSettlingRoot;
-  const rootTrackTransform = `translate3d(calc(${-currentRootPageIndex * 100}% + ${dragOffset}px), 0, 0)`;
   const activeSurfaceKey = selectedThreadId
     ? `thread:${selectedThreadId}`
     : selectedQuest
@@ -1899,48 +1784,26 @@ export default function AppShell() {
     >
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
         {isRootTrackActive ? (
-          <div
-            className="min-h-0 flex-1 touch-pan-y select-none overflow-hidden bg-zinc-950"
-            onPointerCancel={handlePointerCancel}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-          >
-            <div
-              className={`flex h-full will-change-transform ${
-                isDraggingRoot
-                  ? ""
-                  : "transition-transform duration-[260ms] ease-out motion-reduce:transition-none"
-              }`}
-              style={{ transform: rootTrackTransform }}
-            >
-              {rootPages.map((page) => (
+          <RootPageCarousel
+            ref={rootCarouselRef}
+            activeIndex={currentRootPageIndex}
+            onActiveIndexChange={handleRootPageIndexChange}
+            pages={rootPages}
+            renderPanel={(page) => (
+              <section className="flex h-full flex-col overflow-hidden bg-white">
+                {renderRootHeader(page)}
                 <div
-                  key={page}
-                  className={`h-full w-full shrink-0 ${
-                    isRootTrackMoving ? "px-1" : "px-0"
+                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
+                    page === "events"
+                      ? "snap-y snap-mandatory scroll-smooth"
+                      : ""
                   }`}
                 >
-                  <section
-                    className={`flex h-full flex-col overflow-hidden bg-white transition-[border-radius] duration-200 ${
-                      isRootTrackMoving ? "rounded-[2rem]" : "rounded-none"
-                    }`}
-                  >
-                    {renderRootHeader(page)}
-                    <div
-                      className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
-                        page === "events"
-                          ? "snap-y snap-mandatory scroll-smooth"
-                          : ""
-                      }`}
-                    >
-                      {renderRootContent(page)}
-                    </div>
-                  </section>
+                  {renderRootContent(page)}
                 </div>
-              ))}
-            </div>
-          </div>
+              </section>
+            )}
+          />
         ) : (
           <>
             <AppHeader
@@ -2020,51 +1883,6 @@ function getCurrentRootPage(
   }
 
   return activeTab === "create" ? "home" : activeTab;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function shouldIgnoreTabSwipeStart(target: EventTarget | null) {
-  if (!(target instanceof Element)) {
-    return true;
-  }
-
-  if (
-    target.closest(
-      'input, textarea, select, button, a, [role="button"], [contenteditable="true"]',
-    )
-  ) {
-    return true;
-  }
-
-  for (let element: Element | null = target; element; element = element.parentElement) {
-    if (!(element instanceof HTMLElement)) {
-      continue;
-    }
-
-    const style = window.getComputedStyle(element);
-    const canScrollHorizontally =
-      element.scrollWidth > element.clientWidth + 4 &&
-      /(auto|scroll)/.test(style.overflowX);
-
-    if (canScrollHorizontally) {
-      return true;
-    }
-
-    if (element.classList.contains("app-scroll")) {
-      break;
-    }
-  }
-
-  return false;
-}
-
-function releasePointerCapture(event: ReactPointerEvent<HTMLDivElement>) {
-  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  }
 }
 
 function AppHeader({

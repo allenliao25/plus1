@@ -191,7 +191,7 @@ function HomeFilterRail({
   onSelect: (filter: HomeFeedFilter) => void;
 }) {
   return (
-    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="horizontal-scroll-contained -mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {filters.map((filter) => {
         const isActive = activeFilter === filter;
 

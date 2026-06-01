@@ -59,6 +59,33 @@ textarea {
   display: none;
 }
 
+.root-carousel {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  height: 100%;
+}
+
+.root-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.root-carousel-panel {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100%;
+}
+
+.horizontal-scroll-contained {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .holo-card,
 .event-card,
 .holo-thumb {
