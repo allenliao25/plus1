@@ -62,15 +62,14 @@ textarea {
 
 .root-carousel {
   display: flex;
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  touch-action: pan-x pinch-zoom;
   scrollbar-width: none;
   height: 100%;
-  contain: layout style paint;
 }
 
 .root-carousel::-webkit-scrollbar {
@@ -79,10 +78,11 @@ textarea {
 
 .root-carousel-panel {
   flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
   scroll-snap-align: start;
   height: 100%;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 100lvh;
 }
 
 .horizontal-scroll-contained {

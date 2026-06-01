@@ -119,9 +119,9 @@ import type {
 } from "@/types/quest";
 
 type AuthState = "loading" | "signed_out" | "signed_in";
-type RootPage = "messages" | Exclude<AppTab, "create">;
+type RootPage = Exclude<AppTab, "create">;
 
-const rootPages: RootPage[] = ["messages", "home", "events", "people", "profile"];
+const rootPages: RootPage[] = ["home", "events", "people", "profile"];
 
 export default function AppShell() {
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -924,18 +924,13 @@ export default function AppShell() {
       return;
     }
 
-    const currentPage = getCurrentRootPage(activeTab, utilityView);
+    const currentPage = getCurrentRootPage(activeTab);
     if (page !== currentPage) {
       clearActiveSurface();
     }
 
-    if (page === "messages") {
-      setUtilityView("inbox");
-      setActiveTab("home");
-    } else {
-      setUtilityView(null);
-      setActiveTab(page);
-    }
+    setUtilityView(null);
+    setActiveTab(page);
   }
 
   function handleTabChange(tab: AppTab) {
@@ -959,24 +954,18 @@ export default function AppShell() {
         return;
       }
 
-      const currentPage = getCurrentRootPage(activeTab, utilityView);
+      const currentPage = getCurrentRootPage(activeTab);
       if (page === currentPage) {
         return;
       }
 
       startTransition(() => {
         clearActiveSurface();
-
-        if (page === "messages") {
-          setUtilityView("inbox");
-          setActiveTab("home");
-        } else {
-          setUtilityView(null);
-          setActiveTab(page);
-        }
+        setUtilityView(null);
+        setActiveTab(page);
       });
     },
-    [activeTab, utilityView],
+    [activeTab],
   );
 
   function handleOpenActivity() {
@@ -1004,7 +993,10 @@ export default function AppShell() {
 
     setActionError("");
     await refreshMessages(currentProfile);
-    openRootPage("messages");
+    setSelectedQuestId(null);
+    setSelectedProfileId(null);
+    setSelectedThreadId(null);
+    setUtilityView("inbox");
   }
 
   async function handleOpenThread(threadId: string) {
@@ -1570,14 +1562,14 @@ export default function AppShell() {
     !selectedProfileId &&
     !selectedThreadId &&
     !utilityView;
-  const currentRootPage = getCurrentRootPage(activeTab, utilityView);
+  const currentRootPage = getCurrentRootPage(activeTab);
   const currentRootPageIndex = rootPages.indexOf(currentRootPage);
   const isRootTrackActive =
     !selectedQuest &&
     !selectedProfileId &&
     !selectedThreadId &&
     activeTab !== "create" &&
-    (utilityView === null || utilityView === "inbox");
+    utilityView === null;
   const activeSurfaceKey = selectedThreadId
     ? `thread:${selectedThreadId}`
     : selectedQuest
@@ -1598,13 +1590,11 @@ export default function AppShell() {
   }
 
   function renderRootContent(page: RootPage) {
-    const skeletonTab = page === "messages" ? "home" : page;
-
     if (isInitialContentLoading && !error) {
       return (
         <>
           {renderStatusMessages()}
-          <TabSkeleton activeTab={skeletonTab} />
+          <TabSkeleton activeTab={page} />
         </>
       );
     }
@@ -1612,15 +1602,7 @@ export default function AppShell() {
     return (
       <>
         {renderStatusMessages()}
-        {page === "messages" ? (
-          <InboxScreen
-            friends={friends}
-            isLoading={isLoadingMessages}
-            threads={messageThreads}
-            onMessageFriend={handleMessageProfile}
-            onOpenThread={handleOpenThread}
-          />
-        ) : page === "home" ? (
+        {page === "home" ? (
           <HomeScreen
             quests={feedQuests}
             profile={currentProfile!}
@@ -1670,17 +1652,15 @@ export default function AppShell() {
   function renderRootHeader(page: RootPage) {
     const isHomePanel = page === "home";
     const title =
-      page === "messages"
-        ? "Messages"
-        : page === "home"
-          ? "plus1"
-          : page === "events"
-            ? "Events"
-            : page === "people"
-              ? "People"
-              : currentProfile
-                ? `@${currentProfile.handle}`
-                : "Profile";
+      page === "home"
+        ? "plus1"
+        : page === "events"
+          ? "Events"
+          : page === "people"
+            ? "People"
+            : currentProfile
+              ? `@${currentProfile.handle}`
+              : "Profile";
 
     return (
       <AppHeader
@@ -1756,6 +1736,14 @@ export default function AppShell() {
             onDeclineFriend={handleDeclineFriend}
             onOpenProfile={handleOpenProfile}
             onOpenQuest={handleOpenQuest}
+          />
+        ) : utilityView === "inbox" ? (
+          <InboxScreen
+            friends={friends}
+            isLoading={isLoadingMessages}
+            threads={messageThreads}
+            onMessageFriend={handleMessageProfile}
+            onOpenThread={handleOpenThread}
           />
         ) : activeTab === "create" ? (
           <div className="space-y-5">
@@ -1877,14 +1865,7 @@ const STABLE_VIEWPORT_STYLE = {
   minHeight: "var(--plus1-app-height, 100vh)",
 };
 
-function getCurrentRootPage(
-  activeTab: AppTab,
-  utilityView: "activity" | "inbox" | null,
-): RootPage {
-  if (utilityView === "inbox") {
-    return "messages";
-  }
-
+function getCurrentRootPage(activeTab: AppTab): RootPage {
   return activeTab === "create" ? "home" : activeTab;
 }
 
