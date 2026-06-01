@@ -76,7 +76,7 @@ export default function PeopleScreen({
   }, [currentProfile.id, normalizedPeopleSearch]);
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 pt-2">
       <label className="glass-panel flex min-h-12 items-center gap-2 rounded-full border px-4 text-zinc-500 transition focus-within:border-zinc-300 focus-within:bg-white/92">
         <Search size={17} strokeWidth={2} aria-hidden="true" />
         <input

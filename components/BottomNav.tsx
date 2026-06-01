@@ -1,5 +1,12 @@
-import { useState, type ReactNode } from "react";
-import { CalendarDays, Home, Plus, UserRound, UsersRound } from "lucide-react";
+import { useState } from "react";
+import {
+  CalendarDays,
+  Home,
+  Plus,
+  UserRound,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 
 export type AppTab = "home" | "events" | "create" | "people" | "profile";
 
@@ -9,38 +16,34 @@ const ICON_STROKE = 2;
 type NavItem = {
   id: AppTab;
   label: string;
-  icon: ReactNode;
+  icon: LucideIcon;
 };
 
 const navItems: NavItem[] = [
   {
     id: "home",
     label: "Home",
-    icon: <Home size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
+    icon: Home,
   },
   {
     id: "events",
     label: "Events",
-    icon: (
-      <CalendarDays size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-    ),
+    icon: CalendarDays,
   },
   {
     id: "create",
     label: "Create",
-    icon: <Plus size={ICON_SIZE} strokeWidth={2.2} aria-hidden="true" />,
+    icon: Plus,
   },
   {
     id: "people",
     label: "People",
-    icon: (
-      <UsersRound size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-    ),
+    icon: UsersRound,
   },
   {
     id: "profile",
     label: "Profile",
-    icon: <UserRound size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />,
+    icon: UserRound,
   },
 ];
 
@@ -65,18 +68,19 @@ export default function BottomNav({
   return (
     <nav
       aria-busy={isDisabled}
-      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+10px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
+      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
     >
       {shouldShowActiveMarker ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_4px_12px_rgba(15,23,42,0.05)] transition-transform duration-300 ease-out"
+          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.56),0_5px_14px_rgba(15,23,42,0.045)] ring-1 ring-white/35 backdrop-blur-xl transition-transform duration-300 ease-out"
           style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
         />
       ) : null}
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
         const isProfile = item.id === "profile";
+        const Icon = item.icon;
 
         if (item.id === "create") {
           return (
@@ -89,7 +93,12 @@ export default function BottomNav({
               className="relative z-10 flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className="bottom-nav-create grid h-10 w-10 place-items-center rounded-2xl text-white ring-1 ring-white/50 transition active:scale-95">
-                {item.icon}
+                <Icon
+                  size={ICON_SIZE}
+                  strokeWidth={2.2}
+                  fill="none"
+                  aria-hidden="true"
+                />
               </span>
             </button>
           );
@@ -118,7 +127,12 @@ export default function BottomNav({
                   isActive={isActive}
                 />
               ) : (
-                item.icon
+                <Icon
+                  size={ICON_SIZE}
+                  strokeWidth={ICON_STROKE}
+                  fill="none"
+                  aria-hidden="true"
+                />
               )}
             </span>
           </button>
