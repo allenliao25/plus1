@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import {
@@ -115,6 +116,20 @@ import type {
 } from "@/types/quest";
 
 type AuthState = "loading" | "signed_out" | "signed_in";
+type SwipeDirection = "forward" | "back";
+
+const swipeTabs = ["home", "events", "people", "profile"] as const;
+const swipeTabSet = new Set<AppTab>(swipeTabs);
+const SWIPE_MIN_DISTANCE = 72;
+const SWIPE_MAX_VERTICAL_DRIFT = 78;
+const SWIPE_DIRECTION_LOCK_DISTANCE = 12;
+
+type SwipeStart = {
+  pointerId: number;
+  x: number;
+  y: number;
+  isHorizontal: boolean | null;
+};
 
 export default function AppShell() {
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -122,6 +137,8 @@ export default function AppShell() {
   const [authMessage, setAuthMessage] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("home");
+  const [tabTransitionDirection, setTabTransitionDirection] =
+    useState<SwipeDirection>("forward");
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [feedQuests, setFeedQuests] = useState<Quest[]>([]);
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
@@ -189,6 +206,7 @@ export default function AppShell() {
   const [actionError, setActionError] = useState("");
   const authSyncIdRef = useRef(0);
   const loadedProfileIdRef = useRef<string | null>(null);
+  const swipeStartRef = useRef<SwipeStart | null>(null);
 
   const currentProfileId = currentProfile?.id ?? "";
   const isInitialContentLoading =
@@ -902,18 +920,109 @@ export default function AppShell() {
     setActionError("");
   }
 
-  function handleTabChange(tab: AppTab) {
-    if (isAppLocked) {
-      return;
-    }
-
+  function clearActiveSurface() {
     setSelectedQuestId(null);
     setSelectedProfileId(null);
     setSelectedThreadId(null);
     setChatMessages([]);
     setUtilityView(null);
     setActionError("");
+  }
+
+  function getTabDirection(tab: AppTab): SwipeDirection {
+    const currentIndex = getNavOrderIndex(activeTab);
+    const nextIndex = getNavOrderIndex(tab);
+
+    return nextIndex >= currentIndex ? "forward" : "back";
+  }
+
+  function handleTabChange(tab: AppTab, direction = getTabDirection(tab)) {
+    if (isAppLocked) {
+      return;
+    }
+
+    setTabTransitionDirection(direction);
+    clearActiveSurface();
     setActiveTab(tab);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (
+      isAppLocked ||
+      editingQuest ||
+      !swipeTabSet.has(activeTab) ||
+      shouldIgnoreTabSwipeStart(event.target)
+    ) {
+      swipeStartRef.current = null;
+      return;
+    }
+
+    swipeStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      isHorizontal: null,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = swipeStartRef.current;
+
+    if (!start || start.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+
+    if (
+      start.isHorizontal === null &&
+      Math.max(Math.abs(deltaX), Math.abs(deltaY)) > SWIPE_DIRECTION_LOCK_DISTANCE
+    ) {
+      start.isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+    }
+
+    if (start.isHorizontal) {
+      event.preventDefault();
+    }
+  }
+
+  function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    releasePointerCapture(event);
+
+    if (!start || start.pointerId !== event.pointerId || !start.isHorizontal) {
+      return;
+    }
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+
+    if (
+      Math.abs(deltaX) < SWIPE_MIN_DISTANCE ||
+      Math.abs(deltaY) > SWIPE_MAX_VERTICAL_DRIFT
+    ) {
+      return;
+    }
+
+    const currentIndex = swipeTabs.indexOf(activeTab as (typeof swipeTabs)[number]);
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    const nextTab = swipeTabs[nextIndex];
+
+    if (!nextTab) {
+      return;
+    }
+
+    handleTabChange(nextTab, deltaX < 0 ? "forward" : "back");
+  }
+
+  function handlePointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    if (swipeStartRef.current?.pointerId === event.pointerId) {
+      swipeStartRef.current = null;
+    }
+    releasePointerCapture(event);
   }
 
   function handleOpenActivity() {
@@ -1511,6 +1620,19 @@ export default function AppShell() {
     !selectedProfileId &&
     !selectedThreadId &&
     !utilityView;
+  const activeSurfaceKey = selectedThreadId
+    ? `thread:${selectedThreadId}`
+    : selectedQuest
+      ? `quest:${selectedQuest.id}`
+      : selectedProfileId
+        ? `profile:${selectedProfileId}`
+        : utilityView
+          ? `utility:${utilityView}`
+          : `tab:${activeTab}`;
+  const tabTransitionClass =
+    tabTransitionDirection === "forward"
+      ? "plus1-tab-page-forward"
+      : "plus1-tab-page-back";
 
   return (
     <main
@@ -1550,7 +1672,21 @@ export default function AppShell() {
           }
         />
 
-        <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5">
+        <div
+          className={`app-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
+            activeTab === "events" && !selectedQuest && !utilityView
+              ? "snap-y snap-mandatory scroll-smooth"
+              : ""
+          }`}
+          onPointerCancel={handlePointerCancel}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <div
+            key={activeSurfaceKey}
+            className={`plus1-tab-page ${tabTransitionClass}`}
+          >
           {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
           {actionError ? <ActionError message={actionError} /> : null}
 
@@ -1626,6 +1762,7 @@ export default function AppShell() {
               acceptedFriendIds={acceptedFriendIds}
               quests={feedQuests}
               joiningQuestId={joiningQuestId}
+              profile={currentProfile!}
               onJoin={handleJoinQuest}
               onOpen={handleOpenQuest}
             />
@@ -1661,25 +1798,18 @@ export default function AppShell() {
             />
           ) : currentProfile ? (
             <ProfileScreen
-              actionProfileId={friendActionProfileId}
               friends={friends}
               profile={currentProfile}
               myQuests={myQuests}
-              joiningQuestId={joiningQuestId}
               isSaving={isSavingProfile}
               saveError={profileError}
-              onAcceptFriend={handleAcceptFriend}
-              onCancelFriendRequest={handleCancelFriendRequest}
-              onDeclineFriend={handleDeclineFriend}
-              onJoin={handleJoinQuest}
               onOpen={handleOpenQuest}
-              onOpenProfile={handleOpenProfile}
-              onRemoveFriend={handleRemoveFriend}
-              onSendFriendRequest={handleSendFriendRequest}
+              onOpenPeople={() => handleTabChange("people")}
               onSaveProfile={handleSaveProfile}
               onSignOut={handleSignOut}
             />
           ) : null}
+          </div>
         </div>
 
         <BottomNav
@@ -1709,6 +1839,51 @@ const STABLE_VIEWPORT_STYLE = {
   minHeight: "var(--plus1-app-height, 100vh)",
 };
 
+function getNavOrderIndex(tab: AppTab) {
+  return tab === "create" ? 2 : swipeTabs.indexOf(tab as (typeof swipeTabs)[number]);
+}
+
+function shouldIgnoreTabSwipeStart(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return true;
+  }
+
+  if (
+    target.closest(
+      'input, textarea, select, button, a, [role="button"], [contenteditable="true"]',
+    )
+  ) {
+    return true;
+  }
+
+  for (let element: Element | null = target; element; element = element.parentElement) {
+    if (!(element instanceof HTMLElement)) {
+      continue;
+    }
+
+    const style = window.getComputedStyle(element);
+    const canScrollHorizontally =
+      element.scrollWidth > element.clientWidth + 4 &&
+      /(auto|scroll)/.test(style.overflowX);
+
+    if (canScrollHorizontally) {
+      return true;
+    }
+
+    if (element.classList.contains("app-scroll")) {
+      break;
+    }
+  }
+
+  return false;
+}
+
+function releasePointerCapture(event: ReactPointerEvent<HTMLDivElement>) {
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+}
+
 function AppHeader({
   actions,
   isBrand,
@@ -1721,25 +1896,33 @@ function AppHeader({
   title: string;
 }) {
   return (
-    <header className="glass-bar flex shrink-0 items-center gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
-      {onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back"
-          className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
-        >
-          <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
-        </button>
-      ) : null}
+    <header
+      className={`glass-bar relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)] ${
+        isBrand ? "min-h-[calc(env(safe-area-inset-top,0px)+4.35rem)]" : ""
+      }`}
+    >
+      <div className="flex min-w-0 justify-start">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back"
+            className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+          >
+            <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
       <h1
-        className={`min-w-0 truncate font-bold tracking-tight text-zinc-950 ${
+        className={`min-w-0 max-w-full truncate text-center font-bold tracking-tight text-zinc-950 ${
           isBrand ? "text-2xl" : "text-xl"
         }`}
       >
         {title}
       </h1>
-      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+      <div className="flex min-w-0 justify-end">
+        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      </div>
     </header>
   );
 }

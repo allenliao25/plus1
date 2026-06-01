@@ -52,11 +52,21 @@ export default function BottomNav({
   profileAvatarUrl = null,
   onTabChange,
 }: BottomNavProps) {
+  const activeNavIndex = navItems.findIndex((item) => item.id === activeTab);
+  const shouldShowActiveMarker = activeTab !== "create" && activeNavIndex >= 0;
+
   return (
     <nav
       aria-busy={isDisabled}
       className="glass-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+10px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
     >
+      {shouldShowActiveMarker ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/56 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_8px_20px_rgba(15,23,42,0.07)] transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
+        />
+      ) : null}
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
         const isProfile = item.id === "profile";
@@ -69,9 +79,13 @@ export default function BottomNav({
               disabled={isDisabled}
               onClick={() => onTabChange(item.id)}
               aria-label="Create"
-              className="flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
+              className="relative z-10 flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="glass-ignite grid h-11 w-11 place-items-center rounded-2xl text-white shadow-[0_14px_30px_rgba(244,114,182,0.22)] ring-1 ring-white/40 transition active:scale-95">
+              <span
+                className={`glass-ignite grid h-11 w-11 place-items-center rounded-2xl text-white shadow-[0_14px_30px_rgba(244,114,182,0.22)] ring-1 ring-white/40 transition active:scale-95 ${
+                  isActive ? "scale-[1.03] ring-zinc-950/20" : ""
+                }`}
+              >
                 {item.icon}
               </span>
             </button>
@@ -86,9 +100,9 @@ export default function BottomNav({
             onClick={() => onTabChange(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            className={`group relative flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`group relative z-10 flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               isActive
-                ? "bg-white/46 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                ? "text-zinc-950"
                 : "text-zinc-400 hover:bg-white/34 hover:text-zinc-600"
             }`}
           >

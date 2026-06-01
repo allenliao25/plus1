@@ -468,7 +468,7 @@ security definer
 set search_path = public
 as $$
 declare
-  thread_id uuid;
+  resolved_thread_id uuid;
   thread_key text;
 begin
   if auth.uid() is null then
@@ -486,21 +486,21 @@ begin
   thread_key := public.direct_message_key(auth.uid(), target_user_id);
 
   select id
-  into thread_id
+  into resolved_thread_id
   from message_threads
   where kind = 'direct'
     and direct_key = thread_key
   limit 1;
 
-  if thread_id is null then
+  if resolved_thread_id is null then
     insert into message_threads (kind, direct_key, created_by)
     values ('direct', thread_key, auth.uid())
     on conflict do nothing
-    returning id into thread_id;
+    returning id into resolved_thread_id;
 
-    if thread_id is null then
+    if resolved_thread_id is null then
       select id
-      into thread_id
+      into resolved_thread_id
       from message_threads
       where kind = 'direct'
         and direct_key = thread_key
@@ -509,10 +509,10 @@ begin
   end if;
 
   insert into message_thread_participants (thread_id, user_id)
-  values (thread_id, auth.uid()), (thread_id, target_user_id)
+  values (resolved_thread_id, auth.uid()), (resolved_thread_id, target_user_id)
   on conflict (thread_id, user_id) do nothing;
 
-  return thread_id;
+  return resolved_thread_id;
 end;
 $$;
 
@@ -526,7 +526,7 @@ security definer
 set search_path = public
 as $$
 declare
-  thread_id uuid;
+  resolved_thread_id uuid;
 begin
   if auth.uid() is null then
     raise exception 'not_authenticated';
@@ -537,21 +537,21 @@ begin
   end if;
 
   select id
-  into thread_id
+  into resolved_thread_id
   from message_threads
   where kind = 'event'
     and quest_id = target_quest_id
   limit 1;
 
-  if thread_id is null then
+  if resolved_thread_id is null then
     insert into message_threads (kind, quest_id, created_by)
     values ('event', target_quest_id, auth.uid())
     on conflict do nothing
-    returning id into thread_id;
+    returning id into resolved_thread_id;
 
-    if thread_id is null then
+    if resolved_thread_id is null then
       select id
-      into thread_id
+      into resolved_thread_id
       from message_threads
       where kind = 'event'
         and quest_id = target_quest_id
@@ -559,9 +559,9 @@ begin
     end if;
   end if;
 
-  perform public.sync_event_thread_participants(thread_id, target_quest_id);
+  perform public.sync_event_thread_participants(resolved_thread_id, target_quest_id);
 
-  return thread_id;
+  return resolved_thread_id;
 end;
 $$;
 
