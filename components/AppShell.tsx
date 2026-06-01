@@ -1682,7 +1682,7 @@ export default function AppShell() {
         }
         isBrand={isHomePanel}
         title={title}
-        titleAlign={isProfilePanel ? "left" : "center"}
+        titleAlign="large"
       />
     );
   }
@@ -1789,7 +1789,7 @@ export default function AppShell() {
               <section className="flex h-full flex-col overflow-hidden bg-white">
                 {renderRootHeader(page)}
                 <div
-                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5 ${
+                  className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-3 ${
                     page === "events"
                       ? "snap-y snap-mandatory"
                       : ""
@@ -1889,8 +1889,23 @@ function AppHeader({
   leading?: ReactNode;
   onBack?: () => void;
   title: string;
-  titleAlign?: "center" | "left";
+  titleAlign?: "center" | "large" | "left";
 }) {
+  if (titleAlign === "large") {
+    return (
+      <header className="shrink-0 bg-white px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
+        <div className="flex min-h-[3.65rem] items-start justify-between gap-3">
+          <h1 className="min-w-0 flex-1 truncate text-[2.75rem] font-bold leading-none tracking-tight text-zinc-950">
+            {title}
+          </h1>
+          {actions ? (
+            <div className="mt-1.5 flex shrink-0 items-center">{actions}</div>
+          ) : null}
+        </div>
+      </header>
+    );
+  }
+
   if (titleAlign === "left") {
     return (
       <header className="glass-bar flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
@@ -1949,7 +1964,7 @@ function HomeHeaderActions({
   unreadMessageCount: number;
 }) {
   return (
-    <>
+    <div className="glass-chip inline-flex h-12 items-center rounded-full border px-1.5 text-zinc-950">
       <HeaderIconButton
         count={unreadActivityCount}
         label="Activity"
@@ -1957,6 +1972,10 @@ function HomeHeaderActions({
       >
         <Bell size={21} strokeWidth={2.15} aria-hidden="true" />
       </HeaderIconButton>
+      <span
+        aria-hidden="true"
+        className="h-6 w-px bg-zinc-200/90"
+      />
       <HeaderIconButton
         count={unreadMessageCount}
         label="Messages"
@@ -1964,7 +1983,7 @@ function HomeHeaderActions({
       >
         <MessageCircle size={21} strokeWidth={2.15} aria-hidden="true" />
       </HeaderIconButton>
-    </>
+    </div>
   );
 }
 
@@ -2042,7 +2061,7 @@ function HeaderIconButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="glass-chip relative grid h-10 w-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
+      className="relative grid h-10 w-11 place-items-center rounded-full text-zinc-950 transition hover:bg-white/70 active:scale-95"
     >
       {children}
       {count > 0 ? (
