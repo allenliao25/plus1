@@ -41,14 +41,14 @@ export default function EventsScreen({
   );
 
   return (
-    <div className="-mx-5 -mt-5 space-y-4">
-      <div className="sticky top-0 z-40 bg-white/88 px-5 pb-3 pt-4 backdrop-blur-2xl">
-        <div className="mb-3 flex items-end justify-between gap-3">
+    <div className="-mx-5 space-y-4">
+      <div className="snap-start border-b border-zinc-100 bg-white px-5 pb-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">
+            <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-400">
               Discover
             </p>
-            <h2 className="text-[1.65rem] font-black leading-none tracking-normal text-zinc-950">
+            <h2 className="text-lg font-black leading-6 tracking-normal text-zinc-950">
               Events for you
             </h2>
           </div>

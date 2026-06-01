@@ -116,11 +116,11 @@ import type {
 } from "@/types/quest";
 
 type AuthState = "loading" | "signed_out" | "signed_in";
-type SwipeDirection = "forward" | "back";
+type RootPage = "messages" | Exclude<AppTab, "create">;
 
-const swipeTabs = ["home", "events", "people", "profile"] as const;
-const swipeTabSet = new Set<AppTab>(swipeTabs);
-const SWIPE_MIN_DISTANCE = 72;
+const rootPages: RootPage[] = ["messages", "home", "events", "people", "profile"];
+const DRAG_SNAP_DISTANCE = 88;
+const DRAG_SNAP_VELOCITY = 0.45;
 const SWIPE_MAX_VERTICAL_DRIFT = 78;
 const SWIPE_DIRECTION_LOCK_DISTANCE = 12;
 
@@ -128,6 +128,10 @@ type SwipeStart = {
   pointerId: number;
   x: number;
   y: number;
+  lastX: number;
+  lastTime: number;
+  velocityX: number;
+  pageIndex: number;
   isHorizontal: boolean | null;
 };
 
@@ -137,8 +141,9 @@ export default function AppShell() {
   const [authMessage, setAuthMessage] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>("home");
-  const [tabTransitionDirection, setTabTransitionDirection] =
-    useState<SwipeDirection>("forward");
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDraggingRoot, setIsDraggingRoot] = useState(false);
+  const [isSettlingRoot, setIsSettlingRoot] = useState(false);
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [feedQuests, setFeedQuests] = useState<Quest[]>([]);
   const [myQuests, setMyQuests] = useState<Quest[]>([]);
@@ -215,6 +220,16 @@ export default function AppShell() {
     authState !== "signed_in" || isBooting || isInitialContentLoading;
 
   useStableKeyboardViewport();
+
+  useEffect(() => {
+    if (!isSettlingRoot) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setIsSettlingRoot(false), 260);
+
+    return () => window.clearTimeout(timeout);
+  }, [isSettlingRoot]);
 
   const allVisibleQuests = useMemo(() => {
     const questsById = new Map<string, Quest>();
@@ -929,40 +944,66 @@ export default function AppShell() {
     setActionError("");
   }
 
-  function getTabDirection(tab: AppTab): SwipeDirection {
-    const currentIndex = getNavOrderIndex(activeTab);
-    const nextIndex = getNavOrderIndex(tab);
-
-    return nextIndex >= currentIndex ? "forward" : "back";
-  }
-
-  function handleTabChange(tab: AppTab, direction = getTabDirection(tab)) {
+  function openRootPage(page: RootPage) {
     if (isAppLocked) {
       return;
     }
 
-    setTabTransitionDirection(direction);
+    setDragOffset(0);
+    setIsDraggingRoot(false);
+    setIsSettlingRoot(true);
     clearActiveSurface();
-    setActiveTab(tab);
+
+    if (page === "messages") {
+      setUtilityView("inbox");
+      setActiveTab("home");
+    } else {
+      setUtilityView(null);
+      setActiveTab(page);
+    }
+
+  }
+
+  function handleTabChange(tab: AppTab) {
+    if (isAppLocked) {
+      return;
+    }
+
+    if (tab !== "create") {
+      openRootPage(tab);
+      return;
+    }
+
+    setDragOffset(0);
+    setIsDraggingRoot(false);
+    setIsSettlingRoot(true);
+    clearActiveSurface();
+    setActiveTab("create");
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (
       isAppLocked ||
       editingQuest ||
-      !swipeTabSet.has(activeTab) ||
+      !isRootTrackActive ||
       shouldIgnoreTabSwipeStart(event.target)
     ) {
       swipeStartRef.current = null;
       return;
     }
 
+    const now = event.timeStamp;
     swipeStartRef.current = {
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
+      lastX: event.clientX,
+      lastTime: now,
+      velocityX: 0,
+      pageIndex: currentRootPageIndex,
       isHorizontal: null,
     };
+    setIsSettlingRoot(false);
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -975,6 +1016,8 @@ export default function AppShell() {
 
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
+    const now = event.timeStamp;
+    const elapsed = Math.max(now - start.lastTime, 1);
 
     if (
       start.isHorizontal === null &&
@@ -984,7 +1027,16 @@ export default function AppShell() {
     }
 
     if (start.isHorizontal) {
+      const trackWidth = event.currentTarget.clientWidth;
+      const maxRight = start.pageIndex * trackWidth;
+      const maxLeft = (rootPages.length - 1 - start.pageIndex) * trackWidth;
+
       event.preventDefault();
+      start.velocityX = (event.clientX - start.lastX) / elapsed;
+      start.lastX = event.clientX;
+      start.lastTime = now;
+      setIsDraggingRoot(true);
+      setDragOffset(clamp(deltaX, -maxLeft, maxRight));
     }
   }
 
@@ -999,29 +1051,41 @@ export default function AppShell() {
 
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
+    const canMoveBack = start.pageIndex > 0;
+    const canMoveForward = start.pageIndex < rootPages.length - 1;
+    let nextIndex = start.pageIndex;
 
     if (
-      Math.abs(deltaX) < SWIPE_MIN_DISTANCE ||
-      Math.abs(deltaY) > SWIPE_MAX_VERTICAL_DRIFT
+      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_DRIFT &&
+      ((deltaX > DRAG_SNAP_DISTANCE || start.velocityX > DRAG_SNAP_VELOCITY) &&
+        canMoveBack)
     ) {
-      return;
+      nextIndex = start.pageIndex - 1;
+    } else if (
+      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_DRIFT &&
+      ((deltaX < -DRAG_SNAP_DISTANCE || start.velocityX < -DRAG_SNAP_VELOCITY) &&
+        canMoveForward)
+    ) {
+      nextIndex = start.pageIndex + 1;
     }
 
-    const currentIndex = swipeTabs.indexOf(activeTab as (typeof swipeTabs)[number]);
-    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
-    const nextTab = swipeTabs[nextIndex];
+    setIsDraggingRoot(false);
+    setIsSettlingRoot(true);
+    setDragOffset(0);
+    const nextPage = rootPages[nextIndex];
 
-    if (!nextTab) {
-      return;
+    if (nextPage) {
+      openRootPage(nextPage);
     }
-
-    handleTabChange(nextTab, deltaX < 0 ? "forward" : "back");
   }
 
   function handlePointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
     if (swipeStartRef.current?.pointerId === event.pointerId) {
       swipeStartRef.current = null;
     }
+    setIsDraggingRoot(false);
+    setIsSettlingRoot(true);
+    setDragOffset(0);
     releasePointerCapture(event);
   }
 
@@ -1048,13 +1112,9 @@ export default function AppShell() {
       return;
     }
 
-    setSelectedQuestId(null);
-    setSelectedProfileId(null);
-    setSelectedThreadId(null);
-    setChatMessages([]);
-    setUtilityView("inbox");
     setActionError("");
     await refreshMessages(currentProfile);
+    openRootPage("messages");
   }
 
   async function handleOpenThread(threadId: string) {
@@ -1620,6 +1680,16 @@ export default function AppShell() {
     !selectedProfileId &&
     !selectedThreadId &&
     !utilityView;
+  const currentRootPage = getCurrentRootPage(activeTab, utilityView);
+  const currentRootPageIndex = rootPages.indexOf(currentRootPage);
+  const isRootTrackActive =
+    !selectedQuest &&
+    !selectedProfileId &&
+    !selectedThreadId &&
+    activeTab !== "create" &&
+    (utilityView === null || utilityView === "inbox");
+  const isRootTrackMoving = isDraggingRoot || isSettlingRoot;
+  const rootTrackTransform = `translate3d(calc(${-currentRootPageIndex * 100}% + ${dragOffset}px), 0, 0)`;
   const activeSurfaceKey = selectedThreadId
     ? `thread:${selectedThreadId}`
     : selectedQuest
@@ -1629,10 +1699,198 @@ export default function AppShell() {
         : utilityView
           ? `utility:${utilityView}`
           : `tab:${activeTab}`;
-  const tabTransitionClass =
-    tabTransitionDirection === "forward"
-      ? "plus1-tab-page-forward"
-      : "plus1-tab-page-back";
+
+  function renderStatusMessages() {
+    return (
+      <>
+        {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
+        {actionError ? <ActionError message={actionError} /> : null}
+      </>
+    );
+  }
+
+  function renderRootContent(page: RootPage) {
+    const skeletonTab = page === "messages" ? "home" : page;
+
+    if (isInitialContentLoading && !error) {
+      return (
+        <>
+          {renderStatusMessages()}
+          <TabSkeleton activeTab={skeletonTab} />
+        </>
+      );
+    }
+
+    return (
+      <>
+        {renderStatusMessages()}
+        {page === "messages" ? (
+          <InboxScreen
+            friends={friends}
+            isLoading={isLoadingMessages}
+            threads={messageThreads}
+            onMessageFriend={handleMessageProfile}
+            onOpenThread={handleOpenThread}
+          />
+        ) : page === "home" ? (
+          <HomeScreen
+            quests={feedQuests}
+            profile={currentProfile!}
+            joiningQuestId={joiningQuestId}
+            onCreate={() => handleTabChange("create")}
+            onJoin={handleJoinQuest}
+            onOpen={handleOpenQuest}
+          />
+        ) : page === "events" ? (
+          <EventsScreen
+            acceptedFriendIds={acceptedFriendIds}
+            quests={feedQuests}
+            joiningQuestId={joiningQuestId}
+            profile={currentProfile!}
+            onJoin={handleJoinQuest}
+            onOpen={handleOpenQuest}
+          />
+        ) : page === "people" ? (
+          <PeopleScreen
+            actionProfileId={friendActionProfileId}
+            currentProfile={currentProfile!}
+            suggestedPeople={suggestedPeople}
+            onAcceptFriend={handleAcceptFriend}
+            onCancelFriendRequest={handleCancelFriendRequest}
+            onDeclineFriend={handleDeclineFriend}
+            onOpenProfile={handleOpenProfile}
+            onRemoveFriend={handleRemoveFriend}
+            onSendFriendRequest={handleSendFriendRequest}
+          />
+        ) : currentProfile ? (
+          <ProfileScreen
+            friends={friends}
+            profile={currentProfile}
+            myQuests={myQuests}
+            isSaving={isSavingProfile}
+            saveError={profileError}
+            onOpen={handleOpenQuest}
+            onOpenPeople={() => handleTabChange("people")}
+            onSaveProfile={handleSaveProfile}
+            onSignOut={handleSignOut}
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  function renderRootHeader(page: RootPage) {
+    const isHomePanel = page === "home";
+    const title =
+      page === "messages"
+        ? "Messages"
+        : page === "home"
+          ? "plus1"
+          : page === "events"
+            ? "Events"
+            : page === "people"
+              ? "People"
+              : currentProfile
+                ? `@${currentProfile.handle}`
+                : "Profile";
+
+    return (
+      <AppHeader
+        actions={
+          isHomePanel ? (
+            <HomeHeaderActions
+              unreadActivityCount={unreadActivityCount}
+              unreadMessageCount={unreadMessageCount}
+              onOpenActivity={handleOpenActivity}
+              onOpenInbox={() => {
+                void handleOpenInbox();
+              }}
+            />
+          ) : null
+        }
+        isBrand={isHomePanel}
+        title={title}
+      />
+    );
+  }
+
+  function renderNonRootContent() {
+    return (
+      <>
+        {renderStatusMessages()}
+
+        {isInitialContentLoading && !error ? (
+          <TabSkeleton activeTab={activeTab} />
+        ) : selectedThreadId ? (
+          <ChatThreadScreen
+            currentUserId={currentProfileId}
+            isLoading={isLoadingMessages}
+            isSending={isSendingMessage}
+            messages={chatMessages}
+            thread={selectedThread}
+            onSend={handleSendChatMessage}
+          />
+        ) : selectedQuest ? (
+          <QuestDetail
+            isClosing={closingQuestId === selectedQuest.id}
+            isJoining={joiningQuestId === selectedQuest.id}
+            isLeaving={leavingQuestId === selectedQuest.id}
+            quest={selectedQuest}
+            onClose={handleCloseQuest}
+            onEdit={(quest) => setEditingQuestId(quest.id)}
+            onOpenChat={handleOpenEventChat}
+            onJoin={handleJoinQuest}
+            onLeave={handleLeaveQuest}
+            onOpenProfile={handleOpenProfile}
+          />
+        ) : selectedProfileId ? (
+          <PublicProfileScreen
+            actionProfileId={friendActionProfileId}
+            isLoading={isLoadingPublicProfile}
+            profile={selectedPublicProfile}
+            quests={selectedProfileQuests}
+            onAcceptFriend={handleAcceptFriend}
+            onCancelFriendRequest={handleCancelFriendRequest}
+            onDeclineFriend={handleDeclineFriend}
+            onJoin={handleJoinQuest}
+            onOpenQuest={handleOpenQuest}
+            onRemoveFriend={handleRemoveFriend}
+            onMessageProfile={handleMessageProfile}
+            onSendFriendRequest={handleSendFriendRequest}
+          />
+        ) : utilityView === "activity" ? (
+          <ActivityScreen
+            actionProfileId={friendActionProfileId}
+            events={activityEvents}
+            incomingFriendRequests={incomingFriendRequests}
+            onAcceptFriend={handleAcceptFriend}
+            onBrowse={() => handleTabChange("home")}
+            onDeclineFriend={handleDeclineFriend}
+            onOpenProfile={handleOpenProfile}
+            onOpenQuest={handleOpenQuest}
+          />
+        ) : activeTab === "create" ? (
+          <div className="space-y-5">
+            <AiQuestDraft
+              currentProfile={currentProfile!}
+              currentUserId={currentProfileId}
+              isAvailable={isAiAvailable}
+              onApplyDraft={handleApplyDraft}
+            />
+            <CreateQuestForm
+              key={createFormKey}
+              currentUserId={currentProfileId}
+              friendProfiles={friendInviteProfiles}
+              initialInvitees={createInitialInvitees}
+              initialValues={createInitialValues ?? undefined}
+              isSubmitting={isCreating}
+              onCreateQuest={handleCreateQuest}
+            />
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <main
@@ -1640,177 +1898,91 @@ export default function AppShell() {
       style={STABLE_VIEWPORT_STYLE}
     >
       <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
-        <AppHeader
-          actions={
-            isHomeRoot ? (
-              <HomeHeaderActions
-                unreadActivityCount={unreadActivityCount}
-                unreadMessageCount={unreadMessageCount}
-                onOpenActivity={handleOpenActivity}
-                onOpenInbox={() => {
-                  void handleOpenInbox();
-                }}
-              />
-            ) : null
-          }
-          isBrand={isHomeRoot}
-          title={headerTitle}
-          onBack={
-            selectedQuest
-              ? () => setSelectedQuestId(null)
-              : selectedThreadId
-                ? () => {
-                    setSelectedThreadId(null);
-                    setChatMessages([]);
-                    setUtilityView("inbox");
-                  }
-                : selectedProfileId
-                  ? () => setSelectedProfileId(null)
-                  : utilityView
-                    ? () => setUtilityView(null)
-                    : undefined
-          }
-        />
-
-        <div
-          className={`app-scroll min-h-0 flex-1 touch-pan-y overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
-            activeTab === "events" && !selectedQuest && !utilityView
-              ? "snap-y snap-mandatory scroll-smooth"
-              : ""
-          }`}
-          onPointerCancel={handlePointerCancel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        >
+        {isRootTrackActive ? (
           <div
-            key={activeSurfaceKey}
-            className={`plus1-tab-page ${tabTransitionClass}`}
+            className="min-h-0 flex-1 touch-pan-y overflow-hidden bg-zinc-950"
+            onPointerCancel={handlePointerCancel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
           >
-          {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
-          {actionError ? <ActionError message={actionError} /> : null}
-
-          {isInitialContentLoading && !error ? (
-            <TabSkeleton activeTab={activeTab} />
-          ) : selectedThreadId ? (
-            <ChatThreadScreen
-              currentUserId={currentProfileId}
-              isLoading={isLoadingMessages}
-              isSending={isSendingMessage}
-              messages={chatMessages}
-              thread={selectedThread}
-              onSend={handleSendChatMessage}
-            />
-          ) : selectedQuest ? (
-            <QuestDetail
-              isClosing={closingQuestId === selectedQuest.id}
-              isJoining={joiningQuestId === selectedQuest.id}
-              isLeaving={leavingQuestId === selectedQuest.id}
-              quest={selectedQuest}
-              onClose={handleCloseQuest}
-              onEdit={(quest) => setEditingQuestId(quest.id)}
-              onOpenChat={handleOpenEventChat}
-              onJoin={handleJoinQuest}
-              onLeave={handleLeaveQuest}
-              onOpenProfile={handleOpenProfile}
-            />
-          ) : selectedProfileId ? (
-            <PublicProfileScreen
-              actionProfileId={friendActionProfileId}
-              isLoading={isLoadingPublicProfile}
-              profile={selectedPublicProfile}
-              quests={selectedProfileQuests}
-              onAcceptFriend={handleAcceptFriend}
-              onCancelFriendRequest={handleCancelFriendRequest}
-              onDeclineFriend={handleDeclineFriend}
-              onJoin={handleJoinQuest}
-              onOpenQuest={handleOpenQuest}
-              onRemoveFriend={handleRemoveFriend}
-              onMessageProfile={handleMessageProfile}
-              onSendFriendRequest={handleSendFriendRequest}
-            />
-          ) : utilityView === "activity" ? (
-            <ActivityScreen
-              actionProfileId={friendActionProfileId}
-              events={activityEvents}
-              incomingFriendRequests={incomingFriendRequests}
-              onAcceptFriend={handleAcceptFriend}
-              onBrowse={() => handleTabChange("home")}
-              onDeclineFriend={handleDeclineFriend}
-              onOpenProfile={handleOpenProfile}
-              onOpenQuest={handleOpenQuest}
-            />
-          ) : utilityView === "inbox" ? (
-            <InboxScreen
-              friends={friends}
-              isLoading={isLoadingMessages}
-              threads={messageThreads}
-              onMessageFriend={handleMessageProfile}
-              onOpenThread={handleOpenThread}
-            />
-          ) : activeTab === "home" ? (
-            <HomeScreen
-              quests={feedQuests}
-              profile={currentProfile!}
-              joiningQuestId={joiningQuestId}
-              onCreate={() => handleTabChange("create")}
-              onJoin={handleJoinQuest}
-              onOpen={handleOpenQuest}
-            />
-          ) : activeTab === "events" ? (
-            <EventsScreen
-              acceptedFriendIds={acceptedFriendIds}
-              quests={feedQuests}
-              joiningQuestId={joiningQuestId}
-              profile={currentProfile!}
-              onJoin={handleJoinQuest}
-              onOpen={handleOpenQuest}
-            />
-          ) : activeTab === "create" ? (
-            <div className="space-y-5">
-              <AiQuestDraft
-                currentProfile={currentProfile!}
-                currentUserId={currentProfileId}
-                isAvailable={isAiAvailable}
-                onApplyDraft={handleApplyDraft}
-              />
-              <CreateQuestForm
-                key={createFormKey}
-                currentUserId={currentProfileId}
-                friendProfiles={friendInviteProfiles}
-                initialInvitees={createInitialInvitees}
-                initialValues={createInitialValues ?? undefined}
-                isSubmitting={isCreating}
-                onCreateQuest={handleCreateQuest}
-              />
+            <div
+              className={`flex h-full will-change-transform ${
+                isDraggingRoot
+                  ? ""
+                  : "transition-transform duration-[260ms] ease-out motion-reduce:transition-none"
+              }`}
+              style={{ transform: rootTrackTransform }}
+            >
+              {rootPages.map((page) => (
+                <div
+                  key={page}
+                  className={`h-full w-full shrink-0 ${
+                    isRootTrackMoving ? "px-1" : "px-0"
+                  }`}
+                >
+                  <section
+                    className={`flex h-full flex-col overflow-hidden bg-white transition-[border-radius] duration-200 ${
+                      isRootTrackMoving ? "rounded-[2rem]" : "rounded-none"
+                    }`}
+                  >
+                    {renderRootHeader(page)}
+                    <div
+                      className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
+                        page === "events"
+                          ? "snap-y snap-mandatory scroll-smooth"
+                          : ""
+                      }`}
+                    >
+                      {renderRootContent(page)}
+                    </div>
+                  </section>
+                </div>
+              ))}
             </div>
-          ) : activeTab === "people" ? (
-            <PeopleScreen
-              actionProfileId={friendActionProfileId}
-              currentProfile={currentProfile!}
-              suggestedPeople={suggestedPeople}
-              onAcceptFriend={handleAcceptFriend}
-              onCancelFriendRequest={handleCancelFriendRequest}
-              onDeclineFriend={handleDeclineFriend}
-              onOpenProfile={handleOpenProfile}
-              onRemoveFriend={handleRemoveFriend}
-              onSendFriendRequest={handleSendFriendRequest}
-            />
-          ) : currentProfile ? (
-            <ProfileScreen
-              friends={friends}
-              profile={currentProfile}
-              myQuests={myQuests}
-              isSaving={isSavingProfile}
-              saveError={profileError}
-              onOpen={handleOpenQuest}
-              onOpenPeople={() => handleTabChange("people")}
-              onSaveProfile={handleSaveProfile}
-              onSignOut={handleSignOut}
-            />
-          ) : null}
           </div>
-        </div>
+        ) : (
+          <>
+            <AppHeader
+              actions={
+                isHomeRoot ? (
+                  <HomeHeaderActions
+                    unreadActivityCount={unreadActivityCount}
+                    unreadMessageCount={unreadMessageCount}
+                    onOpenActivity={handleOpenActivity}
+                    onOpenInbox={() => {
+                      void handleOpenInbox();
+                    }}
+                  />
+                ) : null
+              }
+              isBrand={isHomeRoot}
+              title={headerTitle}
+              onBack={
+                selectedQuest
+                  ? () => setSelectedQuestId(null)
+                  : selectedThreadId
+                    ? () => {
+                        setSelectedThreadId(null);
+                        setChatMessages([]);
+                        setUtilityView("inbox");
+                      }
+                    : selectedProfileId
+                      ? () => setSelectedProfileId(null)
+                      : utilityView
+                        ? () => setUtilityView(null)
+                        : undefined
+              }
+            />
+
+            <div
+              key={activeSurfaceKey}
+              className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5"
+            >
+              {renderNonRootContent()}
+            </div>
+          </>
+        )}
 
         <BottomNav
           activeTab={activeTab}
@@ -1839,8 +2011,19 @@ const STABLE_VIEWPORT_STYLE = {
   minHeight: "var(--plus1-app-height, 100vh)",
 };
 
-function getNavOrderIndex(tab: AppTab) {
-  return tab === "create" ? 2 : swipeTabs.indexOf(tab as (typeof swipeTabs)[number]);
+function getCurrentRootPage(
+  activeTab: AppTab,
+  utilityView: "activity" | "inbox" | null,
+): RootPage {
+  if (utilityView === "inbox") {
+    return "messages";
+  }
+
+  return activeTab === "create" ? "home" : activeTab;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function shouldIgnoreTabSwipeStart(target: EventTarget | null) {
