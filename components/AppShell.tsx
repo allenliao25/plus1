@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -963,15 +964,17 @@ export default function AppShell() {
         return;
       }
 
-      clearActiveSurface();
+      startTransition(() => {
+        clearActiveSurface();
 
-      if (page === "messages") {
-        setUtilityView("inbox");
-        setActiveTab("home");
-      } else {
-        setUtilityView(null);
-        setActiveTab(page);
-      }
+        if (page === "messages") {
+          setUtilityView("inbox");
+          setActiveTab("home");
+        } else {
+          setUtilityView(null);
+          setActiveTab(page);
+        }
+      });
     },
     [activeTab, utilityView],
   );
@@ -1795,7 +1798,7 @@ export default function AppShell() {
                 <div
                   className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)] pt-5 ${
                     page === "events"
-                      ? "snap-y snap-mandatory scroll-smooth"
+                      ? "snap-y snap-mandatory"
                       : ""
                   }`}
                 >

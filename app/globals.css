@@ -51,6 +51,7 @@ textarea {
 
 .app-scroll {
   overscroll-behavior: contain;
+  touch-action: pan-y pinch-zoom;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -66,8 +67,10 @@ textarea {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-x pinch-zoom;
   scrollbar-width: none;
   height: 100%;
+  contain: layout style paint;
 }
 
 .root-carousel::-webkit-scrollbar {
@@ -77,8 +80,9 @@ textarea {
 .root-carousel-panel {
   flex: 0 0 100%;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
   height: 100%;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100lvh;
 }
 
 .horizontal-scroll-contained {

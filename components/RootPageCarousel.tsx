@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-const SCROLL_SYNC_DEBOUNCE_MS = 80;
+const SCROLL_IDLE_MS = 120;
 
 export type RootPageCarouselHandle = {
   scrollToIndex: (index: number, behavior?: ScrollBehavior) => void;
@@ -20,7 +20,7 @@ type RootPageCarouselProps<T extends string> = {
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
   pages: readonly T[];
-  renderPanel: (page: T) => ReactNode;
+  renderPanel: (page: T, index: number) => ReactNode;
 };
 
 function readActiveIndex(element: HTMLElement) {
@@ -37,10 +37,16 @@ function RootPageCarouselInner<T extends string>(
 ) {
   const trackRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollRef = useRef(false);
-  const scrollSyncTimerRef = useRef<number | null>(null);
+  const scrollIdleTimerRef = useRef<number | null>(null);
+  const isUserScrollingRef = useRef(false);
   const hasMountedRef = useRef(false);
   const initialIndexRef = useRef(activeIndex);
+  const activeIndexRef = useRef(activeIndex);
   const pageCount = pages.length;
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
 
   const scrollToIndex = useCallback(
     (index: number, behavior: ScrollBehavior = "smooth") => {
@@ -51,6 +57,7 @@ function RootPageCarouselInner<T extends string>(
 
       const clampedIndex = Math.min(Math.max(index, 0), pageCount - 1);
       isProgrammaticScrollRef.current = behavior !== "auto";
+      isUserScrollingRef.current = false;
       element.scrollTo({
         left: clampedIndex * element.clientWidth,
         behavior,
@@ -77,7 +84,7 @@ function RootPageCarouselInner<T extends string>(
   }, [scrollToIndex]);
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
+    if (!hasMountedRef.current || isUserScrollingRef.current) {
       return;
     }
 
@@ -100,25 +107,31 @@ function RootPageCarouselInner<T extends string>(
       return;
     }
 
-    function finishProgrammaticScroll() {
-      isProgrammaticScrollRef.current = false;
+    function clearScrollIdleTimer() {
+      if (scrollIdleTimerRef.current) {
+        window.clearTimeout(scrollIdleTimerRef.current);
+        scrollIdleTimerRef.current = null;
+      }
     }
 
-    function syncActiveIndexFromScroll() {
+    function commitActiveIndexFromScroll() {
       if (isProgrammaticScrollRef.current) {
+        isProgrammaticScrollRef.current = false;
         return;
       }
 
-      onActiveIndexChange(readActiveIndex(element!));
+      isUserScrollingRef.current = false;
+      const nextIndex = readActiveIndex(element!);
+      if (nextIndex === activeIndexRef.current) {
+        return;
+      }
+
+      onActiveIndexChange(nextIndex);
     }
 
     function handleScrollEnd() {
-      if (isProgrammaticScrollRef.current) {
-        finishProgrammaticScroll();
-        return;
-      }
-
-      syncActiveIndexFromScroll();
+      clearScrollIdleTimer();
+      commitActiveIndexFromScroll();
     }
 
     function handleScroll() {
@@ -126,14 +139,13 @@ function RootPageCarouselInner<T extends string>(
         return;
       }
 
-      if (scrollSyncTimerRef.current) {
-        window.clearTimeout(scrollSyncTimerRef.current);
-      }
+      isUserScrollingRef.current = true;
+      clearScrollIdleTimer();
 
-      scrollSyncTimerRef.current = window.setTimeout(() => {
-        scrollSyncTimerRef.current = null;
-        syncActiveIndexFromScroll();
-      }, SCROLL_SYNC_DEBOUNCE_MS);
+      scrollIdleTimerRef.current = window.setTimeout(() => {
+        scrollIdleTimerRef.current = null;
+        commitActiveIndexFromScroll();
+      }, SCROLL_IDLE_MS);
     }
 
     element.addEventListener("scrollend", handleScrollEnd);
@@ -142,17 +154,15 @@ function RootPageCarouselInner<T extends string>(
     return () => {
       element.removeEventListener("scrollend", handleScrollEnd);
       element.removeEventListener("scroll", handleScroll);
-      if (scrollSyncTimerRef.current) {
-        window.clearTimeout(scrollSyncTimerRef.current);
-      }
+      clearScrollIdleTimer();
     };
   }, [onActiveIndexChange]);
 
   return (
     <div ref={trackRef} className="root-carousel min-h-0 flex-1">
-      {pages.map((page) => (
+      {pages.map((page, index) => (
         <div key={page} className="root-carousel-panel">
-          {renderPanel(page)}
+          {renderPanel(page, index)}
         </div>
       ))}
     </div>
