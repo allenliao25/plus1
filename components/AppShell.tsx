@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   LogOut,
   MapPin,
+  Menu,
   MessageCircle,
   UserRound,
 } from "lucide-react";
@@ -1675,23 +1676,11 @@ export default function AppShell() {
                 void handleOpenInbox();
               }}
             />
+          ) : isProfilePanel ? (
+            <ProfileHeaderActions onSignOut={handleSignOut} />
           ) : null
         }
         isBrand={isHomePanel}
-        leading={
-          isProfilePanel ? (
-            <button
-              type="button"
-              onClick={() => {
-                void handleSignOut();
-              }}
-              aria-label="Sign out"
-              className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
-            >
-              <LogOut size={20} strokeWidth={1.9} aria-hidden="true" />
-            </button>
-          ) : undefined
-        }
         title={title}
         titleAlign={isProfilePanel ? "left" : "center"}
       />
@@ -1976,6 +1965,64 @@ function HomeHeaderActions({
         <MessageCircle size={21} strokeWidth={2.15} aria-hidden="true" />
       </HeaderIconButton>
     </>
+  );
+}
+
+function ProfileHeaderActions({
+  onSignOut,
+}: {
+  onSignOut: () => void | Promise<void>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        aria-label="Settings"
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        onClick={() => setIsOpen((open) => !open)}
+        className="glass-chip grid h-10 w-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
+      >
+        <Menu size={21} strokeWidth={2.15} aria-hidden="true" />
+      </button>
+      {isOpen ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-40 overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              void onSignOut();
+            }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-zinc-950 transition hover:bg-zinc-50 active:bg-zinc-100"
+          >
+            <LogOut size={16} strokeWidth={2} aria-hidden="true" />
+            Sign out
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

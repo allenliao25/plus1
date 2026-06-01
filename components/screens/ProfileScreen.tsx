@@ -106,14 +106,14 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-semibold text-zinc-950 transition active:scale-[0.98]"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
           >
             Edit profile
           </button>
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-semibold text-zinc-950 transition active:scale-[0.98]"
+            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
           >
             Share
           </button>
