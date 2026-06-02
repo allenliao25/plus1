@@ -29,6 +29,7 @@ import BottomNav, { type AppTab } from "@/components/BottomNav";
 import CreateQuestForm from "@/components/CreateQuestForm";
 import EditQuestModal from "@/components/EditQuestModal";
 import QuestDetail from "@/components/QuestDetail";
+import SafeImage from "@/components/SafeImage";
 import ActivityScreen from "@/components/screens/ActivityScreen";
 import ChatThreadScreen from "@/components/screens/ChatThreadScreen";
 import EventsScreen from "@/components/screens/EventsScreen";
@@ -141,6 +142,9 @@ type InAppBanner = {
   kind: "activity" | "message";
   title: string;
   body: string | null;
+  avatarInitials?: string | null;
+  avatarLabel?: string | null;
+  avatarUrl?: string | null;
   threadId?: string;
   questId?: string | null;
   actorId?: string | null;
@@ -559,6 +563,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
 
       if (hasNewUnreadState) {
         showInAppBanner({
+          ...buildMessageBannerAvatar(thread),
           kind: "message",
           threadId: thread.id,
           title: thread.title,
@@ -1015,6 +1020,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
           targetThread.unreadCount > 0
         ) {
           showInAppBanner({
+            ...buildMessageBannerAvatar(targetThread),
             kind: "message",
             threadId: targetThread.id,
             title: targetThread.title,
@@ -2330,6 +2336,7 @@ function AppNotificationBanner({
   onOpen: () => void;
 }) {
   const Icon = banner.kind === "message" ? MessageCircle : Bell;
+  const shouldShowAvatar = banner.kind === "message" && banner.avatarInitials;
 
   return (
     <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+10px)] z-50 mx-auto max-w-[456px] px-1">
@@ -2339,9 +2346,13 @@ function AppNotificationBanner({
           onClick={onOpen}
           className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left transition active:scale-[0.99]"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white">
-            <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
-          </span>
+          {shouldShowAvatar ? (
+            <BannerAvatar banner={banner} />
+          ) : (
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white">
+              <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-extrabold text-zinc-950">
               {banner.title}
@@ -2363,6 +2374,31 @@ function AppNotificationBanner({
         </button>
       </div>
     </div>
+  );
+}
+
+function BannerAvatar({ banner }: { banner: InAppBanner }) {
+  const initials = banner.avatarInitials?.trim().slice(0, 2).toUpperCase() || "?";
+
+  if (banner.avatarUrl) {
+    return (
+      <SafeImage
+        src={banner.avatarUrl}
+        alt={banner.avatarLabel ? `${banner.avatarLabel} profile photo` : ""}
+        width={36}
+        height={36}
+        className="size-9 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-label={banner.avatarLabel ?? undefined}
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-[0.7rem] font-extrabold text-white ring-1 ring-zinc-200"
+    >
+      {initials}
+    </span>
   );
 }
 
@@ -3244,4 +3280,14 @@ function buildChatMessagesSignature(messages: ChatMessage[]) {
 
 function buildMessageThreadAlertState(thread: MessageThread) {
   return `${thread.unreadCount}:${thread.lastMessageAtISO ?? ""}:${thread.preview}`;
+}
+
+function buildMessageBannerAvatar(thread: MessageThread) {
+  const participant = thread.participants[0];
+
+  return {
+    avatarInitials: participant?.avatarInitials ?? null,
+    avatarLabel: participant?.displayName ?? null,
+    avatarUrl: participant?.avatarUrl ?? null,
+  };
 }
