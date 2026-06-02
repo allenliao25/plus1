@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type PointerEvent } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { Quest } from "@/types/quest";
 
 type HolographicQuestCardProps = {
@@ -58,14 +59,15 @@ export default function HolographicQuestCard({
         ) : null}
 
         <div className="pointer-events-none relative z-20 grid grid-cols-[4.75rem_1fr_auto] items-center gap-3">
-          <div className="holo-thumb aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
+          <div className="holo-thumb relative aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
             {hasImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SafeImage
                 src={quest.cardImageUrl!}
                 alt=""
+                fill
+                sizes="76px"
                 onError={() => setDidImageFail(true)}
-                className="h-full w-full object-cover"
+                className="object-cover"
               />
             ) : (
               <QuestCategoryArtwork
@@ -130,12 +132,13 @@ export default function HolographicQuestCard({
     >
       <div className="absolute inset-0">
         {hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImage
             src={quest.cardImageUrl!}
             alt=""
+            fill
+            sizes="448px"
             onError={() => setDidImageFail(true)}
-            className="h-full w-full object-cover"
+            className="object-cover"
           />
         ) : (
           <QuestCategoryArtwork

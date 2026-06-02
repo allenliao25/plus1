@@ -24,6 +24,13 @@ const validCategories: QuestCategory[] = [
   "Social",
   "Other",
 ];
+const shareTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 const validVisibility: QuestVisibility[] = ["invite_only", "friends", "local"];
 
 export async function createQuestShareLink(questId: string) {
@@ -193,11 +200,5 @@ function formatQuestTime(value: string | null) {
     return "Time TBD";
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return shareTimeFormatter.format(date);
 }

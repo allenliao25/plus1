@@ -44,12 +44,25 @@ export function rankEventsQuests(
   now = new Date(),
 ) {
   return quests
-    .filter((quest) => quest.status === "open")
-    .map((quest, index) => ({
-      index,
-      quest: withInterestMatch(quest, profile),
-      score: scoreEventsQuest(quest, profile, acceptedFriendIdSet, now),
-    }))
+    .reduce<
+      {
+        index: number;
+        quest: Quest;
+        score: number;
+      }[]
+    >((ranked, quest) => {
+      if (quest.status !== "open") {
+        return ranked;
+      }
+
+      ranked.push({
+        index: ranked.length,
+        quest: withInterestMatch(quest, profile),
+        score: scoreEventsQuest(quest, profile, acceptedFriendIdSet, now),
+      });
+
+      return ranked;
+    }, [])
     .sort((left, right) => {
       const scoreDelta = right.score - left.score;
 

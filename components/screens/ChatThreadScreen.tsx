@@ -106,6 +106,7 @@ export default function ChatThreadScreen({
       >
         <div className="glass-panel flex min-h-12 items-end gap-2 rounded-[1.35rem] border p-2">
           <textarea
+            aria-label="Message"
             ref={inputRef}
             rows={1}
             value={body}
@@ -119,7 +120,7 @@ export default function ChatThreadScreen({
             type="submit"
             disabled={!body.trim() || isSending}
             aria-label="Send message"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white transition active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white transition active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
           >
             <Send size={17} strokeWidth={2.4} aria-hidden="true" />
           </button>

@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type ReactNode,
@@ -125,7 +126,34 @@ type RootPage = Exclude<AppTab, "create">;
 
 const rootPages: RootPage[] = ["home", "events", "people", "profile"];
 
-export default function AppShell() {
+type AppShellProps = {
+  initialAiAvailable?: boolean | null;
+};
+
+type SelectedProfileState = {
+  isLoading: boolean;
+  profile: PeopleSearchResult | null;
+  quests: Quest[];
+};
+
+const initialSelectedProfileState: SelectedProfileState = {
+  isLoading: false,
+  profile: null,
+  quests: [],
+};
+
+function selectedProfileReducer(
+  state: SelectedProfileState,
+  action: Partial<SelectedProfileState>,
+) {
+  return { ...state, ...action };
+}
+
+export default function AppShell({ initialAiAvailable = null }: AppShellProps) {
+  return useAppShellContent({ initialAiAvailable });
+}
+
+function useAppShellContent({ initialAiAvailable }: AppShellProps) {
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [authError, setAuthError] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -152,10 +180,9 @@ export default function AppShell() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(
     null,
   );
-  const [selectedPublicProfile, setSelectedPublicProfile] =
-    useState<PeopleSearchResult | null>(null);
-  const [selectedProfileQuests, setSelectedProfileQuests] = useState<Quest[]>(
-    [],
+  const [selectedProfileState, updateSelectedProfileState] = useReducer(
+    selectedProfileReducer,
+    initialSelectedProfileState,
   );
   const [editingQuestId, setEditingQuestId] = useState<string | null>(null);
   const [createInitialValues, setCreateInitialValues] =
@@ -167,7 +194,7 @@ export default function AppShell() {
   const [openedQuestLinkId, setOpenedQuestLinkId] = useState<string | null>(
     null,
   );
-  const [isAiAvailable, setIsAiAvailable] = useState<boolean | null>(null);
+  const [isAiAvailable] = useState<boolean | null>(initialAiAvailable ?? null);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingQuests, setIsLoadingQuests] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -188,7 +215,6 @@ export default function AppShell() {
   const [friendActionProfileId, setFriendActionProfileId] = useState<
     string | null
   >(null);
-  const [isLoadingPublicProfile, setIsLoadingPublicProfile] = useState(false);
   const [leavingQuestId, setLeavingQuestId] = useState<string | null>(null);
   const [closingQuestId, setClosingQuestId] = useState<string | null>(null);
   const [utilityView, setUtilityView] = useState<"activity" | "inbox" | null>(
@@ -201,6 +227,9 @@ export default function AppShell() {
   const rootCarouselRef = useRef<RootPageCarouselHandle>(null);
 
   const currentProfileId = currentProfile?.id ?? "";
+  const selectedPublicProfile = selectedProfileState.profile;
+  const selectedProfileQuests = selectedProfileState.quests;
+  const isLoadingPublicProfile = selectedProfileState.isLoading;
   const isInitialContentLoading =
     authState === "signed_in" && isLoadingQuests && !hasLoadedInitialData;
   const isAppLocked =
@@ -329,9 +358,15 @@ export default function AppShell() {
     setError("");
 
     try {
+      const stoppedAfterUserLookup = isStaleSync();
+      if (stoppedAfterUserLookup) {
+        return;
+      }
+
       const user = await getAuthenticatedUser();
 
-      if (isStaleSync()) {
+      const stoppedAfterUserResult = user !== undefined && isStaleSync();
+      if (stoppedAfterUserResult) {
         return;
       }
 
@@ -352,8 +387,7 @@ export default function AppShell() {
         setSuggestedPeople([]);
         setSelectedQuestId(null);
         setSelectedProfileId(null);
-        setSelectedPublicProfile(null);
-        setSelectedProfileQuests([]);
+        updateSelectedProfileState({ isLoading: false, profile: null, quests: [] });
         setEditingQuestId(null);
         setOpenedQuestLinkId(null);
         setNeedsProfileSetup(false);
@@ -366,7 +400,8 @@ export default function AppShell() {
 
       const profile = await ensureProfile(user);
 
-      if (isStaleSync()) {
+      const stoppedAfterProfileLookup = Boolean(profile) && isStaleSync();
+      if (stoppedAfterProfileLookup) {
         return;
       }
 
@@ -388,8 +423,7 @@ export default function AppShell() {
         setOutgoingFriendRequests([]);
         setSuggestedPeople([]);
         setSelectedProfileId(null);
-        setSelectedPublicProfile(null);
-        setSelectedProfileQuests([]);
+        updateSelectedProfileState({ isLoading: false, profile: null, quests: [] });
       }
 
       setCurrentProfile(profile);
@@ -402,13 +436,19 @@ export default function AppShell() {
       setIsBooting(false);
 
       try {
-        await Promise.all([
+        const stoppedBeforeRefresh = isStaleSync();
+        if (stoppedBeforeRefresh) {
+          return;
+        }
+
+        const refreshResults = await Promise.all([
           refreshData(profile),
           refreshSocialData(profile),
           refreshMessages(profile),
         ]);
 
-        if (isStaleSync()) {
+        const stoppedAfterRefresh = Boolean(refreshResults) && isStaleSync();
+        if (stoppedAfterRefresh) {
           return;
         }
 
@@ -451,8 +491,7 @@ export default function AppShell() {
       setOutgoingFriendRequests([]);
       setSuggestedPeople([]);
       setSelectedProfileId(null);
-      setSelectedPublicProfile(null);
-      setSelectedProfileQuests([]);
+      updateSelectedProfileState({ isLoading: false, profile: null, quests: [] });
       setNeedsProfileSetup(false);
       setProfileSetupError("");
       setHasLoadedInitialData(false);
@@ -469,30 +508,6 @@ export default function AppShell() {
     requestLocalNotificationPermission().catch(() => {
       // Ignore permission prompt failures on unsupported platforms.
     });
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetch("/api/ai/status")
-      .then(async (response) => {
-        const payload = (await response.json().catch(() => null)) as {
-          configured?: unknown;
-        } | null;
-
-        if (isMounted) {
-          setIsAiAvailable(Boolean(payload?.configured));
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setIsAiAvailable(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -784,6 +799,7 @@ export default function AppShell() {
       if (messageRefreshTimer) {
         window.clearTimeout(messageRefreshTimer);
       }
+      void channel.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [
@@ -795,6 +811,23 @@ export default function AppShell() {
     refreshSocialData,
     selectedThreadId,
   ]);
+
+  function showUnavailableSharedQuest(questId: string) {
+    setOpenedQuestLinkId(questId);
+    setActionError("That shared event is not available in your feed.");
+  }
+
+  function openSharedQuest(questId: string, linkedQuestId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("quest");
+    window.history.replaceState({}, "", url.toString());
+    setOpenedQuestLinkId(questId);
+    setActionError("");
+    setUtilityView(null);
+    setSelectedThreadId(null);
+    setSelectedQuestId(linkedQuestId);
+    setActiveTab("home");
+  }
 
   useEffect(() => {
     if (
@@ -818,20 +851,11 @@ export default function AppShell() {
       );
 
       if (!linkedQuest) {
-        setOpenedQuestLinkId(questId);
-        setActionError("That shared event is not available in your feed.");
+        showUnavailableSharedQuest(questId);
         return;
       }
 
-      const url = new URL(window.location.href);
-      url.searchParams.delete("quest");
-      window.history.replaceState({}, "", url.toString());
-      setOpenedQuestLinkId(questId);
-      setActionError("");
-      setUtilityView(null);
-      setSelectedThreadId(null);
-      setSelectedQuestId(linkedQuest.id);
-      setActiveTab("home");
+      openSharedQuest(questId, linkedQuest.id);
     }, 0);
 
     return () => {
@@ -848,8 +872,7 @@ export default function AppShell() {
   useEffect(() => {
     if (!selectedProfileId || !currentProfile) {
       const timer = window.setTimeout(() => {
-        setSelectedPublicProfile(null);
-        setSelectedProfileQuests([]);
+        updateSelectedProfileState({ isLoading: false, profile: null, quests: [] });
       }, 0);
 
       return () => {
@@ -859,7 +882,7 @@ export default function AppShell() {
 
     let isStale = false;
     const loadingTimer = window.setTimeout(() => {
-      setIsLoadingPublicProfile(true);
+      updateSelectedProfileState({ isLoading: true });
     }, 0);
 
     Promise.all([
@@ -871,8 +894,7 @@ export default function AppShell() {
           return;
         }
 
-        setSelectedPublicProfile(profile);
-        setSelectedProfileQuests(quests);
+        updateSelectedProfileState({ profile, quests });
         setActionError("");
       })
       .catch((profileError) => {
@@ -880,13 +902,12 @@ export default function AppShell() {
           return;
         }
 
-        setSelectedPublicProfile(null);
-        setSelectedProfileQuests([]);
+        updateSelectedProfileState({ profile: null, quests: [] });
         setActionError(readErrorMessage(profileError));
       })
       .finally(() => {
         if (!isStale) {
-          setIsLoadingPublicProfile(false);
+          updateSelectedProfileState({ isLoading: false });
         }
       });
 
@@ -1035,7 +1056,6 @@ export default function AppShell() {
       setIsLoadingMessages(true);
       setActionError("");
       const threadId = await getOrCreateDirectThread(profileId);
-      await refreshMessages(currentProfile);
       await handleOpenThread(threadId);
     } catch (messageError) {
       setActionError(readErrorMessage(messageError));
@@ -1053,7 +1073,6 @@ export default function AppShell() {
       setIsLoadingMessages(true);
       setActionError("");
       const threadId = await getOrCreateEventThread(questId);
-      await refreshMessages(currentProfile);
       await handleOpenThread(threadId);
     } catch (messageError) {
       setActionError(readErrorMessage(messageError));
@@ -1161,8 +1180,7 @@ export default function AppShell() {
         fetchPublicProfile(selectedProfileId, currentProfile.id),
         fetchVisibleProfileQuests(selectedProfileId, currentProfile.id),
       ]);
-      setSelectedPublicProfile(profile);
-      setSelectedProfileQuests(quests);
+      updateSelectedProfileState({ profile, quests });
     }
   }
 
@@ -1582,7 +1600,7 @@ export default function AppShell() {
           ? `utility:${utilityView}`
           : `tab:${activeTab}`;
 
-  function renderStatusMessages() {
+  function statusMessages() {
     return (
       <>
         {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
@@ -1591,11 +1609,11 @@ export default function AppShell() {
     );
   }
 
-  function renderRootContent(page: RootPage) {
+  function rootContentForPage(page: RootPage) {
     if (isInitialContentLoading && !error) {
       return (
         <>
-          {renderStatusMessages()}
+          {statusMessages()}
           <TabSkeleton activeTab={page} />
         </>
       );
@@ -1603,7 +1621,7 @@ export default function AppShell() {
 
     return (
       <>
-        {renderStatusMessages()}
+        {statusMessages()}
         {page === "home" ? (
           <HomeScreen
             quests={feedQuests}
@@ -1650,7 +1668,7 @@ export default function AppShell() {
     );
   }
 
-  function renderRootHeader(page: RootPage) {
+  function rootHeaderForPage(page: RootPage) {
     const isHomePanel = page === "home";
     const isProfilePanel = page === "profile";
     const hideTitle = page === "events" || page === "people";
@@ -1690,10 +1708,10 @@ export default function AppShell() {
     );
   }
 
-  function renderNonRootContent() {
+  function nonRootContent() {
     return (
       <>
-        {renderStatusMessages()}
+        {statusMessages()}
 
         {isInitialContentLoading && !error ? (
           <TabSkeleton activeTab={activeTab} />
@@ -1789,7 +1807,7 @@ export default function AppShell() {
             pages={rootPages}
             renderPanel={(page) => (
               <section className="flex h-full flex-col overflow-hidden bg-white">
-                {renderRootHeader(page)}
+                {rootHeaderForPage(page)}
                 <div
                   className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} ${
                     page === "events"
@@ -1799,7 +1817,7 @@ export default function AppShell() {
                         : "pt-3"
                   }`}
                 >
-                  {renderRootContent(page)}
+                  {rootContentForPage(page)}
                 </div>
               </section>
             )}
@@ -1842,7 +1860,7 @@ export default function AppShell() {
               key={activeSurfaceKey}
               className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5`}
             >
-              {renderNonRootContent()}
+              {nonRootContent()}
             </div>
           </>
         )}
@@ -1918,7 +1936,7 @@ function AppHeader({
               type="button"
               onClick={onBack}
               aria-label="Back"
-              className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+              className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
             >
               <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
             </button>
@@ -1982,7 +2000,7 @@ function AppHeader({
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="glass-chip grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+            className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
           >
             <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
           </button>
@@ -2002,7 +2020,7 @@ function AppHeader({
   );
 }
 
-function HomeHeaderActions({
+export function HomeHeaderActions({
   onOpenActivity,
   onOpenInbox,
   unreadActivityCount,
@@ -2037,7 +2055,7 @@ function HomeHeaderActions({
   );
 }
 
-function ProfileHeaderActions({
+export function ProfileHeaderActions({
   onSignOut,
 }: {
   onSignOut: () => void | Promise<void>;
@@ -2068,7 +2086,7 @@ function ProfileHeaderActions({
         aria-expanded={isOpen}
         aria-haspopup="menu"
         onClick={() => setIsOpen((open) => !open)}
-        className="glass-chip grid h-10 w-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
+        className="glass-chip grid size-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
       >
         <Menu size={21} strokeWidth={2.15} aria-hidden="true" />
       </button>
@@ -2095,7 +2113,7 @@ function ProfileHeaderActions({
   );
 }
 
-function HeaderIconButton({
+export function HeaderIconButton({
   children,
   count,
   label,
@@ -2207,7 +2225,7 @@ function useStableKeyboardViewport() {
     window.addEventListener("focusin", scheduleApply);
     window.addEventListener("focusout", handleFocusOut);
     visualViewport?.addEventListener("resize", scheduleApply);
-    visualViewport?.addEventListener("scroll", scheduleApply);
+    visualViewport?.addEventListener("scroll", scheduleApply, { passive: true });
 
     return () => {
       if (rafId) {
@@ -2226,19 +2244,19 @@ function useStableKeyboardViewport() {
   }, []);
 }
 
-function SplashScreen() {
+export function SplashScreen() {
   return (
     <main
       className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950"
       style={STABLE_VIEWPORT_STYLE}
     >
       <h1 className="text-[2.75rem] font-bold tracking-tight">plus1</h1>
-      <div className="mt-6 h-6 w-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
+      <div className="mt-6 size-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
     </main>
   );
 }
 
-function AuthScreen({
+export function AuthScreen({
   isSubmitting,
   message,
   error,
@@ -2360,6 +2378,7 @@ function AuthScreen({
                   placeholder="Verification code"
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  aria-label="Verification code"
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-center text-lg tracking-[0.4em] text-zinc-950 outline-none transition placeholder:text-base placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
                 />
               </>
@@ -2417,7 +2436,7 @@ function AuthScreen({
   );
 }
 
-function ProfileSetupScreen({
+export function ProfileSetupScreen({
   initialDisplayName,
   initialHandle,
   initialArea,
@@ -2605,7 +2624,7 @@ function ProfileSetupScreen({
             disabled={!canSubmit}
             className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
-            {isSubmitting ? "Saving..." : "Continue"}
+            {isSubmitting ? "Saving…" : "Continue"}
           </button>
         </form>
       </div>
@@ -2621,39 +2640,48 @@ function buildQuestReminderEvents(
   const now = Date.now();
   const reminderWindowMs = 2 * 60 * 60 * 1000;
   const existingReminderQuestIds = new Set(
-    activityEvents
-      .filter((event) => event.type === "reminder" && event.questId)
-      .map((event) => event.questId),
-  );
-
-  return quests
-    .filter((quest) => {
-      if (
-        quest.status !== "open" ||
-        !quest.startTimeISO ||
-        existingReminderQuestIds.has(quest.id)
-      ) {
-        return false;
+    activityEvents.reduce<string[]>((questIds, event) => {
+      if (event.type === "reminder" && event.questId) {
+        questIds.push(event.questId);
       }
 
-      const startMs = new Date(quest.startTimeISO).getTime();
-      return (
-        Number.isFinite(startMs) &&
-        startMs > now &&
-        startMs - now <= reminderWindowMs
-      );
-    })
-    .map((quest) => ({
+      return questIds;
+    }, []),
+  );
+
+  return quests.reduce<Parameters<typeof recordActivityEvents>[0]>((events, quest) => {
+    if (
+      quest.status !== "open" ||
+      !quest.startTimeISO ||
+      existingReminderQuestIds.has(quest.id)
+    ) {
+      return events;
+    }
+
+    const startMs = new Date(quest.startTimeISO).getTime();
+    const isDueSoon =
+      Number.isFinite(startMs) &&
+      startMs > now &&
+      startMs - now <= reminderWindowMs;
+
+    if (!isDueSoon) {
+      return events;
+    }
+
+    events.push({
       userId,
       actorId: userId,
       questId: quest.id,
       type: "reminder" as const,
       title: `${quest.title} starts soon`,
       body: `${quest.startTimeRelative ?? quest.startTime} at ${quest.location}.`,
-    }));
+    });
+
+    return events;
+  }, []);
 }
 
-function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
+export function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
   if (activeTab === "events") {
     return <ExploreSkeleton />;
   }
@@ -2673,9 +2701,9 @@ function TabSkeleton({ activeTab }: { activeTab: AppTab }) {
   return <HomeSkeleton />;
 }
 
-function HomeSkeleton() {
+export function HomeSkeleton() {
   return (
-    <div role="status" aria-label="Loading events" className="space-y-5 animate-pulse">
+    <output aria-label="Loading events" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading events</span>
       <div className="flex items-center gap-2">
         <div className="h-7 w-24 rounded-full bg-zinc-100" />
@@ -2685,13 +2713,13 @@ function HomeSkeleton() {
         <SkeletonQuestCard variant="immersive" />
         <SkeletonQuestCard variant="compact" />
       </div>
-    </div>
+    </output>
   );
 }
 
-function ExploreSkeleton() {
+export function ExploreSkeleton() {
   return (
-    <div role="status" aria-label="Loading explore" className="space-y-5 animate-pulse">
+    <output aria-label="Loading explore" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading explore</span>
       <div className="space-y-2">
         <div className="h-7 w-24 rounded-full bg-zinc-100" />
@@ -2708,19 +2736,19 @@ function ExploreSkeleton() {
         <SkeletonQuestCard variant="compact" />
         <SkeletonQuestCard variant="compact" />
       </div>
-    </div>
+    </output>
   );
 }
 
-function PeopleSkeleton() {
+export function PeopleSkeleton() {
   return (
-    <div role="status" aria-label="Loading people" className="space-y-5 animate-pulse">
+    <output aria-label="Loading people" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading people</span>
       <div className="h-12 rounded-full bg-zinc-100" />
       <div className="space-y-3">
         {[0, 1, 2].map((item) => (
           <div key={item} className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3">
-            <div className="h-12 w-12 shrink-0 rounded-full bg-zinc-100" />
+            <div className="size-12 shrink-0 rounded-full bg-zinc-100" />
             <div className="min-w-0 flex-1 space-y-2">
               <div className="h-4 w-32 rounded-full bg-zinc-100" />
               <div className="h-3 w-24 rounded-full bg-zinc-100" />
@@ -2729,13 +2757,13 @@ function PeopleSkeleton() {
           </div>
         ))}
       </div>
-    </div>
+    </output>
   );
 }
 
-function CreateSkeleton() {
+export function CreateSkeleton() {
   return (
-    <div role="status" aria-label="Loading create" className="space-y-5 animate-pulse">
+    <output aria-label="Loading create" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading create</span>
       <div className="space-y-2">
         <div className="h-7 w-28 rounded-full bg-zinc-100" />
@@ -2751,17 +2779,17 @@ function CreateSkeleton() {
         <div className="h-12 rounded-2xl bg-zinc-100" />
         <div className="h-24 rounded-2xl bg-zinc-100" />
       </div>
-    </div>
+    </output>
   );
 }
 
-function ProfileSkeleton() {
+export function ProfileSkeleton() {
   return (
-    <div role="status" aria-label="Loading profile" className="space-y-4 pb-3 animate-pulse">
+    <output aria-label="Loading profile" className="space-y-4 pb-3 animate-pulse">
       <span className="sr-only">Loading profile</span>
       <section className="space-y-4">
         <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
-          <div className="h-20 w-20 rounded-full bg-zinc-100" />
+          <div className="size-20 rounded-full bg-zinc-100" />
           <div className="grid grid-cols-3 gap-2">
             {[0, 1, 2].map((item) => (
               <div key={item} className="space-y-1.5">
@@ -2789,11 +2817,11 @@ function ProfileSkeleton() {
           ))}
         </div>
       </section>
-    </div>
+    </output>
   );
 }
 
-function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact" }) {
+export function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact" }) {
   const isImmersive = variant === "immersive";
 
   return (
@@ -2828,7 +2856,7 @@ function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact" }) {
   );
 }
 
-function ErrorState({
+export function ErrorState({
   message,
   onRetry,
 }: {
@@ -2850,7 +2878,7 @@ function ErrorState({
   );
 }
 
-function ActionError({ message }: { message: string }) {
+export function ActionError({ message }: { message: string }) {
   return (
     <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
       {message}

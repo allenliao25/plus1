@@ -2,6 +2,7 @@ import { Camera, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import InvitePicker from "@/components/InvitePicker";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import { questCategories } from "@/data/demoQuests";
 import { validateQuestCardImageFile } from "@/lib/questService";
 import type {
@@ -63,12 +64,16 @@ const visibilityOptions: Array<{
   },
 ];
 
-export default function CreateQuestForm({
+export default function CreateQuestForm(props: CreateQuestFormProps) {
+  return useCreateQuestFormContent(props);
+}
+
+function useCreateQuestFormContent({
   currentUserId,
   friendProfiles = [],
   isSubmitting,
   submitLabel = "Post event",
-  submittingLabel = "Posting...",
+  submittingLabel = "Posting…",
   initialValues,
   initialInvitees,
   onCreateQuest,
@@ -90,7 +95,6 @@ export default function CreateQuestForm({
   const [invitees, setInvitees] = useState<QuestInviteProfile[]>(
     initialInvitees ?? [],
   );
-  const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
@@ -169,11 +173,7 @@ export default function CreateQuestForm({
 
     try {
       validateQuestCardImageFile(file);
-      if (cardImageObjectUrlRef.current) {
-        URL.revokeObjectURL(cardImageObjectUrlRef.current);
-      }
       const objectUrl = URL.createObjectURL(file);
-      cardImageObjectUrlRef.current = objectUrl;
       setCardImageFile(file);
       setCardImagePreviewUrl(objectUrl);
       setCardImageError("");
@@ -187,21 +187,19 @@ export default function CreateQuestForm({
   }
 
   function clearCardImage() {
-    if (cardImageObjectUrlRef.current) {
-      URL.revokeObjectURL(cardImageObjectUrlRef.current);
-      cardImageObjectUrlRef.current = null;
-    }
     setCardImageFile(null);
     setCardImagePreviewUrl(null);
   }
 
   useEffect(() => {
+    if (!cardImagePreviewUrl) {
+      return;
+    }
+
     return () => {
-      if (cardImageObjectUrlRef.current) {
-        URL.revokeObjectURL(cardImageObjectUrlRef.current);
-      }
+      URL.revokeObjectURL(cardImagePreviewUrl);
     };
-  }, []);
+  }, [cardImagePreviewUrl]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -283,6 +281,7 @@ export default function CreateQuestForm({
         </div>
         {timeMode === "scheduled" ? (
           <input
+            aria-label="Scheduled event time"
             type="datetime-local"
             value={form.startTime}
             onChange={(event) => updateForm("startTime", event.target.value)}
@@ -389,10 +388,11 @@ export default function CreateQuestForm({
           className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-left transition hover:border-zinc-400 hover:bg-white disabled:opacity-50"
         >
           {cardImagePreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImage
               src={cardImagePreviewUrl}
               alt=""
+              width={448}
+              height={192}
               className="h-48 w-full object-cover"
             />
           ) : (
@@ -411,7 +411,7 @@ export default function CreateQuestForm({
                     Upload a photo anytime.
                   </span>
                 </span>
-                <span className="glass-action grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-800">
+                <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-zinc-800">
                   <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
                 </span>
               </span>
@@ -419,6 +419,7 @@ export default function CreateQuestForm({
           )}
         </button>
         <input
+          aria-label="Event card photo"
           ref={cardImageInputRef}
           type="file"
           accept="image/*"

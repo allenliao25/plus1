@@ -1,4 +1,5 @@
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { Quest } from "@/types/quest";
 
 type HomeSpotlightCardProps = {
@@ -34,13 +35,14 @@ export default function HomeSpotlightCard({
       />
 
       <div className="pointer-events-none relative z-20 grid grid-cols-[6.35rem_1fr] gap-3.5">
-        <div className="holo-thumb aspect-[4/5] overflow-hidden rounded-[1.2rem] bg-zinc-900 shadow-[0_12px_34px_rgba(0,0,0,0.28)]">
+        <div className="holo-thumb relative aspect-[4/5] overflow-hidden rounded-[1.2rem] bg-zinc-900 shadow-[0_12px_34px_rgba(0,0,0,0.28)]">
           {quest.cardImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImage
               src={quest.cardImageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              fill
+              sizes="104px"
+              className="object-cover"
             />
           ) : (
             <QuestCategoryArtwork

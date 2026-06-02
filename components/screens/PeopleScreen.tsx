@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import PeopleList from "@/components/PeopleList";
 import { searchPeople } from "@/lib/friendService";
 import type { PeopleSearchResult, Profile } from "@/types/quest";
@@ -16,6 +16,25 @@ type PeopleScreenProps = {
   onSendFriendRequest: (profileId: string) => void | Promise<void>;
 };
 
+type PeopleSearchState = {
+  error: string;
+  isSearching: boolean;
+  results: PeopleSearchResult[];
+};
+
+const initialPeopleSearchState: PeopleSearchState = {
+  error: "",
+  isSearching: false,
+  results: [],
+};
+
+function peopleSearchReducer(
+  state: PeopleSearchState,
+  action: Partial<PeopleSearchState>,
+) {
+  return { ...state, ...action };
+}
+
 export default function PeopleScreen({
   actionProfileId,
   currentProfile,
@@ -28,12 +47,15 @@ export default function PeopleScreen({
   suggestedPeople,
 }: PeopleScreenProps) {
   const [peopleSearch, setPeopleSearch] = useState("");
-  const [peopleResults, setPeopleResults] = useState<PeopleSearchResult[]>([]);
-  const [isSearchingPeople, setIsSearchingPeople] = useState(false);
-  const [peopleError, setPeopleError] = useState("");
+  const [peopleSearchState, updatePeopleSearchState] = useReducer(
+    peopleSearchReducer,
+    initialPeopleSearchState,
+  );
   const normalizedPeopleSearch = peopleSearch.trim();
   const peopleToShow =
-    normalizedPeopleSearch.length >= 2 ? peopleResults : suggestedPeople;
+    normalizedPeopleSearch.length >= 2
+      ? peopleSearchState.results
+      : suggestedPeople;
 
   useEffect(() => {
     if (normalizedPeopleSearch.length < 2) {
@@ -42,30 +64,30 @@ export default function PeopleScreen({
 
     let isStale = false;
     const timeout = window.setTimeout(() => {
-      setIsSearchingPeople(true);
+      updatePeopleSearchState({ isSearching: true });
       searchPeople(currentProfile.id, normalizedPeopleSearch)
         .then((results) => {
           if (isStale) {
             return;
           }
 
-          setPeopleResults(results);
-          setPeopleError("");
+          updatePeopleSearchState({
+            error: "",
+            isSearching: false,
+            results,
+          });
         })
         .catch((caught) => {
           if (isStale) {
             return;
           }
 
-          setPeopleResults([]);
-          setPeopleError(
-            caught instanceof Error ? caught.message : "Could not search people.",
-          );
-        })
-        .finally(() => {
-          if (!isStale) {
-            setIsSearchingPeople(false);
-          }
+          updatePeopleSearchState({
+            error:
+              caught instanceof Error ? caught.message : "Could not search people.",
+            isSearching: false,
+            results: [],
+          });
         });
     }, 250);
 
@@ -99,13 +121,13 @@ export default function PeopleScreen({
             </p>
           ) : null}
         </div>
-      ) : isSearchingPeople ? (
+      ) : peopleSearchState.isSearching ? (
         <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">
-          Searching...
+          Searching…
         </p>
-      ) : peopleError ? (
+      ) : peopleSearchState.error ? (
         <p className="rounded-[1.35rem] border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">
-          {peopleError}
+          {peopleSearchState.error}
         </p>
       ) : peopleToShow.length === 0 ? (
         <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">

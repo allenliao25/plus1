@@ -1,5 +1,6 @@
 import { useState } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { PeopleSearchResult, Profile, Quest } from "@/types/quest";
 
 type ProfileIdentity = Pick<
@@ -29,11 +30,12 @@ export function ProfileAvatar({ profile }: ProfileAvatarProps) {
 
   if (profile.avatarUrl && !didImageFail) {
     return (
-      <span className="block aspect-square h-20 w-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <span className="block aspect-square size-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+        <SafeImage
           src={profile.avatarUrl}
           alt=""
+          width={80}
+          height={80}
           onError={() => setDidImageFail(true)}
           className="block h-full w-full object-cover"
         />
@@ -42,7 +44,7 @@ export function ProfileAvatar({ profile }: ProfileAvatarProps) {
   }
 
   return (
-    <span className="grid aspect-square h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-950 text-2xl font-bold text-white shadow-sm">
+    <span className="grid aspect-square size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-950 text-2xl font-bold text-white shadow-sm">
       {profile.avatarInitials}
     </span>
   );
@@ -120,11 +122,12 @@ function QuestTile({
       aria-label={`Open ${quest.title}`}
     >
       {quest.cardImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <SafeImage
           src={quest.cardImageUrl}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          sizes="112px"
+          className="object-cover"
         />
       ) : (
         <QuestCategoryArtwork

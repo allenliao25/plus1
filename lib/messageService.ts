@@ -457,11 +457,21 @@ function countUnreadMessages({
 }
 
 function findLatestMessage(messages: MessageRow[]) {
-  return [...messages].sort((left, right) => {
-    const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
-    const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
-    return rightTime - leftTime;
-  })[0] ?? null;
+  let latestMessage: MessageRow | null = null;
+  let latestTime = 0;
+
+  for (const message of messages) {
+    const messageTime = message.created_at
+      ? new Date(message.created_at).getTime()
+      : 0;
+
+    if (messageTime > latestTime) {
+      latestMessage = message;
+      latestTime = messageTime;
+    }
+  }
+
+  return latestMessage;
 }
 
 function mapMessageProfile(profile: ProfileRow): QuestInviteProfile {
@@ -526,4 +536,3 @@ function normalizeQuestCategory(value: string | null): QuestCategory {
 
   return validCategories.find((category) => category === value) ?? "Other";
 }
-

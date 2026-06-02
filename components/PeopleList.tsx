@@ -1,4 +1,5 @@
 import FriendActionControls from "@/components/FriendActionControls";
+import SafeImage from "@/components/SafeImage";
 import type { PeopleSearchResult } from "@/types/quest";
 import { useState } from "react";
 
@@ -68,18 +69,19 @@ function PersonAvatar({ person }: { person: PeopleSearchResult }) {
 
   if (person.avatarUrl && !didImageFail) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={person.avatarUrl}
         alt=""
+        width={48}
+        height={48}
         onError={() => setDidImageFail(true)}
-        className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
       />
     );
   }
 
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
       {person.avatarInitials}
     </span>
   );

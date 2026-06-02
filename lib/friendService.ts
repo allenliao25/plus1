@@ -113,9 +113,13 @@ export async function fetchSuggestedFriends(
     throw new Error(`Could not load suggested friends: ${error.message}`);
   }
 
-  return (data ?? [])
-    .filter((profile) => !relatedUserIds.has(profile.id))
-    .map((profile) => mapPeopleSearchResult(profile, currentUserId, friendships));
+  return (data ?? []).reduce<PeopleSearchResult[]>((suggestions, profile) => {
+    if (!relatedUserIds.has(profile.id)) {
+      suggestions.push(mapPeopleSearchResult(profile, currentUserId, friendships));
+    }
+
+    return suggestions;
+  }, []);
 }
 
 export async function fetchPublicProfile(

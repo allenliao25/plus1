@@ -1,4 +1,5 @@
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { Quest } from "@/types/quest";
 
 type HomeGridPreviewProps = {
@@ -58,11 +59,12 @@ function HomeGridTile({
     >
       <div className="absolute inset-0">
         {quest.cardImageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImage
             src={quest.cardImageUrl}
             alt=""
-            className="h-full w-full object-cover"
+            fill
+            sizes="220px"
+            className="object-cover"
           />
         ) : (
           <QuestCategoryArtwork

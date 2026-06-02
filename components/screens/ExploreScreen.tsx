@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import PeopleList from "@/components/PeopleList";
 import QuestList from "@/components/QuestList";
 import { questCategories } from "@/data/demoQuests";
@@ -8,6 +8,11 @@ import type { PeopleSearchResult, Profile, Quest } from "@/types/quest";
 
 type FeedCategory = Quest["category"] | "All" | "Friends";
 type ExploreMode = "events" | "people";
+type PeopleSearchState = {
+  error: string;
+  isSearching: boolean;
+  results: PeopleSearchResult[];
+};
 
 type ExploreScreenProps = {
   actionProfileId: string | null;
@@ -26,7 +31,24 @@ type ExploreScreenProps = {
   onSendFriendRequest: (profileId: string) => void | Promise<void>;
 };
 
-export default function ExploreScreen({
+const initialPeopleSearchState: PeopleSearchState = {
+  error: "",
+  isSearching: false,
+  results: [],
+};
+
+function peopleSearchReducer(
+  state: PeopleSearchState,
+  action: Partial<PeopleSearchState>,
+) {
+  return { ...state, ...action };
+}
+
+export default function ExploreScreen(props: ExploreScreenProps) {
+  return useExploreScreenContent(props);
+}
+
+function useExploreScreenContent({
   acceptedFriendIds,
   actionProfileId,
   currentProfile,
@@ -46,9 +68,10 @@ export default function ExploreScreen({
   const [category, setCategory] = useState<FeedCategory>("All");
   const [eventSearch, setEventSearch] = useState("");
   const [peopleSearch, setPeopleSearch] = useState("");
-  const [peopleResults, setPeopleResults] = useState<PeopleSearchResult[]>([]);
-  const [isSearchingPeople, setIsSearchingPeople] = useState(false);
-  const [peopleError, setPeopleError] = useState("");
+  const [peopleSearchState, updatePeopleSearchState] = useReducer(
+    peopleSearchReducer,
+    initialPeopleSearchState,
+  );
   const acceptedFriendIdSet = useMemo(
     () => new Set(acceptedFriendIds),
     [acceptedFriendIds],
@@ -81,7 +104,9 @@ export default function ExploreScreen({
 
   const normalizedPeopleSearch = peopleSearch.trim();
   const peopleToShow =
-    normalizedPeopleSearch.length >= 2 ? peopleResults : suggestedPeople;
+    normalizedPeopleSearch.length >= 2
+      ? peopleSearchState.results
+      : suggestedPeople;
 
   useEffect(() => {
     if (normalizedPeopleSearch.length < 2) {
@@ -90,30 +115,30 @@ export default function ExploreScreen({
 
     let isStale = false;
     const timeout = window.setTimeout(() => {
-      setIsSearchingPeople(true);
+      updatePeopleSearchState({ isSearching: true });
       searchPeople(currentProfile.id, normalizedPeopleSearch)
         .then((results) => {
           if (isStale) {
             return;
           }
 
-          setPeopleResults(results);
-          setPeopleError("");
+          updatePeopleSearchState({
+            error: "",
+            isSearching: false,
+            results,
+          });
         })
         .catch((caught) => {
           if (isStale) {
             return;
           }
 
-          setPeopleResults([]);
-          setPeopleError(
-            caught instanceof Error ? caught.message : "Could not search people.",
-          );
-        })
-        .finally(() => {
-          if (!isStale) {
-            setIsSearchingPeople(false);
-          }
+          updatePeopleSearchState({
+            error:
+              caught instanceof Error ? caught.message : "Could not search people.",
+            isSearching: false,
+            results: [],
+          });
         });
     }, 250);
 
@@ -206,13 +231,13 @@ export default function ExploreScreen({
                 </p>
               ) : null}
             </div>
-          ) : isSearchingPeople ? (
+          ) : peopleSearchState.isSearching ? (
             <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">
-              Searching...
+              Searching…
             </p>
-          ) : peopleError ? (
+          ) : peopleSearchState.error ? (
             <p className="rounded-[1.35rem] border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">
-              {peopleError}
+              {peopleSearchState.error}
             </p>
           ) : peopleToShow.length === 0 ? (
             <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">

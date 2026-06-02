@@ -180,9 +180,13 @@ async function fetchPendingFriendRequests(
   rows: Pick<ActivityEventRow, "actor_id" | "type">[],
 ) {
   const requesterIds = uniqueValues(
-    rows
-      .filter((row) => normalizeType(row.type) === "friend_request")
-      .map((row) => row.actor_id),
+    rows.reduce<string[]>((actorIds, row) => {
+      if (normalizeType(row.type) === "friend_request" && row.actor_id) {
+        actorIds.push(row.actor_id);
+      }
+
+      return actorIds;
+    }, []),
   );
 
   if (requesterIds.length === 0) {

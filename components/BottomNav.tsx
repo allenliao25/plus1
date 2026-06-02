@@ -7,6 +7,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 
 export type AppTab = "home" | "events" | "create" | "people" | "profile";
 
@@ -68,7 +69,7 @@ export default function BottomNav({
   return (
     <nav
       aria-busy={isDisabled}
-      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border px-2 py-2"
+      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border p-2"
     >
       {shouldShowActiveMarker ? (
         <span
@@ -92,7 +93,7 @@ export default function BottomNav({
               aria-label="Create"
               className="relative z-10 flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="bottom-nav-create grid h-10 w-10 place-items-center rounded-2xl text-white ring-1 ring-white/50 transition active:scale-95">
+              <span className="bottom-nav-create grid size-10 place-items-center rounded-2xl text-white ring-1 ring-white/50 transition active:scale-95">
                 <Icon
                   size={ICON_SIZE}
                   strokeWidth={2.2}
@@ -164,10 +165,11 @@ function ProfileNavAvatar({
     >
       <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-zinc-200">
         {avatarUrl && !didImageFail ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImage
             src={avatarUrl}
             alt=""
+            width={28}
+            height={28}
             onError={() => setDidImageFail(true)}
             className="block h-full w-full object-cover"
           />

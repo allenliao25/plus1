@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { CalendarDays, MapPin, Users } from "lucide-react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import { getSiteOrigin } from "@/lib/questLinks";
 import { fetchPublicQuestShare } from "@/lib/questShareService";
 import { sharePalettes } from "@/app/e/[token]/sharePreviewStyles";
@@ -104,7 +105,7 @@ export default async function SharePage({ params }: SharePageProps) {
   const openSpots = Math.max(0, share.maxPeople - share.goingCount);
 
   return (
-    <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] px-5 py-5 text-zinc-950">
+    <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] p-5 text-zinc-950">
       <section className="mx-auto flex min-h-[calc(100lvh-2.5rem)] max-w-[28rem] flex-col justify-center gap-4">
         <div className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.12)]">
           <div
@@ -112,11 +113,12 @@ export default async function SharePage({ params }: SharePageProps) {
             className="holo-thumb relative aspect-[16/10] overflow-hidden bg-zinc-950"
           >
             {share.cardImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <SafeImage
                 src={share.cardImageUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                fill
+                sizes="448px"
+                className="object-cover"
               />
             ) : (
               <QuestCategoryArtwork
@@ -210,7 +212,7 @@ function Fact({
 }) {
   return (
     <div className="grid grid-cols-[2.25rem_1fr] items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3">
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-zinc-100 text-zinc-700">
+      <span className="grid size-9 place-items-center rounded-full bg-zinc-100 text-zinc-700">
         {icon}
       </span>
       <span>
