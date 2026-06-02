@@ -1,5 +1,6 @@
 import type { Quest } from "@/types/quest";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import QuestShareCard from "@/components/QuestShareCard";
 import QuestStatusBadge from "@/components/QuestStatusBadge";
 import { MessageCircle } from "lucide-react";
@@ -45,11 +46,12 @@ export default function QuestDetail({
           className="holo-thumb relative mb-5 aspect-[16/10] overflow-hidden rounded-[1.5rem] bg-zinc-100"
         >
           {quest.cardImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImage
               src={quest.cardImageUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              fill
+              sizes="448px"
+              className="object-cover"
             />
           ) : (
             <QuestCategoryArtwork
@@ -126,14 +128,15 @@ export default function QuestDetail({
                   className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
                 >
                   {attendee.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <SafeImage
                       src={attendee.avatarUrl}
                       alt=""
-                      className="h-5 w-5 rounded-full object-cover"
+                      width={20}
+                      height={20}
+                      className="size-5 rounded-full object-cover"
                     />
                   ) : (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
+                    <span className="grid size-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
                       {attendee.avatarInitials}
                     </span>
                   )}

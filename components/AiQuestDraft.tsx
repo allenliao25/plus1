@@ -22,6 +22,15 @@ type AiQuestDraftProps = {
 type Mode = "text" | "flyer";
 
 const MAX_BYTES = 8 * 1024 * 1024;
+const draftDayFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+});
+const draftTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 function getDraftContext() {
   const now = new Date();
@@ -60,14 +69,23 @@ async function resolveInviteProfiles(
   const unresolvedHints: string[] = [];
   const seenProfileIds = new Set<string>();
 
-  for (const hint of hints) {
-    if (profileMatchesInviteHint(currentProfile, hint)) {
-      selfHints.push(hint);
-      continue;
+  const searchableHints = hints.filter((hint) => {
+    if (!profileMatchesInviteHint(currentProfile, hint)) {
+      return true;
     }
 
-    const results = await searchProfilesForInvite(currentUserId, hint);
-    const match = chooseInviteMatch(hint, results);
+    selfHints.push(hint);
+    return false;
+  });
+
+  const matches = await Promise.all(
+    searchableHints.map(async (hint) => {
+      const results = await searchProfilesForInvite(currentUserId, hint);
+      return { hint, match: chooseInviteMatch(hint, results) };
+    }),
+  );
+
+  for (const { hint, match } of matches) {
 
     if (!match) {
       unresolvedHints.push(hint);
@@ -143,15 +161,8 @@ function formatDraftStartTime(value: string) {
     ? "Today"
     : isTomorrow
       ? "Tomorrow"
-      : new Intl.DateTimeFormat("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        }).format(date);
-  const timeLabel = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+      : draftDayFormatter.format(date);
+  const timeLabel = draftTimeFormatter.format(date);
 
   return `${dayLabel}, ${timeLabel}`;
 }
@@ -170,7 +181,11 @@ async function getAuthHeader() {
   return `Bearer ${session.access_token}`;
 }
 
-export default function AiQuestDraft({
+export default function AiQuestDraft(props: AiQuestDraftProps) {
+  return useAiQuestDraftContent(props);
+}
+
+function useAiQuestDraftContent({
   currentProfile,
   currentUserId,
   isAvailable,
@@ -273,7 +288,7 @@ export default function AiQuestDraft({
         className="flex w-full items-center gap-3 px-4 py-3 text-left"
         aria-expanded={isExpanded}
       >
-        <span className="glass-action grid h-9 w-9 shrink-0 place-items-center rounded-full border text-zinc-700">
+        <span className="glass-action grid size-9 shrink-0 place-items-center rounded-full border text-zinc-700">
           <Sparkles size={17} strokeWidth={1.9} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
@@ -295,7 +310,7 @@ export default function AiQuestDraft({
       </button>
 
       {isExpanded ? (
-        <div className="space-y-3 border-t border-zinc-200/70 px-4 py-4">
+        <div className="space-y-3 border-t border-zinc-200/70 p-4">
           {isAvailable === false ? (
             <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">
               Smart Draft needs OPENAI_API_KEY in this environment.
@@ -325,6 +340,7 @@ export default function AiQuestDraft({
           {mode === "text" ? (
             <div className="space-y-3">
               <textarea
+                aria-label="Smart draft prompt"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder="study at green tonight around 8, need 3 people"

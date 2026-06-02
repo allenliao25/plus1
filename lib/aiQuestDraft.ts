@@ -277,7 +277,10 @@ function readInviteHints(value: unknown) {
     return [];
   }
 
-  return value.map(asString).filter(Boolean);
+  return value.flatMap((item) => {
+    const hint = asString(item);
+    return hint ? [hint] : [];
+  });
 }
 
 function extractInviteHints(sourceText = "") {

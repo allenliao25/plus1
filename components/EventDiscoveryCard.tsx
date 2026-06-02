@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { Quest, QuestAttendee } from "@/types/quest";
 
 type EventDiscoveryCardProps = {
@@ -36,16 +37,17 @@ export default function EventDiscoveryCard({
   return (
     <article
       data-category={quest.category}
-      className="event-card group relative h-[calc(100svh-12.5rem)] min-h-[30rem] max-h-[42rem] snap-start overflow-hidden rounded-[1.85rem] border border-white/70 bg-zinc-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]"
+      className="event-card group relative h-[calc(100svh-15rem)] min-h-[28rem] max-h-[39rem] snap-center overflow-hidden rounded-[1.85rem] border border-white/70 bg-zinc-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]"
     >
       <div className="absolute inset-0">
         {hasImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SafeImage
             src={quest.cardImageUrl!}
             alt=""
+            fill
+            sizes="480px"
             onError={() => setDidImageFail(true)}
-            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.025]"
+            className="object-cover transition duration-700 group-hover:scale-[1.025]"
           />
         ) : (
           <QuestCategoryArtwork
@@ -86,7 +88,7 @@ export default function EventDiscoveryCard({
             event.stopPropagation();
             onOpen(quest.id);
           }}
-          className="pointer-events-auto grid h-12 w-12 place-items-center rounded-full border border-white/24 bg-black/24 text-white shadow-[0_14px_34px_rgba(0,0,0,0.26)] backdrop-blur-xl transition active:scale-95"
+          className="pointer-events-auto grid size-12 place-items-center rounded-full border border-white/24 bg-black/24 text-white shadow-[0_14px_34px_rgba(0,0,0,0.26)] backdrop-blur-xl transition active:scale-95"
           aria-label={`View details for ${quest.title}`}
         >
           <Eye size={20} strokeWidth={2.25} aria-hidden="true" />
@@ -159,17 +161,18 @@ function HostAvatar({
 }) {
   if (host?.avatarUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={host.avatarUrl}
         alt=""
-        className="h-11 w-11 shrink-0 rounded-full border border-white/50 object-cover"
+        width={44}
+        height={44}
+        className="size-11 shrink-0 rounded-full border border-white/50 object-cover"
       />
     );
   }
 
   return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/36 bg-white/18 text-sm font-black text-white shadow-inner">
+    <div className="grid size-11 shrink-0 place-items-center rounded-full border border-white/36 bg-white/18 text-sm font-black text-white shadow-inner">
       {host?.avatarInitials ?? getInitials(quest.creator)}
     </div>
   );

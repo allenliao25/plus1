@@ -4,6 +4,7 @@ import { ArrowUpRight, Check, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import {
   buildActivityLine,
   groupActivityEvents,
@@ -174,7 +175,7 @@ function ActivityRow({
       <div className="relative shrink-0">
         <ActivityAvatar event={event} />
         {!event.isRead ? (
-          <span className="absolute -right-0.5 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-rose-500" />
+          <span className="absolute -right-0.5 top-0 size-2.5 rounded-full border-2 border-white bg-rose-500" />
         ) : null}
       </div>
 
@@ -269,11 +270,12 @@ function ActivityAvatar({ event }: { event: ActivityEvent }) {
 
   if (actor?.avatarUrl && !didImageFail) {
     return (
-      <span className="glass-chip block h-12 w-12 overflow-hidden rounded-full border bg-zinc-100">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <span className="glass-chip block size-12 overflow-hidden rounded-full border bg-zinc-100">
+        <SafeImage
           src={actor.avatarUrl}
           alt=""
+          width={48}
+          height={48}
           onError={() => setDidImageFail(true)}
           className="block h-full w-full object-cover"
         />
@@ -282,7 +284,7 @@ function ActivityAvatar({ event }: { event: ActivityEvent }) {
   }
 
   return (
-    <span className="grid h-12 w-12 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white shadow-sm">
+    <span className="grid size-12 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white shadow-sm">
       {initials}
     </span>
   );
@@ -291,17 +293,18 @@ function ActivityAvatar({ event }: { event: ActivityEvent }) {
 function FriendAvatar({ request }: { request: FriendConnection }) {
   if (request.profile.avatarUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={request.profile.avatarUrl}
         alt=""
-        className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        width={48}
+        height={48}
+        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
       />
     );
   }
 
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
       {request.profile.avatarInitials}
     </span>
   );
@@ -312,11 +315,12 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
   if (event.quest?.cardImageUrl && !didImageFail) {
     return (
-      <span className="relative block h-16 w-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+      <span className="relative block size-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+        <SafeImage
           src={event.quest.cardImageUrl}
           alt=""
+          width={64}
+          height={64}
           onError={() => setDidImageFail(true)}
           className="block h-full w-full object-cover"
         />
@@ -327,7 +331,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
   if (event.quest) {
     return (
-      <span className="relative block h-16 w-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+      <span className="relative block size-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
         <QuestCategoryArtwork
           category={event.quest.category}
           className="h-full w-full"
@@ -347,7 +351,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
 function PreviewBadge() {
   return (
-    <span className="absolute bottom-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-white/92 text-zinc-950 shadow-sm">
+    <span className="absolute bottom-1 right-1 grid size-5 place-items-center rounded-full bg-white/92 text-zinc-950 shadow-sm">
       <ArrowUpRight size={12} strokeWidth={2.5} aria-hidden="true" />
     </span>
   );

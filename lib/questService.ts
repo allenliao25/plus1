@@ -42,6 +42,7 @@ const validCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
+  "Sidequest",
   "Other",
 ];
 const validVisibility: QuestVisibility[] = [
@@ -50,6 +51,13 @@ const validVisibility: QuestVisibility[] = [
   "local",
 ];
 const legacyLocalVisibilityValue = "campus";
+const questTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 export const publicProfileSelect =
   "id, display_name, handle, avatar_initials, avatar_url, website_url, bio, pronouns, area, interests, created_at, updated_at";
 const legacyPublicProfileSelect =
@@ -809,8 +817,15 @@ function buildAttendees(
     : [];
 
   const joiners = joins
-    .map((join) => (join.user_id ? profilesById.get(join.user_id) : null))
-    .filter((profile): profile is Profile => Boolean(profile))
+    .reduce<Profile[]>((profiles, join) => {
+      const profile = join.user_id ? profilesById.get(join.user_id) : null;
+
+      if (profile) {
+        profiles.push(profile);
+      }
+
+      return profiles;
+    }, [])
     .sort((left, right) => left.displayName.localeCompare(right.displayName))
     .map((profile) => ({
       id: profile.id,
@@ -828,9 +843,18 @@ function buildInvitedProfiles(
   profilesById: Map<string, Profile>,
 ) {
   return invites
-    .filter((invite) => invite.status !== "declined")
-    .map((invite) => profilesById.get(invite.invitee_id))
-    .filter((profile): profile is Profile => Boolean(profile))
+    .reduce<Profile[]>((profiles, invite) => {
+      const profile =
+        invite.status !== "declined"
+          ? profilesById.get(invite.invitee_id)
+          : null;
+
+      if (profile) {
+        profiles.push(profile);
+      }
+
+      return profiles;
+    }, [])
     .sort((left, right) => left.displayName.localeCompare(right.displayName))
     .map((profile) => ({
       id: profile.id,
@@ -888,9 +912,13 @@ async function replaceQuestInvites({
   }
 
   const existingIds = new Set(
-    (existing.data ?? [])
-      .filter((row) => row.status !== "declined")
-      .map((row) => row.invitee_id),
+    (existing.data ?? []).reduce<string[]>((inviteeIds, row) => {
+      if (row.status !== "declined") {
+        inviteeIds.push(row.invitee_id);
+      }
+
+      return inviteeIds;
+    }, []),
   );
   const nextIds = new Set(uniqueInviteeIds);
   const removedIds = [...existingIds].filter((inviteeId) => !nextIds.has(inviteeId));
@@ -1002,8 +1030,8 @@ function mapJoinQuestError(message: string) {
 }
 
 export function normalizeQuestCategory(category: string | null): QuestCategory {
-  if (category === "Errand" || category === "Sidequest") {
-    return "Other";
+  if (category === "Errand") {
+    return "Sidequest";
   }
 
   const match = validCategories.find((option) => option === category);
@@ -1132,13 +1160,7 @@ export function formatQuestTime(value: string | null) {
     return "Time TBD";
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return questTimeFormatter.format(date);
 }
 
 function initials(name: string | null) {

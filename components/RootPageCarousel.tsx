@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
   type ReactNode,
+  type Ref,
 } from "react";
 
 const SCROLL_IDLE_MS = 120;
@@ -20,6 +20,7 @@ type RootPageCarouselProps<T extends string> = {
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
   pages: readonly T[];
+  ref?: Ref<RootPageCarouselHandle>;
   renderPanel: (page: T, index: number) => ReactNode;
 };
 
@@ -31,10 +32,13 @@ function readActiveIndex(element: HTMLElement) {
   return Math.round(element.scrollLeft / element.clientWidth);
 }
 
-function RootPageCarouselInner<T extends string>(
-  { activeIndex, onActiveIndexChange, pages, renderPanel }: RootPageCarouselProps<T>,
-  ref: React.ForwardedRef<RootPageCarouselHandle>,
-) {
+export default function RootPageCarousel<T extends string>({
+  activeIndex,
+  onActiveIndexChange,
+  pages,
+  ref,
+  renderPanel,
+}: RootPageCarouselProps<T>) {
   const trackRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollRef = useRef(false);
   const scrollIdleTimerRef = useRef<number | null>(null);
@@ -158,21 +162,19 @@ function RootPageCarouselInner<T extends string>(
     };
   }, [onActiveIndexChange]);
 
+  const panels = pages.map((page, index) => {
+    const panel = renderPanel(page, index);
+
+    return (
+      <div key={page} className="root-carousel-panel">
+        {panel}
+      </div>
+    );
+  });
+
   return (
     <div ref={trackRef} className="root-carousel min-h-0 flex-1">
-      {pages.map((page, index) => (
-        <div key={page} className="root-carousel-panel">
-          {renderPanel(page, index)}
-        </div>
-      ))}
+      {panels}
     </div>
   );
 }
-
-const RootPageCarousel = forwardRef(RootPageCarouselInner) as <
-  T extends string,
->(
-  props: RootPageCarouselProps<T> & { ref?: React.ForwardedRef<RootPageCarouselHandle> },
-) => ReturnType<typeof RootPageCarouselInner>;
-
-export default RootPageCarousel;

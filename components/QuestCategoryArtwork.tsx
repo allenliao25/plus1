@@ -28,6 +28,13 @@ const palettes: Record<QuestCategory, Palette> = {
     soft: "#5eead4",
     pale: "#ccfbf1",
   },
+  Sidequest: {
+    base: "#f43f5e",
+    dark: "#881337",
+    mid: "#be123c",
+    soft: "#fb7185",
+    pale: "#ffe4e6",
+  },
   Other: {
     base: "#a855f7",
     dark: "#581c87",
@@ -99,6 +106,10 @@ function CategoryShapes({
 
   if (category === "Social") {
     return <SocialShapes palette={palette} />;
+  }
+
+  if (category === "Sidequest") {
+    return <SidequestShapes palette={palette} />;
   }
 
   if (category === "Other") {
@@ -178,6 +189,50 @@ function SocialShapes({ palette }: { palette: Palette }) {
         strokeLinecap="round"
         strokeWidth="7"
         opacity="0.28"
+      />
+    </g>
+  );
+}
+
+function SidequestShapes({ palette }: { palette: Palette }) {
+  return (
+    <g>
+      <path
+        d="M52 128c19-34 45-53 79-56 25-2 45-13 61-33"
+        fill="none"
+        stroke={palette.dark}
+        strokeLinecap="round"
+        strokeWidth="14"
+        opacity="0.52"
+      />
+      <path
+        d="M57 126c18-26 40-40 67-43 30-4 54-18 72-43"
+        fill="none"
+        stroke={palette.pale}
+        strokeLinecap="round"
+        strokeWidth="6"
+        opacity="0.74"
+      />
+      <path
+        d="M38 101h54a21 21 0 0 1 21 21v10a21 21 0 0 1-21 21H38z"
+        fill={palette.dark}
+        opacity="0.68"
+      />
+      <path
+        d="M57 119h24M69 107v24"
+        stroke={palette.pale}
+        strokeLinecap="round"
+        strokeWidth="7"
+      />
+      <path
+        d="M145 32h44l-10 33 22 8-50 60 12-42-25-8z"
+        fill={palette.soft}
+        opacity="0.68"
+      />
+      <path
+        d="m39 44 6 13 14 2-10 10 2 14-12-7-12 7 2-14-10-10 14-2zm170 93 5 10 11 2-8 8 2 11-10-6-10 6 2-11-8-8 11-2z"
+        fill={palette.pale}
+        opacity="0.72"
       />
     </g>
   );

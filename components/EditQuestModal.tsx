@@ -2,6 +2,7 @@ import { Camera, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import InvitePicker from "@/components/InvitePicker";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type {
   NewQuestInput,
   Quest,
@@ -65,7 +66,11 @@ function toDatetimeLocal(value: string | null) {
   return localDate.toISOString().slice(0, 16);
 }
 
-export default function EditQuestModal({
+export default function EditQuestModal(props: EditQuestModalProps) {
+  return useEditQuestModalContent(props);
+}
+
+function useEditQuestModalContent({
   currentUserId,
   friendProfiles = [],
   isSubmitting,
@@ -99,7 +104,6 @@ export default function EditQuestModal({
   const [invitees, setInvitees] = useState<QuestInviteProfile[]>(
     quest.invitedProfiles ?? [],
   );
-  const cardImageObjectUrlRef = useRef<string | null>(null);
   const cardImageInputRef = useRef<HTMLInputElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
@@ -178,11 +182,7 @@ export default function EditQuestModal({
 
     try {
       validateQuestCardImageFile(file);
-      if (cardImageObjectUrlRef.current) {
-        URL.revokeObjectURL(cardImageObjectUrlRef.current);
-      }
       const objectUrl = URL.createObjectURL(file);
-      cardImageObjectUrlRef.current = objectUrl;
       setCardImageFile(file);
       setCardImagePreviewUrl(objectUrl);
       setRemoveCardImage(false);
@@ -197,12 +197,14 @@ export default function EditQuestModal({
   }
 
   useEffect(() => {
+    if (!cardImagePreviewUrl?.startsWith("blob:")) {
+      return;
+    }
+
     return () => {
-      if (cardImageObjectUrlRef.current) {
-        URL.revokeObjectURL(cardImageObjectUrlRef.current);
-      }
+      URL.revokeObjectURL(cardImagePreviewUrl);
     };
-  }, []);
+  }, [cardImagePreviewUrl]);
 
   return (
     <div className="fixed inset-0 z-50 bg-white/72 text-zinc-950 backdrop-blur-2xl">
@@ -271,10 +273,6 @@ export default function EditQuestModal({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => {
-                    if (cardImageObjectUrlRef.current) {
-                      URL.revokeObjectURL(cardImageObjectUrlRef.current);
-                      cardImageObjectUrlRef.current = null;
-                    }
                     setCardImageFile(null);
                     setCardImagePreviewUrl(null);
                     setRemoveCardImage(true);
@@ -295,10 +293,11 @@ export default function EditQuestModal({
               className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
             >
               {cardImagePreviewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SafeImage
                   src={cardImagePreviewUrl}
                   alt=""
+                  width={448}
+                  height={176}
                   className="h-44 w-full object-cover"
                 />
               ) : (
@@ -317,7 +316,7 @@ export default function EditQuestModal({
                         Upload a photo anytime.
                       </span>
                     </span>
-                    <span className="glass-action grid h-10 w-10 shrink-0 place-items-center rounded-full border text-zinc-800">
+                    <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-zinc-800">
                       <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
                     </span>
                   </span>
@@ -325,6 +324,7 @@ export default function EditQuestModal({
               )}
             </button>
             <input
+              aria-label="Event card photo"
               ref={cardImageInputRef}
               type="file"
               accept="image/*"
@@ -369,6 +369,7 @@ export default function EditQuestModal({
             </div>
             {timeMode === "scheduled" ? (
               <input
+                aria-label="Scheduled event time"
                 type="datetime-local"
                 value={form.startTime}
                 onChange={(event) => updateForm("startTime", event.target.value)}
@@ -467,7 +468,7 @@ export default function EditQuestModal({
               disabled={isSubmitting}
               className="min-h-12 flex-1 rounded-full bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:bg-zinc-300"
             >
-              {isSubmitting ? "Saving..." : "Save changes"}
+              {isSubmitting ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>

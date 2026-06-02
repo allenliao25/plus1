@@ -1,5 +1,6 @@
 import { Search, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
+import SafeImage from "@/components/SafeImage";
 import { searchProfilesForInvite } from "@/lib/friendService";
 import type { QuestInviteProfile } from "@/types/quest";
 
@@ -11,17 +12,39 @@ type InvitePickerProps = {
   onChange: (profiles: QuestInviteProfile[]) => void;
 };
 
+const EMPTY_FRIEND_PROFILES: QuestInviteProfile[] = [];
+
+type InviteSearchState = {
+  error: string;
+  isSearching: boolean;
+  results: QuestInviteProfile[];
+};
+
+const initialInviteSearchState: InviteSearchState = {
+  error: "",
+  isSearching: false,
+  results: [],
+};
+
+function inviteSearchReducer(
+  state: InviteSearchState,
+  action: Partial<InviteSearchState>,
+) {
+  return { ...state, ...action };
+}
+
 export default function InvitePicker({
   currentUserId,
   disabled = false,
-  friendProfiles = [],
+  friendProfiles = EMPTY_FRIEND_PROFILES,
   selectedProfiles,
   onChange,
 }: InvitePickerProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<QuestInviteProfile[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState("");
+  const [searchState, updateSearchState] = useReducer(
+    inviteSearchReducer,
+    initialInviteSearchState,
+  );
   const normalizedQuery = query.trim();
   const selectedIds = useMemo(
     () => new Set(selectedProfiles.map((profile) => profile.id)),
@@ -40,7 +63,7 @@ export default function InvitePicker({
     let isStale = false;
 
     const timeout = window.setTimeout(() => {
-      setIsSearching(true);
+      updateSearchState({ isSearching: true });
       searchProfilesForInvite(currentUserId, normalizedQuery)
         .then((profiles) => {
           if (isStale) {
@@ -48,8 +71,10 @@ export default function InvitePicker({
           }
 
           const friendIds = new Set(friendProfiles.map((profile) => profile.id));
-          setResults(
-            profiles
+          updateSearchState({
+            error: "",
+            isSearching: false,
+            results: profiles
               .filter((profile) => !selectedIds.has(profile.id))
               .sort((left, right) => {
                 const leftIsFriend = friendIds.has(left.id);
@@ -61,25 +86,21 @@ export default function InvitePicker({
 
                 return leftIsFriend ? -1 : 1;
               }),
-          );
-          setError("");
+          });
         })
         .catch((caught) => {
           if (isStale) {
             return;
           }
 
-          setResults([]);
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Could not search people.",
-          );
-        })
-        .finally(() => {
-          if (!isStale) {
-            setIsSearching(false);
-          }
+          updateSearchState({
+            error:
+              caught instanceof Error
+                ? caught.message
+                : "Could not search people.",
+            isSearching: false,
+            results: [],
+          });
         });
     }, 250);
 
@@ -92,7 +113,7 @@ export default function InvitePicker({
   function addProfile(profile: QuestInviteProfile) {
     onChange([...selectedProfiles, profile]);
     setQuery("");
-    setResults([]);
+    updateSearchState({ results: [] });
   }
 
   function removeProfile(profileId: string) {
@@ -139,7 +160,7 @@ export default function InvitePicker({
                 type="button"
                 disabled={disabled}
                 onClick={() => removeProfile(profile.id)}
-                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-white hover:text-zinc-700 disabled:opacity-50"
+                className="grid size-6 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-white hover:text-zinc-700 disabled:opacity-50"
                 aria-label={`Remove ${profile.displayName}`}
               >
                 <X size={13} strokeWidth={2.2} aria-hidden="true" />
@@ -183,15 +204,17 @@ export default function InvitePicker({
 
       {normalizedQuery.length >= 2 ? (
         <div className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-          {isSearching ? (
-            <p className="px-3 py-3 text-sm font-semibold text-zinc-500">
-              Searching...
+          {searchState.isSearching ? (
+            <p className="p-3 text-sm font-semibold text-zinc-500">
+              Searching…
             </p>
-          ) : error ? (
-            <p className="px-3 py-3 text-sm font-bold text-red-600">{error}</p>
-          ) : results.length > 0 ? (
+          ) : searchState.error ? (
+            <p className="p-3 text-sm font-bold text-red-600">
+              {searchState.error}
+            </p>
+          ) : searchState.results.length > 0 ? (
             <div className="divide-y divide-zinc-100">
-              {results.map((profile) => (
+              {searchState.results.map((profile) => (
                 <button
                   key={profile.id}
                   type="button"
@@ -212,7 +235,7 @@ export default function InvitePicker({
               ))}
             </div>
           ) : (
-            <p className="px-3 py-3 text-sm font-semibold text-zinc-500">
+            <p className="p-3 text-sm font-semibold text-zinc-500">
               No matching people.
             </p>
           )}
@@ -227,18 +250,19 @@ function Avatar({ profile }: { profile: QuestInviteProfile }) {
 
   if (profile.avatarUrl && !didImageFail) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={profile.avatarUrl}
         alt=""
+        width={32}
+        height={32}
         onError={() => setDidImageFail(true)}
-        className="h-8 w-8 shrink-0 rounded-full object-cover"
+        className="size-8 shrink-0 rounded-full object-cover"
       />
     );
   }
 
   return (
-    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-zinc-900 text-[11px] font-bold text-white">
+    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-900 text-[11px] font-bold text-white">
       {profile.avatarInitials}
     </span>
   );

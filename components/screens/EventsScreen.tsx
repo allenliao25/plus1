@@ -42,7 +42,7 @@ export default function EventsScreen({
 
   return (
     <div className="-mx-5 space-y-4">
-      <div className="snap-start border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
+      <div className="border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
         <div className="mb-2 flex items-center justify-between gap-3">
           <div>
             <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-400">
@@ -90,7 +90,7 @@ export default function EventsScreen({
           />
         </div>
       ) : (
-        <div className="space-y-4 px-5 pb-3">
+        <div className="space-y-4 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+8.75rem)] pt-8">
           {feedModel.filteredQuests.map((quest) => (
             <EventDiscoveryCard
               key={quest.id}

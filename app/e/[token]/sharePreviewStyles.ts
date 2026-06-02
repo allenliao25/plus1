@@ -23,6 +23,13 @@ export const sharePalettes: Record<QuestCategory, SharePalette> = {
     soft: "#5eead4",
     pale: "#ccfbf1",
   },
+  Sidequest: {
+    base: "#f43f5e",
+    dark: "#881337",
+    mid: "#be123c",
+    soft: "#fb7185",
+    pale: "#ffe4e6",
+  },
   Other: {
     base: "#64748b",
     dark: "#1e293b",

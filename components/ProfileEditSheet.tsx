@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import SafeImage from "@/components/SafeImage";
 import { AREA_OPTIONS, DEFAULT_AREA } from "@/lib/area";
 import {
   PROFILE_PRONOUNS_MAX_LENGTH,
@@ -43,7 +44,11 @@ const CROP_PREVIEW_SIZE = 260;
 const CROP_OUTPUT_SIZE = 512;
 const DEFAULT_CROP_OFFSET = { x: 0, y: 0 };
 
-export default function ProfileEditSheet({
+export default function ProfileEditSheet(props: ProfileEditSheetProps) {
+  return useProfileEditSheetContent(props);
+}
+
+function useProfileEditSheetContent({
   profile,
   isSaving,
   saveError,
@@ -69,8 +74,6 @@ export default function ProfileEditSheet({
   const [isCropDragging, setIsCropDragging] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [hiddenSaveError, setHiddenSaveError] = useState("");
-  const objectUrlRef = useRef<string | null>(null);
-  const cropObjectUrlRef = useRef<string | null>(null);
   const cropImageRef = useRef<HTMLImageElement>(null);
   const cameraFileInputRef = useRef<HTMLInputElement>(null);
   const libraryFileInputRef = useRef<HTMLInputElement>(null);
@@ -153,7 +156,6 @@ export default function ProfileEditSheet({
     clearCropSource();
 
     const objectUrl = URL.createObjectURL(file);
-    cropObjectUrlRef.current = objectUrl;
     setCropSourceUrl(objectUrl);
     setCropSourceName(file.name || "profile-photo.jpg");
     setCropZoom(1);
@@ -172,11 +174,6 @@ export default function ProfileEditSheet({
   }
 
   function clearCropSource() {
-    if (cropObjectUrlRef.current) {
-      URL.revokeObjectURL(cropObjectUrlRef.current);
-      cropObjectUrlRef.current = null;
-    }
-
     cropDragRef.current = null;
     setIsCropDragging(false);
     setCropSourceUrl(null);
@@ -268,12 +265,7 @@ export default function ProfileEditSheet({
         zoom: cropZoom,
       });
 
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-
       const previewUrl = URL.createObjectURL(file);
-      objectUrlRef.current = previewUrl;
       setAvatarPreviewUrl(previewUrl);
       setAvatarFile(file);
       setAvatarError("");
@@ -290,16 +282,28 @@ export default function ProfileEditSheet({
 
     return () => {
       document.body.style.overflow = previousOverflow;
-
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-      }
-
-      if (cropObjectUrlRef.current) {
-        URL.revokeObjectURL(cropObjectUrlRef.current);
-      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!avatarPreviewUrl?.startsWith("blob:")) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(avatarPreviewUrl);
+    };
+  }, [avatarPreviewUrl]);
+
+  useEffect(() => {
+    if (!cropSourceUrl) {
+      return;
+    }
+
+    return () => {
+      URL.revokeObjectURL(cropSourceUrl);
+    };
+  }, [cropSourceUrl]);
 
   const cropBaseScale = cropNaturalSize
     ? Math.max(
@@ -345,17 +349,18 @@ export default function ProfileEditSheet({
 
         <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-4 py-5">
           <div className="flex flex-col items-center">
-            <div className="relative aspect-square h-24 w-24 overflow-visible rounded-full">
+            <div className="relative aspect-square size-24 overflow-visible rounded-full">
               {avatarPreviewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <SafeImage
                   src={avatarPreviewUrl}
                   alt=""
+                  width={96}
+                  height={96}
                   onError={() => setAvatarPreviewUrl(null)}
-                  className="aspect-square h-24 w-24 rounded-full object-cover"
+                  className="aspect-square size-24 rounded-full object-cover"
                 />
               ) : (
-                <span className="grid h-24 w-24 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white">
+                <span className="grid size-24 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white">
                   {profile.avatarInitials}
                 </span>
               )}
@@ -378,6 +383,7 @@ export default function ProfileEditSheet({
                 Choose photo
               </button>
               <input
+                aria-label="Take profile photo"
                 ref={cameraFileInputRef}
                 type="file"
                 accept="image/*"
@@ -386,6 +392,7 @@ export default function ProfileEditSheet({
                 onChange={(event) => handleAvatarFile(event.target.files?.[0])}
               />
               <input
+                aria-label="Choose profile photo"
                 ref={libraryFileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -403,6 +410,7 @@ export default function ProfileEditSheet({
           <div className="glass-panel mt-6 divide-y divide-zinc-100 rounded-2xl border">
             <ProfileField label="Name">
               <input
+                aria-label="Name"
                 type="text"
                 required
                 maxLength={32}
@@ -418,6 +426,7 @@ export default function ProfileEditSheet({
 
             <ProfileField label="Handle">
               <input
+                aria-label="Handle"
                 type="text"
                 required
                 maxLength={31}
@@ -435,6 +444,7 @@ export default function ProfileEditSheet({
 
             <ProfileField label="Pronouns">
               <input
+                aria-label="Pronouns"
                 type="text"
                 maxLength={PROFILE_PRONOUNS_MAX_LENGTH}
                 value={pronouns}
@@ -451,6 +461,7 @@ export default function ProfileEditSheet({
 
             <ProfileField label="Local area">
               <select
+                aria-label="Local area"
                 value={area}
                 onChange={(event) => {
                   clearLocalErrors();
@@ -468,6 +479,7 @@ export default function ProfileEditSheet({
 
             <ProfileField label="Bio">
               <textarea
+                aria-label="Bio"
                 value={bio}
                 maxLength={150}
                 rows={4}
@@ -524,11 +536,12 @@ export default function ProfileEditSheet({
               onPointerUp={handleCropPointerEnd}
               onPointerCancel={handleCropPointerEnd}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <SafeImage
                 ref={cropImageRef}
                 src={cropSourceUrl}
                 alt=""
+                width={260}
+                height={260}
                 draggable={false}
                 onLoad={(event) => {
                   setCropNaturalSize({

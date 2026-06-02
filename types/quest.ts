@@ -4,6 +4,7 @@ export type QuestCategory =
   | "Fitness"
   | "Outdoors"
   | "Social"
+  | "Sidequest"
   | "Other";
 
 export type QuestStatus = "open" | "closed" | "past";

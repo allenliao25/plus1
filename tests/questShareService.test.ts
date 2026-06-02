@@ -75,6 +75,28 @@ test("mapPublicQuestShareRow exposes only public share payload fields", () => {
   assert.equal("invitedProfiles" in share, false);
 });
 
+test("mapPublicQuestShareRow maps legacy sidequest category", () => {
+  const share = mapPublicQuestShareRow({
+    token: "abc123",
+    quest_id: "quest-1",
+    title: "Supply run",
+    category: "Errand",
+    location: "Downtown",
+    start_time: null,
+    description: "Quick pickup.",
+    card_image_url: null,
+    visibility: "local",
+    status: "open",
+    host_display_name: "Maya",
+    host_handle: "maya",
+    going_count: 2,
+    max_people: 6,
+    created_at: "2026-05-31T12:00:00Z",
+  });
+
+  assert.equal(share.category, "Sidequest");
+});
+
 test("local demo events create public preview links without Supabase UUIDs", async () => {
   const shareLink = await createQuestShareLink("local-demo-quest-dish-sunset");
 

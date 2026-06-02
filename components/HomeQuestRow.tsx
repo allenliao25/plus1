@@ -1,4 +1,5 @@
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import type { Quest } from "@/types/quest";
 
 type HomeQuestRowProps = {
@@ -33,13 +34,14 @@ export default function HomeQuestRow({
       />
 
       <div className="pointer-events-none relative z-20 grid grid-cols-[4.75rem_1fr_auto] items-center gap-3">
-        <div className="holo-thumb aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
+        <div className="holo-thumb relative aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
           {quest.cardImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <SafeImage
               src={quest.cardImageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              fill
+              sizes="76px"
+              className="object-cover"
             />
           ) : (
             <QuestCategoryArtwork

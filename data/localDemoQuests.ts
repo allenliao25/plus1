@@ -91,7 +91,7 @@ const localDemoQuestSeeds: LocalDemoQuestSeed[] = [
   {
     id: "ceramics-drop-in",
     title: "Try the ceramics studio",
-    category: "Other",
+    category: "Sidequest",
     location: "Roble Arts Gym",
     startsInHours: 50,
     description: "No experience needed, just making tiny imperfect bowls.",
@@ -162,7 +162,7 @@ const localDemoQuestSeeds: LocalDemoQuestSeed[] = [
   },
   {
     id: "thrift-other",
-    title: "Thrift store other",
+    title: "Thrift store sidequest",
     category: "Other",
     location: "Menlo Park",
     startsInHours: 48,

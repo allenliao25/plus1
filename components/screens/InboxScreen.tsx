@@ -1,6 +1,7 @@
 import { MessageCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
+import SafeImage from "@/components/SafeImage";
 import { splitThreadsByKind } from "@/lib/messageService";
 import { formatRelativeTime } from "@/lib/relativeTime";
 import { useNow } from "@/lib/useNow";
@@ -173,17 +174,18 @@ function ThreadRow({
 function EventAvatar({ thread }: { thread: MessageThread }) {
   if (thread.quest?.cardImageUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={thread.quest.cardImageUrl}
         alt=""
-        className="h-[52px] w-[52px] shrink-0 rounded-2xl object-cover ring-1 ring-zinc-200"
+        width={52}
+        height={52}
+        className="size-[52px] shrink-0 rounded-2xl object-cover ring-1 ring-zinc-200"
       />
     );
   }
 
   return (
-    <span className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200">
+    <span className="relative size-[52px] shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200">
       <QuestCategoryArtwork
         category={thread.quest?.category ?? "Other"}
         className="absolute inset-0 h-full w-full"
@@ -203,17 +205,18 @@ function ProfileAvatar({
 
   if (avatarUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <SafeImage
         src={avatarUrl}
         alt=""
-        className="h-[52px] w-[52px] shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        width={52}
+        height={52}
+        className="size-[52px] shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
       />
     );
   }
 
   return (
-    <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-[52px] shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
       {initials}
     </span>
   );
@@ -222,7 +225,7 @@ function ProfileAvatar({
 function EmptyInbox({ mode }: { mode: InboxMode }) {
   return (
     <div className="glass-panel rounded-[1.35rem] border p-6 text-center">
-      <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-zinc-100 text-zinc-500">
+      <span className="mx-auto grid size-12 place-items-center rounded-full bg-zinc-100 text-zinc-500">
         <MessageCircle size={22} strokeWidth={2.1} aria-hidden="true" />
       </span>
       <p className="mt-3 text-sm font-extrabold text-zinc-950">

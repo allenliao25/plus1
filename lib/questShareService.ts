@@ -22,8 +22,16 @@ const validCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
+  "Sidequest",
   "Other",
 ];
+const shareTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 const validVisibility: QuestVisibility[] = ["invite_only", "friends", "local"];
 
 export async function createQuestShareLink(questId: string) {
@@ -118,6 +126,10 @@ function mapShareLinkError(message: string) {
 }
 
 function normalizeQuestCategory(category: string | null): QuestCategory {
+  if (category === "Errand") {
+    return "Sidequest";
+  }
+
   const match = validCategories.find((option) => option === category);
   return match ?? "Social";
 }
@@ -193,11 +205,5 @@ function formatQuestTime(value: string | null) {
     return "Time TBD";
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return shareTimeFormatter.format(date);
 }

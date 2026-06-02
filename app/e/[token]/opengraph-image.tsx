@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { type CSSProperties } from "react";
 import { fetchPublicQuestShare } from "@/lib/questShareService";
 import { sharePalettes } from "@/app/e/[token]/sharePreviewStyles";
 
@@ -15,39 +16,90 @@ export const contentType = "image/png";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export default async function Image({ params }: ImageProps) {
+const unavailableOuterStyle = {
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#f7f7f5",
+  color: "#18181b",
+  fontFamily: "Arial",
+} satisfies CSSProperties;
+const unavailableCardStyle = {
+  width: 760,
+  height: 390,
+  borderRadius: 52,
+  background: "#ffffff",
+  border: "1px solid #e4e4e7",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 56,
+} satisfies CSSProperties;
+const shareOuterStyle = {
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#f7f7f5",
+  color: "#111111",
+  fontFamily: "Arial",
+  padding: 56,
+} satisfies CSSProperties;
+const shareCardStyle = {
+  width: "100%",
+  height: "100%",
+  borderRadius: 44,
+  background: "#ffffff",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  padding: 64,
+} satisfies CSSProperties;
+const metaStyle = {
+  fontSize: 28,
+  fontWeight: 900,
+  letterSpacing: 3,
+  textTransform: "uppercase",
+} satisfies CSSProperties;
+const titleStyle = {
+  fontSize: 84,
+  fontWeight: 900,
+  letterSpacing: 0,
+  lineHeight: 1,
+} satisfies CSSProperties;
+const detailsStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  fontSize: 32,
+  fontWeight: 700,
+  color: "#3f3f46",
+} satisfies CSSProperties;
+const brandMarkStyle = {
+  width: 58,
+  height: 58,
+  borderRadius: 999,
+  color: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 24,
+  fontWeight: 900,
+} satisfies CSSProperties;
+
+export default async function image({ params }: ImageProps) {
   const { token } = await params;
   const share = await fetchPublicQuestShare(token).catch(() => null);
 
   if (!share) {
     return new ImageResponse(
       (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#f7f7f5",
-            color: "#18181b",
-            fontFamily: "Arial",
-          }}
-        >
-          <div
-            style={{
-              width: 760,
-              height: 390,
-              borderRadius: 52,
-              background: "#ffffff",
-              border: "1px solid #e4e4e7",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 56,
-            }}
-          >
+        <div style={unavailableOuterStyle}>
+          <div style={unavailableCardStyle}>
             <div style={{ fontSize: 32, fontWeight: 800, color: "#71717a" }}>
               plus1
             </div>
@@ -68,64 +120,26 @@ export default async function Image({ params }: ImageProps) {
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f7f7f5",
-          color: "#111111",
-          fontFamily: "Arial",
-          padding: 56,
-        }}
-      >
+      <div style={shareOuterStyle}>
         <div
           style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: 44,
-            background: "#ffffff",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: 64,
+            ...shareCardStyle,
             border: `6px solid ${palette.dark}`,
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <div
               style={{
+                ...metaStyle,
                 color: palette.dark,
-                fontSize: 28,
-                fontWeight: 900,
-                letterSpacing: 3,
-                textTransform: "uppercase",
               }}
             >
               {metaLabel}
             </div>
-            <div
-              style={{
-                fontSize: 84,
-                fontWeight: 900,
-                letterSpacing: 0,
-                lineHeight: 1,
-              }}
-            >
+            <div style={titleStyle}>
               {share.title}
             </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                fontSize: 32,
-                fontWeight: 700,
-                color: "#3f3f46",
-              }}
-            >
+            <div style={detailsStyle}>
               <div>{share.location}</div>
               <div>{spotsLabel}</div>
             </div>
@@ -134,16 +148,8 @@ export default async function Image({ params }: ImageProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <div
               style={{
-                width: 58,
-                height: 58,
-                borderRadius: 999,
+                ...brandMarkStyle,
                 background: palette.dark,
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 24,
-                fontWeight: 900,
               }}
             >
               +1
