@@ -136,6 +136,16 @@ type SelectedProfileState = {
   quests: Quest[];
 };
 
+type InAppBanner = {
+  id: string;
+  kind: "activity" | "message";
+  title: string;
+  body: string | null;
+  threadId?: string;
+  questId?: string | null;
+  actorId?: string | null;
+};
+
 const initialSelectedProfileState: SelectedProfileState = {
   isLoading: false,
   profile: null,
@@ -220,11 +230,16 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
   const [utilityView, setUtilityView] = useState<"activity" | "inbox" | null>(
     null,
   );
+  const [inAppBanner, setInAppBanner] = useState<InAppBanner | null>(null);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const authSyncIdRef = useRef(0);
   const loadedProfileIdRef = useRef<string | null>(null);
   const rootCarouselRef = useRef<RootPageCarouselHandle>(null);
+  const currentProfileRef = useRef<Profile | null>(null);
+  const selectedThreadIdRef = useRef<string | null>(null);
+  const utilityViewRef = useRef<"activity" | "inbox" | null>(null);
+  const visibleQuestsRef = useRef<Quest[]>([]);
 
   const currentProfileId = currentProfile?.id ?? "";
   const selectedPublicProfile = selectedProfileState.profile;
@@ -347,6 +362,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     );
 
     setMessageThreads(nextThreads);
+    return nextThreads;
   }, []);
 
   const syncAuthAndData = useCallback(async () => {
@@ -509,6 +525,61 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       // Ignore permission prompt failures on unsupported platforms.
     });
   }, []);
+
+  useEffect(() => {
+    currentProfileRef.current = currentProfile;
+    selectedThreadIdRef.current = selectedThreadId;
+    utilityViewRef.current = utilityView;
+    visibleQuestsRef.current = allVisibleQuests;
+  }, [allVisibleQuests, currentProfile, selectedThreadId, utilityView]);
+
+  useEffect(() => {
+    if (!inAppBanner) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setInAppBanner((current) =>
+        current?.id === inAppBanner.id ? null : current,
+      );
+    }, 4_200);
+
+    return () => window.clearTimeout(timer);
+  }, [inAppBanner]);
+
+  const showInAppBanner = useCallback((banner: Omit<InAppBanner, "id">) => {
+    setInAppBanner({
+      ...banner,
+      id: `${banner.kind}-${Date.now()}`,
+    });
+  }, []);
+
+  function handleInAppBannerPress(banner: InAppBanner) {
+    setInAppBanner(null);
+
+    if (banner.kind === "message" && banner.threadId) {
+      void handleOpenThread(banner.threadId);
+      return;
+    }
+
+    if (banner.questId) {
+      const canOpenQuest = visibleQuestsRef.current.some(
+        (quest) => quest.id === banner.questId,
+      );
+
+      if (canOpenQuest) {
+        handleOpenQuest(banner.questId);
+        return;
+      }
+    }
+
+    if (banner.actorId) {
+      handleOpenProfile(banner.actorId);
+      return;
+    }
+
+    handleOpenActivity();
+  }
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((event) => {
@@ -752,18 +823,53 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         schema: "public",
         table: "messages",
       },
-      (payload) => {
-        const message = payload.new as { thread_id?: string | null };
+      async (payload) => {
+        const message = payload.new as {
+          body?: string | null;
+          sender_id?: string | null;
+          thread_id?: string | null;
+        };
+        const activeProfile = currentProfileRef.current;
 
-        scheduleMessageRefresh();
+        if (!message.thread_id || !activeProfile) {
+          return;
+        }
 
-        if (message.thread_id && message.thread_id === selectedThreadId) {
-          void fetchThreadMessages(message.thread_id, currentProfileId)
-            .then(setChatMessages)
-            .then(() => markThreadRead(message.thread_id!, currentProfileId))
-            .catch(() => {
-              // The visible chat can be refreshed by reopening it if realtime fails.
+        if (message.thread_id === selectedThreadIdRef.current) {
+          const nextMessages = await fetchThreadMessages(
+            message.thread_id,
+            activeProfile.id,
+          ).catch(() => null);
+
+          if (nextMessages) {
+            setChatMessages(nextMessages);
+            await markThreadRead(message.thread_id, activeProfile.id).catch(() => {
+              // Read receipts should never block live chat updates.
             });
+            await refreshMessages(activeProfile).catch(() => []);
+          }
+
+          return;
+        }
+
+        const nextThreads = await refreshMessages(activeProfile).catch(
+          () => [] as MessageThread[],
+        );
+        const targetThread = nextThreads.find(
+          (thread) => thread.id === message.thread_id,
+        );
+
+        if (
+          targetThread &&
+          message.sender_id !== activeProfile.id &&
+          targetThread.unreadCount > 0
+        ) {
+          showInAppBanner({
+            kind: "message",
+            threadId: targetThread.id,
+            title: targetThread.title,
+            body: targetThread.preview,
+          });
         }
       },
     );
@@ -776,7 +882,14 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         table: "activity_events",
         filter: `user_id=eq.${currentProfileId}`,
       },
-      async () => {
+      async (payload) => {
+        const activity = payload.new as {
+          actor_id?: string | null;
+          body?: string | null;
+          id?: string | null;
+          quest_id?: string | null;
+          title?: string | null;
+        };
         const nextActivity = await fetchActivityEvents(currentProfileId).catch(
           () => null,
         );
@@ -784,6 +897,21 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         if (nextActivity) {
           setActivityEvents(nextActivity);
         }
+
+        if (utilityViewRef.current === "activity") {
+          return;
+        }
+
+        const createdActivity =
+          nextActivity?.find((event) => event.id === activity.id) ?? null;
+
+        showInAppBanner({
+          kind: "activity",
+          actorId: createdActivity?.actorId ?? activity.actor_id ?? null,
+          questId: createdActivity?.questId ?? activity.quest_id ?? null,
+          title: createdActivity?.title ?? activity.title ?? "New activity",
+          body: createdActivity?.body ?? activity.body ?? null,
+        });
       },
     );
 
@@ -809,7 +937,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     refreshData,
     refreshMessages,
     refreshSocialData,
-    selectedThreadId,
+    showInAppBanner,
   ]);
 
   function showUnavailableSharedQuest(questId: string) {
@@ -1599,6 +1727,10 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         : utilityView
           ? `utility:${utilityView}`
           : `tab:${activeTab}`;
+  const isChatSurface = Boolean(selectedThreadId);
+  const nonRootSurfaceClass = isChatSurface
+    ? "min-h-0 flex-1 overflow-hidden px-5 pt-5"
+    : `app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5`;
 
   function statusMessages() {
     return (
@@ -1858,21 +1990,31 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
 
             <div
               key={activeSurfaceKey}
-              className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} pt-5`}
+              className={nonRootSurfaceClass}
             >
               {nonRootContent()}
             </div>
           </>
         )}
 
-        <BottomNav
-          activeTab={activeTab}
-          isDisabled={isAppLocked}
-          profileAvatarInitials={currentProfile?.avatarInitials}
-          profileAvatarUrl={currentProfile?.avatarUrl}
-          onTabChange={handleTabChange}
-        />
+        {!isChatSurface ? (
+          <BottomNav
+            activeTab={activeTab}
+            homeUnreadCount={unreadActivityCount + unreadMessageCount}
+            isDisabled={isAppLocked}
+            profileAvatarInitials={currentProfile?.avatarInitials}
+            profileAvatarUrl={currentProfile?.avatarUrl}
+            onTabChange={handleTabChange}
+          />
+        ) : null}
       </section>
+      {inAppBanner ? (
+        <AppNotificationBanner
+          banner={inAppBanner}
+          onOpen={() => handleInAppBannerPress(inAppBanner)}
+          onDismiss={() => setInAppBanner(null)}
+        />
+      ) : null}
       {editingQuest ? (
         <EditQuestModal
           currentUserId={currentProfileId}
@@ -2017,6 +2159,52 @@ function AppHeader({
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </div>
     </header>
+  );
+}
+
+function AppNotificationBanner({
+  banner,
+  onDismiss,
+  onOpen,
+}: {
+  banner: InAppBanner;
+  onDismiss: () => void;
+  onOpen: () => void;
+}) {
+  const Icon = banner.kind === "message" ? MessageCircle : Bell;
+
+  return (
+    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+10px)] z-50 mx-auto max-w-[456px] px-1">
+      <div className="glass-bar pointer-events-auto flex w-full items-center gap-2 rounded-2xl border p-2 shadow-[0_18px_44px_rgba(15,23,42,0.16)]">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left transition active:scale-[0.99]"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white">
+            <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-extrabold text-zinc-950">
+              {banner.title}
+            </span>
+            {banner.body ? (
+              <span className="mt-0.5 block truncate text-xs font-semibold text-zinc-500">
+                {banner.body}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-label="Dismiss notification"
+          onClick={onDismiss}
+          className="grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold text-zinc-400 transition hover:bg-white/70 hover:text-zinc-700"
+        >
+          x
+        </button>
+      </div>
+    </div>
   );
 }
 
