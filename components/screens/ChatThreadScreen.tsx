@@ -66,8 +66,8 @@ export default function ChatThreadScreen({
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <section className="min-h-0 flex-1 space-y-3 pb-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <section className="app-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
         <div className="mx-auto max-w-[16rem] pb-2 text-center">
           <p className="text-sm font-extrabold text-zinc-950">{thread.title}</p>
           {thread.subtitle ? (
@@ -119,7 +119,7 @@ export default function ChatThreadScreen({
 
       <form
         onSubmit={handleSubmit}
-        className="sticky bottom-0 -mx-5 border-t border-zinc-200/70 bg-white/94 px-5 py-3 backdrop-blur"
+        className="-mx-5 shrink-0 border-t border-zinc-200/70 bg-white/94 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-3 backdrop-blur"
       >
         <div className="glass-panel flex min-h-12 items-end gap-2 rounded-[1.45rem] border p-2 shadow-[0_14px_34px_rgba(24,24,27,0.08)]">
           <textarea

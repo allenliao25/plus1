@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
 
 type BottomNavProps = {
   activeTab: AppTab;
+  homeUnreadCount?: number;
   isDisabled?: boolean;
   profileAvatarInitials?: string;
   profileAvatarUrl?: string | null;
@@ -58,6 +59,7 @@ type BottomNavProps = {
 
 export default function BottomNav({
   activeTab,
+  homeUnreadCount = 0,
   isDisabled = false,
   profileAvatarInitials = "",
   profileAvatarUrl = null,
@@ -128,12 +130,19 @@ export default function BottomNav({
                   isActive={isActive}
                 />
               ) : (
-                <Icon
-                  size={ICON_SIZE}
-                  strokeWidth={ICON_STROKE}
-                  fill="none"
-                  aria-hidden="true"
-                />
+                <>
+                  <Icon
+                    size={ICON_SIZE}
+                    strokeWidth={ICON_STROKE}
+                    fill="none"
+                    aria-hidden="true"
+                  />
+                  {item.id === "home" && homeUnreadCount > 0 ? (
+                    <span className="absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.58rem] font-extrabold leading-none text-white ring-2 ring-white">
+                      {homeUnreadCount > 9 ? "9+" : homeUnreadCount}
+                    </span>
+                  ) : null}
+                </>
               )}
             </span>
           </button>
