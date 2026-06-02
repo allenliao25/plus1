@@ -2259,21 +2259,27 @@ function AppHeader({
     return (
       <header className="shrink-0 bg-white px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         <div
-          className={`flex items-start justify-between gap-3 ${
+          className={`flex justify-between gap-3 ${
             compactLargeTitle ? "min-h-[2.75rem]" : "min-h-[3.65rem]"
-          }`}
+          } ${compactLargeTitle ? "items-center" : "items-start"}`}
         >
           <h1
             className={`min-w-0 flex-1 truncate font-bold tracking-tight text-zinc-950 ${
               compactLargeTitle
-                ? "text-xl leading-tight"
+                ? "text-[1.35rem] font-extrabold leading-none"
                 : "text-[2.75rem] leading-none"
             }`}
           >
             {title}
           </h1>
           {actions ? (
-            <div className="mt-1.5 flex shrink-0 items-center">{actions}</div>
+            <div
+              className={`flex shrink-0 items-center ${
+                compactLargeTitle ? "" : "mt-1.5"
+              }`}
+            >
+              {actions}
+            </div>
           ) : null}
         </div>
       </header>

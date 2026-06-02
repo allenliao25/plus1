@@ -74,7 +74,17 @@ export default function PublicProfileScreen({
         <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
           <ProfileAvatar profile={profile} />
 
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-2.5">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[17px] leading-6 text-zinc-950">
+              <span className="min-w-0 max-w-full truncate font-extrabold">
+                {profile.displayName}
+              </span>
+              {profile.pronouns ? (
+                <span className="shrink-0 font-semibold text-zinc-500">
+                  {profile.pronouns}
+                </span>
+              ) : null}
+            </p>
             <div className="grid grid-cols-3 gap-1 text-center">
               <ProfileStat
                 label="Hosted"
@@ -93,14 +103,6 @@ export default function PublicProfileScreen({
         </div>
 
         <div className="space-y-1">
-          <p className="truncate text-[17px] font-extrabold leading-6 text-zinc-950">
-            {profile.displayName}
-            {profile.pronouns ? (
-              <span className="ml-2 font-semibold text-zinc-500">
-                {profile.pronouns}
-              </span>
-            ) : null}
-          </p>
           {profile.area ? (
             <p className="text-sm text-zinc-500">{profile.area}</p>
           ) : null}
