@@ -567,7 +567,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
           kind: "message",
           threadId: thread.id,
           title: thread.title,
-          body: thread.preview,
+          body: buildMessageBannerBody(thread),
         });
         break;
       }
@@ -1024,7 +1024,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
             kind: "message",
             threadId: targetThread.id,
             title: targetThread.title,
-            body: targetThread.preview,
+            body: buildMessageBannerBody(targetThread),
           });
         }
       },
@@ -3286,6 +3286,13 @@ function buildChatMessagesSignature(messages: ChatMessage[]) {
 
 function buildMessageThreadAlertState(thread: MessageThread) {
   return `${thread.unreadCount}:${thread.lastMessageAtISO ?? ""}:${thread.preview}`;
+}
+
+function buildMessageBannerBody(thread: MessageThread) {
+  const senderPrefix = `${thread.title}: `;
+  return thread.preview.startsWith(senderPrefix)
+    ? thread.preview.slice(senderPrefix.length)
+    : thread.preview;
 }
 
 function buildMessageBannerAvatar(thread: MessageThread) {
