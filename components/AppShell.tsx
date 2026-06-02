@@ -240,6 +240,9 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
   const selectedThreadIdRef = useRef<string | null>(null);
   const utilityViewRef = useRef<"activity" | "inbox" | null>(null);
   const visibleQuestsRef = useRef<Quest[]>([]);
+  const chatMessagesSignatureRef = useRef("");
+  const messageThreadsRef = useRef<MessageThread[]>([]);
+  const messageThreadAlertStateRef = useRef<Map<string, string>>(new Map());
 
   const currentProfileId = currentProfile?.id ?? "";
   const selectedPublicProfile = selectedProfileState.profile;
@@ -296,6 +299,12 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     () => friends.map((friend) => friend.profile),
     [friends],
   );
+
+  function syncMessageThreadAlertState(threads: MessageThread[]) {
+    messageThreadAlertStateRef.current = new Map(
+      threads.map((thread) => [thread.id, buildMessageThreadAlertState(thread)]),
+    );
+  }
 
   const refreshData = useCallback(async (profile: Profile) => {
     const userId = profile.id;
@@ -362,6 +371,8 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     );
 
     setMessageThreads(nextThreads);
+    messageThreadsRef.current = nextThreads;
+    syncMessageThreadAlertState(nextThreads);
     return nextThreads;
   }, []);
 
@@ -520,6 +531,47 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     }
   }, [refreshData, refreshMessages, refreshSocialData]);
 
+  const showInAppBanner = useCallback((banner: Omit<InAppBanner, "id">) => {
+    setInAppBanner({
+      ...banner,
+      id: `${banner.kind}-${Date.now()}`,
+    });
+  }, []);
+
+  const refreshMessagesWithBannerCheck = useCallback(async (profile: Profile) => {
+    const previousAlertState = messageThreadAlertStateRef.current;
+    const nextThreads = await fetchMessageThreads(profile.id).catch(
+      () => [] as MessageThread[],
+    );
+    const activeThreadId = selectedThreadIdRef.current;
+
+    setMessageThreads(nextThreads);
+    messageThreadsRef.current = nextThreads;
+
+    for (const thread of nextThreads) {
+      const nextAlertState = buildMessageThreadAlertState(thread);
+      const previousThreadState = previousAlertState.get(thread.id);
+      const hasNewUnreadState =
+        thread.unreadCount > 0 &&
+        nextAlertState !== previousThreadState &&
+        thread.id !== activeThreadId &&
+        !thread.preview.startsWith("You:");
+
+      if (hasNewUnreadState) {
+        showInAppBanner({
+          kind: "message",
+          threadId: thread.id,
+          title: thread.title,
+          body: thread.preview,
+        });
+        break;
+      }
+    }
+
+    syncMessageThreadAlertState(nextThreads);
+    return nextThreads;
+  }, [showInAppBanner]);
+
   useEffect(() => {
     requestLocalNotificationPermission().catch(() => {
       // Ignore permission prompt failures on unsupported platforms.
@@ -531,7 +583,16 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     selectedThreadIdRef.current = selectedThreadId;
     utilityViewRef.current = utilityView;
     visibleQuestsRef.current = allVisibleQuests;
-  }, [allVisibleQuests, currentProfile, selectedThreadId, utilityView]);
+    messageThreadsRef.current = messageThreads;
+    chatMessagesSignatureRef.current = buildChatMessagesSignature(chatMessages);
+  }, [
+    allVisibleQuests,
+    chatMessages,
+    currentProfile,
+    messageThreads,
+    selectedThreadId,
+    utilityView,
+  ]);
 
   useEffect(() => {
     if (!inAppBanner) {
@@ -547,12 +608,101 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     return () => window.clearTimeout(timer);
   }, [inAppBanner]);
 
-  const showInAppBanner = useCallback((banner: Omit<InAppBanner, "id">) => {
-    setInAppBanner({
-      ...banner,
-      id: `${banner.kind}-${Date.now()}`,
-    });
-  }, []);
+  useEffect(() => {
+    if (!currentProfile || !selectedThreadId) {
+      return;
+    }
+
+    let isStopped = false;
+    let isRefreshing = false;
+
+    async function refreshVisibleChat() {
+      if (
+        isStopped ||
+        isRefreshing ||
+        document.visibilityState !== "visible" ||
+        !currentProfileRef.current ||
+        !selectedThreadIdRef.current
+      ) {
+        return;
+      }
+
+      isRefreshing = true;
+      const activeProfile = currentProfileRef.current;
+      const activeThreadId = selectedThreadIdRef.current;
+
+      try {
+        const nextMessages = await fetchThreadMessages(
+          activeThreadId,
+          activeProfile.id,
+        );
+        const nextSignature = buildChatMessagesSignature(nextMessages);
+
+        if (nextSignature !== chatMessagesSignatureRef.current) {
+          chatMessagesSignatureRef.current = nextSignature;
+          setChatMessages(nextMessages);
+          await markThreadRead(activeThreadId, activeProfile.id).catch(() => {
+            // Foreground polling should never block on read receipts.
+          });
+          await refreshMessages(activeProfile).catch(() => []);
+        }
+      } catch {
+        // Realtime/polling is best-effort; manual refresh/reopen remains available.
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshVisibleChat();
+    }, 2_000);
+
+    void refreshVisibleChat();
+
+    return () => {
+      isStopped = true;
+      window.clearInterval(intervalId);
+    };
+  }, [currentProfile, refreshMessages, selectedThreadId]);
+
+  useEffect(() => {
+    if (!currentProfile) {
+      return;
+    }
+
+    let isStopped = false;
+    let isRefreshing = false;
+
+    async function refreshThreadSummaries() {
+      if (
+        isStopped ||
+        isRefreshing ||
+        document.visibilityState !== "visible" ||
+        !currentProfileRef.current
+      ) {
+        return;
+      }
+
+      isRefreshing = true;
+
+      try {
+        await refreshMessagesWithBannerCheck(currentProfileRef.current);
+      } catch {
+        // Message banners are a foreground polish layer.
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshThreadSummaries();
+    }, 4_000);
+
+    return () => {
+      isStopped = true;
+      window.clearInterval(intervalId);
+    };
+  }, [currentProfile, refreshMessagesWithBannerCheck]);
 
   function handleInAppBannerPress(banner: InAppBanner) {
     setInAppBanner(null);
@@ -915,7 +1065,15 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       },
     );
 
-    channel.subscribe();
+    channel.subscribe((status, error) => {
+      if (
+        status === "CHANNEL_ERROR" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED"
+      ) {
+        console.warn("[plus1] Realtime channel issue", status, error);
+      }
+    });
 
     return () => {
       if (refreshTimer) {
@@ -3076,4 +3234,14 @@ export function ActionError({ message }: { message: string }) {
 
 function readErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
+}
+
+function buildChatMessagesSignature(messages: ChatMessage[]) {
+  return messages
+    .map((message) => `${message.id}:${message.createdAtISO ?? ""}`)
+    .join("|");
+}
+
+function buildMessageThreadAlertState(thread: MessageThread) {
+  return `${thread.unreadCount}:${thread.lastMessageAtISO ?? ""}:${thread.preview}`;
 }
