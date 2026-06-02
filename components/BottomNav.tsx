@@ -74,7 +74,7 @@ export default function BottomNav({
       {shouldShowActiveMarker ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.56),0_5px_14px_rgba(15,23,42,0.045)] ring-1 ring-white/35 backdrop-blur-xl transition-transform duration-300 ease-out"
+          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_8px_18px_rgba(15,23,42,0.09)] ring-1 ring-zinc-200/70 backdrop-blur-xl transition-transform duration-300 ease-out"
           style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
         />
       ) : null}
@@ -116,7 +116,7 @@ export default function BottomNav({
             className={`group relative z-10 flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               isActive
                 ? "text-zinc-950"
-                : "text-zinc-400 hover:bg-white/34 hover:text-zinc-600"
+                : "text-zinc-600 hover:bg-white/56 hover:text-zinc-950"
             }`}
           >
             <span className="relative">
@@ -160,7 +160,7 @@ function ProfileNavAvatar({
       className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full border p-[2px] transition ${
         isActive
           ? "border-zinc-950"
-          : "border-transparent group-hover:border-zinc-300"
+          : "border-zinc-300/70 group-hover:border-zinc-500"
       }`}
     >
       <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-zinc-200">
@@ -176,7 +176,7 @@ function ProfileNavAvatar({
         ) : (
           <span
             className={`grid h-full w-full place-items-center text-[0.62rem] font-bold ${
-              isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-600"
+              isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-700"
             }`}
           >
             {initials}

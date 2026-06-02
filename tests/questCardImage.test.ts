@@ -37,7 +37,7 @@ test("validateQuestCardImageFile rejects oversized images", () => {
   );
 });
 
-test("normalizeQuestCategory maps legacy Errand events to Other", () => {
-  assert.equal(normalizeQuestCategory("Errand"), "Other");
-  assert.equal(normalizeQuestCategory("Sidequest"), "Other");
+test("normalizeQuestCategory maps legacy sidequest values to Sidequest", () => {
+  assert.equal(normalizeQuestCategory("Errand"), "Sidequest");
+  assert.equal(normalizeQuestCategory("Sidequest"), "Sidequest");
 });

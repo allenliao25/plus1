@@ -42,6 +42,7 @@ const validCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
+  "Sidequest",
   "Other",
 ];
 const validVisibility: QuestVisibility[] = [
@@ -1029,8 +1030,8 @@ function mapJoinQuestError(message: string) {
 }
 
 export function normalizeQuestCategory(category: string | null): QuestCategory {
-  if (category === "Errand" || category === "Sidequest") {
-    return "Other";
+  if (category === "Errand") {
+    return "Sidequest";
   }
 
   const match = validCategories.find((option) => option === category);

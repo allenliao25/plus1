@@ -131,6 +131,7 @@ test("events filters are fixed with discovery options first", () => {
     "Fitness",
     "Outdoors",
     "Social",
+    "Sidequest",
     "Other",
   ]);
 });

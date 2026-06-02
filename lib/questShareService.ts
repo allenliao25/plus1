@@ -22,6 +22,7 @@ const validCategories: QuestCategory[] = [
   "Fitness",
   "Outdoors",
   "Social",
+  "Sidequest",
   "Other",
 ];
 const shareTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -125,6 +126,10 @@ function mapShareLinkError(message: string) {
 }
 
 function normalizeQuestCategory(category: string | null): QuestCategory {
+  if (category === "Errand") {
+    return "Sidequest";
+  }
+
   const match = validCategories.find((option) => option === category);
   return match ?? "Social";
 }

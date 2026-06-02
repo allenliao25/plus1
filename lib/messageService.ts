@@ -525,12 +525,17 @@ function initials(name: string) {
 }
 
 function normalizeQuestCategory(value: string | null): QuestCategory {
+  if (value === "Errand") {
+    return "Sidequest";
+  }
+
   const validCategories: QuestCategory[] = [
     "Food",
     "Study",
     "Fitness",
     "Outdoors",
     "Social",
+    "Sidequest",
     "Other",
   ];
 

@@ -107,6 +107,7 @@ test("home filters are fixed with For you first", () => {
     "Fitness",
     "Outdoors",
     "Social",
+    "Sidequest",
     "Other",
   ]);
 });

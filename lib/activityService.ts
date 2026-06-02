@@ -262,12 +262,17 @@ function normalizeType(value: string): ActivityEventType {
 }
 
 function normalizeQuestCategory(value: string | null): QuestCategory {
+  if (value === "Errand") {
+    return "Sidequest";
+  }
+
   const validCategories: QuestCategory[] = [
     "Food",
     "Study",
     "Fitness",
     "Outdoors",
     "Social",
+    "Sidequest",
     "Other",
   ];
 
