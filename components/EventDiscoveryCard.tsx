@@ -37,7 +37,7 @@ export default function EventDiscoveryCard({
   return (
     <article
       data-category={quest.category}
-      className="event-card group relative h-[calc(100svh-12.5rem)] min-h-[30rem] max-h-[42rem] snap-start overflow-hidden rounded-[1.85rem] border border-white/70 bg-zinc-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]"
+      className="event-card group relative h-[calc(100svh-15rem)] min-h-[28rem] max-h-[39rem] snap-center overflow-hidden rounded-[1.85rem] border border-white/70 bg-zinc-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)]"
     >
       <div className="absolute inset-0">
         {hasImage ? (
