@@ -97,6 +97,29 @@ test("mapPublicQuestShareRow maps legacy sidequest category", () => {
   assert.equal(share.category, "Sidequest");
 });
 
+test("mapPublicQuestShareRow normalizes stale overcapacity rows", () => {
+  const share = mapPublicQuestShareRow({
+    token: "abc123",
+    quest_id: "quest-1",
+    title: "Night market",
+    category: "Food",
+    location: "Downtown",
+    start_time: null,
+    description: "Soup dumplings.",
+    card_image_url: null,
+    visibility: "local",
+    status: "open",
+    host_display_name: "Maya",
+    host_handle: "maya",
+    going_count: 6,
+    max_people: 5,
+    created_at: "2026-05-31T12:00:00Z",
+  });
+
+  assert.equal(share.goingCount, 6);
+  assert.equal(share.maxPeople, 6);
+});
+
 test("local demo events create public preview links without Supabase UUIDs", async () => {
   const shareLink = await createQuestShareLink("local-demo-quest-dish-sunset");
 

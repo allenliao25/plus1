@@ -775,6 +775,9 @@ function mapQuestRow({
   const invitedProfiles = buildInvitedProfiles(invites, profilesById);
   const startTime = formatQuestTime(quest.start_time);
 
+  const goingCount = 1 + joins.length;
+  const maxPeople = Math.max(quest.max_people ?? 4, goingCount);
+
   return {
     id: quest.id,
     title: quest.title ?? "Untitled event",
@@ -789,8 +792,8 @@ function mapQuestRow({
     creator: profile?.displayName ?? "Someone nearby",
     creatorId: quest.creator_id,
     visibility: normalizeQuestVisibility(quest.visibility),
-    goingCount: 1 + joins.length,
-    maxPeople: quest.max_people ?? 4,
+    goingCount,
+    maxPeople,
     attendees,
     invitedProfiles,
     createdByCurrentUser,

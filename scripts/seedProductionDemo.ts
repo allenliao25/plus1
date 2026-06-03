@@ -65,7 +65,7 @@ const validEventCategories = new Set<DemoEvent["category"]>([
 ]);
 const validEventVisibilities = new Set(["invite_only", "friends", "local"]);
 const DEMO_HANDLE_PREFIX = "demo.plus1.";
-const DEMO_AREA = "Demo Area";
+const DEMO_AREA = "Bay Area, CA";
 const DEMO_EVENT_VISIBILITY = "local";
 const PROFILE_BUCKET = "profile-photos";
 const DEFAULT_OWNER_HANDLES = ["mnijungkook", "bawllen_", "allen.b042c128"];

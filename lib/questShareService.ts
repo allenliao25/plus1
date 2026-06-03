@@ -84,6 +84,9 @@ export function canCreatePublicSharePreview(
 export function mapPublicQuestShareRow(
   row: PublicQuestShareRow,
 ): PublicQuestShare {
+  const goingCount = Number(row.going_count ?? 0);
+  const maxPeople = Math.max(row.max_people ?? 4, goingCount);
+
   return {
     token: row.token,
     questId: row.quest_id,
@@ -99,8 +102,8 @@ export function mapPublicQuestShareRow(
     status: normalizeStatus(row.status, row.start_time),
     hostDisplayName: row.host_display_name || "Host",
     hostHandle: row.host_handle,
-    goingCount: Number(row.going_count ?? 0),
-    maxPeople: row.max_people ?? 4,
+    goingCount,
+    maxPeople,
     createdAtISO: row.created_at,
   };
 }
