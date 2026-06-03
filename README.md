@@ -121,6 +121,8 @@ Minimum migrations for current feature set:
 - `supabase/migrations/20260531223000_public_quest_share_links.sql`
 - `supabase/migrations/20260531233000_messaging_threads.sql`
 - `supabase/migrations/20260531240000_fix_direct_thread_ambiguous_thread_id.sql`
+- `supabase/migrations/20260602090000_prevent_quest_capacity_underflow.sql`
+- `supabase/migrations/20260603090000_nullable_event_capacity.sql`
 
 ### 4) Enable Realtime for activity and messages
 

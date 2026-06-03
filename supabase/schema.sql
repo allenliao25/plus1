@@ -31,7 +31,7 @@ create table if not exists quests (
   card_image_url text,
   area text not null default 'Demo Area',
   visibility text not null default 'local',
-  max_people int not null default 4,
+  max_people int,
   status text not null default 'open',
   created_at timestamp default now()
 );
@@ -844,7 +844,8 @@ begin
   from quest_joins
   where quest_id = target_quest_id;
 
-  if 1 + join_count >= coalesce(target_quest.max_people, 4) then
+  if target_quest.max_people is not null
+    and 1 + join_count >= target_quest.max_people then
     raise exception 'event_full';
   end if;
 
@@ -1005,7 +1006,11 @@ begin
   from quest_joins
   where quest_id = new.id;
 
-  if coalesce(new.max_people, 4) < attendee_count then
+  if new.max_people is null then
+    return new;
+  end if;
+
+  if new.max_people < attendee_count then
     raise exception 'quest_capacity_below_attendance';
   end if;
 
@@ -1029,13 +1034,13 @@ declare
   target_max_people integer;
   join_count integer;
 begin
-  select coalesce(max_people, 4)
+  select max_people
   into target_max_people
   from quests
   where id = new.quest_id
   for update;
 
-  if not found then
+  if not found or target_max_people is null then
     return new;
   end if;
 

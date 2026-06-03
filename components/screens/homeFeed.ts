@@ -1,4 +1,5 @@
 import { questCategories } from "@/data/demoQuests";
+import { getOpenSpotsForScore, isQuestFull } from "@/lib/questCapacity";
 import type { Profile, Quest, QuestCategory } from "@/types/quest";
 
 export type HomeFeedFilter = "For you" | QuestCategory;
@@ -17,7 +18,8 @@ export function buildHomeFeedModel({
   selectedFilter,
   now = new Date(),
 }: HomeFeedModelInput) {
-  const rankedQuests = rankHomeQuests(quests, profile, now);
+  const recommendedQuests = quests.filter(isHomeRecommendedQuest);
+  const rankedQuests = rankHomeQuests(recommendedQuests, profile, now);
   const filteredQuests = filterHomeQuests(
     rankedQuests,
     profile,
@@ -31,10 +33,10 @@ export function buildHomeFeedModel({
 
   return {
     filteredQuests,
-    forYouCount: countForYouQuests(quests, profile),
+    forYouCount: countForYouQuests(recommendedQuests, profile),
     rowQuests,
     spotlightQuest,
-    tonightCount: countTonightQuests(quests, now),
+    tonightCount: countTonightQuests(recommendedQuests, now),
   };
 }
 
@@ -104,6 +106,15 @@ export function filterHomeQuests(
   });
 }
 
+export function isHomeRecommendedQuest(quest: Quest) {
+  return (
+    isOpenQuest(quest) &&
+    !isFullQuest(quest) &&
+    !quest.joinedByCurrentUser &&
+    !quest.createdByCurrentUser
+  );
+}
+
 export function selectHomeSpotlight(
   quests: Quest[],
   profile: Profile,
@@ -140,7 +151,6 @@ export function isTonightQuest(quest: Quest, now = new Date()) {
 function scoreHomeQuest(quest: Quest, profile: Profile, now: Date) {
   const isInterestMatch = profile.interests.includes(quest.category);
   const hasImage = Boolean(quest.cardImageUrl);
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
   let score = 0;
 
   if (isFreshJoinableQuest(quest)) {
@@ -163,7 +173,7 @@ function scoreHomeQuest(quest: Quest, profile: Profile, now: Date) {
     score += 55;
   }
 
-  return score + Math.min(openSpots, 6) * 4;
+  return score + getOpenSpotsForScore(quest) * 4;
 }
 
 function getSoonScore(quest: Quest, now: Date) {
@@ -219,12 +229,7 @@ function countTonightQuests(quests: Quest[], now: Date) {
 }
 
 function isFreshJoinableQuest(quest: Quest) {
-  return (
-    isOpenQuest(quest) &&
-    !isFullQuest(quest) &&
-    !quest.joinedByCurrentUser &&
-    !quest.createdByCurrentUser
-  );
+  return isHomeRecommendedQuest(quest);
 }
 
 function isOpenQuest(quest: Quest) {
@@ -232,7 +237,7 @@ function isOpenQuest(quest: Quest) {
 }
 
 function isFullQuest(quest: Quest) {
-  return quest.goingCount >= quest.maxPeople;
+  return isQuestFull(quest);
 }
 
 function readQuestTime(quest: Quest, now: Date) {

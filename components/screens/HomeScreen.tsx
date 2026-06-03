@@ -74,7 +74,7 @@ export default function HomeScreen({
           onSelect={setSelectedFilter}
         />
         <EmptyState
-          title="No open events right now"
+          title="No recommended events right now"
           body="Create one and it will appear here for people nearby."
           actionLabel="Create an event"
           onAction={onCreate}
@@ -129,8 +129,8 @@ export default function HomeScreen({
 
       {feedModel.filteredQuests.length === 0 ? (
         <EmptyState
-          title={`No ${activeFilter.toLowerCase()} events yet`}
-          body="Try all open events or create the next move."
+          title={`No joinable ${activeFilter.toLowerCase()} events right now`}
+          body="Browse Events for the fuller list, or create the next plan nearby."
           actionLabel="Show For you"
           onAction={() => setSelectedFilter("For you")}
         />

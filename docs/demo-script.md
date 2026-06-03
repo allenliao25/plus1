@@ -24,8 +24,8 @@ On-screen:
 
 ### Step 2: Browse and join
 
-- Home tab: open events
-- Explore tab: category + search filtering
+- Home tab: curated joinable recommendations
+- Events tab: fuller filtered discovery
 - Open an event, join it, and show attendee list
 
 ### Step 3: Create

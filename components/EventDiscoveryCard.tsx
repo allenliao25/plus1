@@ -11,6 +11,11 @@ import {
 import { useState, type ReactNode } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
+import {
+  formatGoingLabel,
+  formatOpenSpotsLabel,
+  isQuestFull,
+} from "@/lib/questCapacity";
 import type { Quest, QuestAttendee } from "@/types/quest";
 
 type EventDiscoveryCardProps = {
@@ -29,7 +34,6 @@ export default function EventDiscoveryCard({
   const [didImageFail, setDidImageFail] = useState(false);
   const host = findHost(quest);
   const hasImage = Boolean(quest.cardImageUrl && !didImageFail);
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
   const when = quest.startTimeRelative ?? quest.startTime;
   const actionState = getActionState(quest, isJoining);
   const reason = getReasonLabel(quest);
@@ -118,8 +122,8 @@ export default function EventDiscoveryCard({
           <div className="mt-4 grid grid-cols-2 gap-2.5">
             <Fact icon={<CalendarDays size={16} />} label={when} />
             <Fact icon={<MapPin size={16} />} label={quest.location} />
-            <Fact icon={<Users size={16} />} label={`${quest.goingCount}/${quest.maxPeople} going`} />
-            <Fact icon={<Ticket size={16} />} label={`${openSpots} open`} />
+            <Fact icon={<Users size={16} />} label={formatGoingLabel(quest)} />
+            <Fact icon={<Ticket size={16} />} label={formatOpenSpotsLabel(quest)} />
           </div>
 
           <button
@@ -206,7 +210,7 @@ function getReasonLabel(quest: Quest) {
 }
 
 function getActionState(quest: Quest, isJoining: boolean) {
-  const isFull = quest.status === "open" && quest.goingCount >= quest.maxPeople;
+  const isFull = isQuestFull(quest);
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
   const isJoinable = quest.status === "open" && !isFull && !isJoined;
 

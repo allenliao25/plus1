@@ -490,7 +490,7 @@ export type Database = {
           host_display_name: string | null;
           host_handle: string | null;
           going_count: number;
-          max_people: number;
+          max_people: number | null;
           created_at: string | null;
         }[];
       };

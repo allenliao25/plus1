@@ -3,6 +3,7 @@ import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
 import QuestShareCard from "@/components/QuestShareCard";
 import QuestStatusBadge from "@/components/QuestStatusBadge";
+import { formatGoingLabel, isQuestFull } from "@/lib/questCapacity";
 import { MessageCircle } from "lucide-react";
 
 type QuestDetailProps = {
@@ -31,7 +32,7 @@ export default function QuestDetail({
   onOpenProfile,
 }: QuestDetailProps) {
   const isJoinable = quest.status === "open";
-  const isFull = isJoinable && quest.goingCount >= quest.maxPeople;
+  const isFull = isQuestFull(quest);
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
   const canLeave = isJoinable && Boolean(quest.joinedByCurrentUser) && !quest.createdByCurrentUser;
   const canClose = isJoinable && Boolean(quest.createdByCurrentUser);
@@ -98,7 +99,7 @@ export default function QuestDetail({
           <div className="glass-chip rounded-2xl border p-3">
             <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">People</dt>
             <dd className="mt-1 text-sm font-bold text-zinc-900">
-              {quest.goingCount} of {quest.maxPeople}
+              {quest.maxPeople === null ? formatGoingLabel(quest) : `${quest.goingCount} of ${quest.maxPeople}`}
             </dd>
           </div>
           <div className="glass-chip col-span-2 rounded-2xl border p-3">

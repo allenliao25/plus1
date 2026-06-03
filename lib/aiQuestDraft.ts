@@ -11,9 +11,9 @@ Return ONLY a single JSON object (no markdown, no commentary) with exactly these
 - "location": where it happens (string, "" if unknown)
 - "startTime": local datetime in "YYYY-MM-DDTHH:mm" 24-hour format, or "" if unknown
 - "description": always "" (do not write a caption or description)
-- "maxPeople": integer between 2 and 12 for total group size
+- "maxPeople": integer between 2 and 12 for total group size, or null when no hard cap is mentioned
 - "inviteHints": array of names or @handles explicitly mentioned as invitees, without filler words
-Pick the closest category from the allowed list. If a value is missing, use a sensible default rather than inventing fake specifics. Treat meal words as time clues: breakfast/morning is AM, lunch/afternoon/dinner/evening/tonight is PM. Interpret "6 30" as 6:30.`;
+Pick the closest category from the allowed list. If a value is missing, use a sensible default rather than inventing fake specifics, except use null for maxPeople when no explicit cap is mentioned. Treat meal words as time clues: breakfast/morning is AM, lunch/afternoon/dinner/evening/tonight is PM. Interpret "6 30" as 6:30.`;
 
 type ChatTextContent = { type: "text"; text: string };
 type ChatImageContent = { type: "image_url"; image_url: { url: string } };
@@ -61,12 +61,16 @@ export function parseQuestDraft(
     extractInviteHints(options.sourceText),
   );
   const inferredMaxPeople = inferMaxPeople(options.sourceText, inviteHints);
+  const hasModelMaxPeople =
+    record.maxPeople !== null &&
+    record.maxPeople !== undefined &&
+    (typeof record.maxPeople === "number" || asString(record.maxPeople) !== "");
   const maxPeopleNumber = Number(record.maxPeople);
   const maxPeople =
     inferredMaxPeople ??
-    (Number.isFinite(maxPeopleNumber)
+    (hasModelMaxPeople && Number.isFinite(maxPeopleNumber)
       ? Math.min(12, Math.max(2, Math.round(maxPeopleNumber)))
-      : 4);
+      : null);
 
   return {
     title: asString(record.title),
@@ -278,7 +282,7 @@ function readInviteHints(value: unknown) {
   }
 
   return value.flatMap((item) => {
-    const hint = asString(item);
+    const hint = cleanInviteHint(asString(item));
     return hint ? [hint] : [];
   });
 }
@@ -311,11 +315,11 @@ function extractInviteHints(sourceText = "") {
 function cleanInviteHint(value: string) {
   const cleaned = value
     .replace(/\b(?:to|for|at|around|about|tonight|today|tomorrow|tmrw|tmr)\b.*$/i, "")
-    .replace(/[,.!?;:]+$/g, "")
     .trim()
+    .replace(/[,.!?;:]+$/g, "")
     .replace(/^@+/, "");
 
-  return cleaned.length >= 2 ? cleaned : "";
+  return cleaned.length >= 2 && !isSelfInviteHint(cleaned) ? cleaned : "";
 }
 
 function mergeInviteHints(...groups: string[][]) {
@@ -325,7 +329,7 @@ function mergeInviteHints(...groups: string[][]) {
   for (const hint of groups.flat()) {
     const normalized = normalizeInviteHint(hint);
 
-    if (!normalized || seen.has(normalized)) {
+    if (!normalized || isSelfInviteHint(normalized) || seen.has(normalized)) {
       continue;
     }
 
@@ -337,7 +341,15 @@ function mergeInviteHints(...groups: string[][]) {
 }
 
 function normalizeInviteHint(value: string) {
-  return value.trim().replace(/^@+/, "").toLowerCase();
+  return value
+    .trim()
+    .replace(/[,.!?;:]+$/g, "")
+    .replace(/^@+/, "")
+    .toLowerCase();
+}
+
+function isSelfInviteHint(value: string) {
+  return /^(?:me|myself|us|we|i|my)$/.test(normalizeInviteHint(value));
 }
 
 function inferMaxPeople(sourceText = "", inviteHints: string[]) {
@@ -354,9 +366,7 @@ function inferMaxPeople(sourceText = "", inviteHints: string[]) {
     return 2;
   }
 
-  if (inviteHints.length > 0 && !/\b\d{1,2}\s*(?:people|ppl|spots?)\b/.test(text)) {
-    return Math.min(12, inviteHints.length + 1);
-  }
+  void inviteHints;
 
   return null;
 }
