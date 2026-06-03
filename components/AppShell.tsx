@@ -2107,7 +2107,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
                 <div
                   className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} ${
                     page === "events"
-                      ? "pt-0 snap-y snap-mandatory"
+                      ? "pt-0 snap-y snap-proximity"
                       : page === "people"
                         ? "pt-0"
                         : "pt-3"

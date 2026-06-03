@@ -42,7 +42,7 @@ export default function EventsScreen({
 
   return (
     <div className="-mx-5 space-y-4">
-      <div className="border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
+      <div className="sticky top-0 z-20 snap-start border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
         <div className="mb-2 flex items-center justify-between gap-3">
           <div>
             <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-400">
