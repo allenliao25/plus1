@@ -76,7 +76,7 @@ test("parseQuestDraft treats spaced meal times as PM", () => {
   );
 
   assert.equal(draft.startTime, "2026-05-31T18:30");
-  assert.equal(draft.maxPeople, 2);
+  assert.equal(draft.maxPeople, 4);
 });
 
 test("parseQuestDraft extracts explicit invite hints", () => {
@@ -96,6 +96,60 @@ test("parseQuestDraft extracts explicit invite hints", () => {
   );
 
   assert.deepEqual(draft.inviteHints, ["jungkook"]);
+});
+
+test("parseQuestDraft ignores self invite wording and leaves max uncapped", () => {
+  const draft = parseQuestDraft(
+    {
+      title: "Workout Session",
+      category: "Fitness",
+      location: "nearyaga",
+      startTime: "2026-06-04T19:00",
+      maxPeople: null,
+      inviteHints: ["jungkook", "me"],
+    },
+    {
+      sourceText: "Invite jungkook to workout at nearyaga with me. Tmr at 7pm",
+      nowLocal: "2026-06-03T12:00",
+    },
+  );
+
+  assert.deepEqual(draft.inviteHints, ["jungkook"]);
+  assert.equal(draft.maxPeople, null);
+});
+
+test("parseQuestDraft preserves explicit invite capacity", () => {
+  const draft = parseQuestDraft(
+    {
+      title: "Workout Session",
+      category: "Fitness",
+      location: "nearyaga",
+      startTime: "2026-06-04T19:00",
+      maxPeople: null,
+      inviteHints: [],
+    },
+    {
+      sourceText: "Invite @mnijungkook for 4 people tomorrow at 7pm",
+      nowLocal: "2026-06-03T12:00",
+    },
+  );
+
+  assert.deepEqual(draft.inviteHints, ["mnijungkook"]);
+  assert.equal(draft.maxPeople, 4);
+});
+
+test("parseQuestDraft drops self hints from model output", () => {
+  const draft = parseQuestDraft({
+    title: "Workout Session",
+    category: "Fitness",
+    location: "nearyaga",
+    startTime: "2026-06-04T19:00",
+    maxPeople: "",
+    inviteHints: ["me", "jungkook"],
+  });
+
+  assert.deepEqual(draft.inviteHints, ["jungkook"]);
+  assert.equal(draft.maxPeople, null);
 });
 
 test("parseQuestDraft removes stale model dates without a relative cue", () => {

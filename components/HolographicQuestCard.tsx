@@ -3,6 +3,10 @@
 import { useState, type CSSProperties, type PointerEvent } from "react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
+import {
+  formatCapacitySummary,
+  isQuestFull,
+} from "@/lib/questCapacity";
 import type { Quest } from "@/types/quest";
 
 type HolographicQuestCardProps = {
@@ -23,16 +27,15 @@ export default function HolographicQuestCard({
   onOpen,
 }: HolographicQuestCardProps) {
   const isJoinable = quest.status === "open";
-  const isFull = isJoinable && quest.goingCount >= quest.maxPeople;
+  const isFull = isQuestFull(quest);
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
   const isImmersive = variant === "immersive";
   const isShare = variant === "share";
   const isCompact = !isImmersive && !isShare;
   const status = statusLabel(quest, isFull);
   const when = quest.startTimeRelative ?? quest.startTime;
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
-  const socialProof = `${quest.goingCount}/${quest.maxPeople} going · ${openSpots} open`;
+  const socialProof = formatCapacitySummary(quest);
   const [didImageFail, setDidImageFail] = useState(false);
   const hasImage = Boolean(quest.cardImageUrl && !didImageFail);
   const cardShape = isImmersive || isShare

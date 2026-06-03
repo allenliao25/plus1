@@ -1,5 +1,6 @@
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
+import { formatCapacitySummary, isQuestFull } from "@/lib/questCapacity";
 import type { Quest } from "@/types/quest";
 
 type HomeQuestRowProps = {
@@ -17,9 +18,8 @@ export default function HomeQuestRow({
 }: HomeQuestRowProps) {
   const actionState = getActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
-  const socialProof = `${quest.goingCount}/${quest.maxPeople} going · ${openSpots} open`;
+  const socialProof = formatCapacitySummary(quest);
 
   return (
     <article
@@ -86,7 +86,7 @@ export default function HomeQuestRow({
 }
 
 function getActionState(quest: Quest, isJoining: boolean) {
-  const isFull = quest.status === "open" && quest.goingCount >= quest.maxPeople;
+  const isFull = isQuestFull(quest);
   const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
 
   if (isJoined) {

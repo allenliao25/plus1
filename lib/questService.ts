@@ -270,7 +270,10 @@ export async function createQuest(
 ) {
   const supabase = getSupabaseClient();
   const startTime = parseStartTime(input.startTime);
-  const maxPeople = Math.min(12, Math.max(2, input.maxPeople || 4));
+  const maxPeople =
+    typeof input.maxPeople === "number"
+      ? Math.min(12, Math.max(2, input.maxPeople))
+      : null;
 
   const insertPayload = {
     creator_id: currentUserId,
@@ -346,7 +349,10 @@ export async function updateQuest(
 ) {
   const supabase = getSupabaseClient();
   const startTime = parseStartTime(input.startTime);
-  const maxPeople = Math.min(12, Math.max(2, input.maxPeople || 4));
+  const maxPeople =
+    typeof input.maxPeople === "number"
+      ? Math.min(12, Math.max(2, input.maxPeople))
+      : null;
 
   const updatePayload = {
     title: input.title,
@@ -478,9 +484,9 @@ async function joinQuestLegacy(questId: string, currentUserId: string) {
   }
 
   const goingCount = 1 + joinRows.length;
-  const maxPeople = quest.max_people ?? 4;
+  const maxPeople = quest.max_people;
 
-  if (goingCount >= maxPeople) {
+  if (maxPeople !== null && goingCount >= maxPeople) {
     throw new Error("This event is full.");
   }
 
@@ -776,7 +782,8 @@ function mapQuestRow({
   const startTime = formatQuestTime(quest.start_time);
 
   const goingCount = 1 + joins.length;
-  const maxPeople = Math.max(quest.max_people ?? 4, goingCount);
+  const maxPeople =
+    quest.max_people === null ? null : Math.max(quest.max_people ?? 4, goingCount);
 
   return {
     id: quest.id,

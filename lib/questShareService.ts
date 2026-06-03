@@ -85,7 +85,8 @@ export function mapPublicQuestShareRow(
   row: PublicQuestShareRow,
 ): PublicQuestShare {
   const goingCount = Number(row.going_count ?? 0);
-  const maxPeople = Math.max(row.max_people ?? 4, goingCount);
+  const maxPeople =
+    row.max_people === null ? null : Math.max(row.max_people ?? 4, goingCount);
 
   return {
     token: row.token,

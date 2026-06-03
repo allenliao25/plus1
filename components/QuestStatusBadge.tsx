@@ -1,4 +1,5 @@
 import type { Quest } from "@/types/quest";
+import { isQuestFull } from "@/lib/questCapacity";
 
 type BadgeConfig = {
   label: string;
@@ -20,7 +21,7 @@ export default function QuestStatusBadge({ quest }: { quest: Quest }) {
 }
 
 function getQuestBadgeConfig(quest: Quest): BadgeConfig | null {
-  const isFull = quest.goingCount >= quest.maxPeople;
+  const isFull = isQuestFull(quest);
 
   if (quest.createdByCurrentUser) {
     return {

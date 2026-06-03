@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarDays, MapPin, Users } from "lucide-react";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
+import { formatCapacitySummary } from "@/lib/questCapacity";
 import { getSiteOrigin } from "@/lib/questLinks";
 import { fetchPublicQuestShare } from "@/lib/questShareService";
 import { sharePalettes } from "@/app/e/[token]/sharePreviewStyles";
@@ -102,7 +103,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
   const palette = sharePalettes[share.category];
   const joinHref = `/?quest=${encodeURIComponent(share.questId)}`;
-  const openSpots = Math.max(0, share.maxPeople - share.goingCount);
+  const spotsLabel = formatCapacitySummary(share);
 
   return (
     <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] p-5 text-zinc-950">
@@ -161,7 +162,7 @@ export default async function SharePage({ params }: SharePageProps) {
               <Fact
                 icon={<Users size={17} />}
                 label="Spots"
-                value={`${share.goingCount}/${share.maxPeople} going · ${openSpots} open`}
+                value={spotsLabel}
               />
             </div>
 

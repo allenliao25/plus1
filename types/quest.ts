@@ -41,7 +41,7 @@ export type Quest = {
   creatorId: string | null;
   visibility: QuestVisibility;
   goingCount: number;
-  maxPeople: number;
+  maxPeople: number | null;
   attendees: QuestAttendee[];
   invitedProfiles?: QuestInviteProfile[];
   createdByCurrentUser?: boolean;
@@ -176,7 +176,7 @@ export type NewQuestInput = {
   location: string;
   startTime: string;
   description: string;
-  maxPeople: number;
+  maxPeople: number | null;
   cardImageUrl?: string | null;
   visibility?: QuestVisibility;
   inviteeIds?: string[];
@@ -212,6 +212,6 @@ export type PublicQuestShare = {
   hostDisplayName: string;
   hostHandle: string | null;
   goingCount: number;
-  maxPeople: number;
+  maxPeople: number | null;
   createdAtISO: string | null;
 };

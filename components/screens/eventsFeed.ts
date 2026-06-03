@@ -1,4 +1,5 @@
 import { questCategories } from "@/data/demoQuests";
+import { getOpenSpotsForScore, isQuestFull } from "@/lib/questCapacity";
 import type { Profile, Quest, QuestCategory } from "@/types/quest";
 
 export type EventsFeedFilter = "For you" | "Tonight" | "Friends" | QuestCategory;
@@ -127,7 +128,6 @@ function scoreEventsQuest(
   acceptedFriendIdSet: Set<string>,
   now: Date,
 ) {
-  const openSpots = Math.max(0, quest.maxPeople - quest.goingCount);
   let score = 0;
 
   if (quest.visibility === "local") {
@@ -152,7 +152,7 @@ function scoreEventsQuest(
     score += 95;
   }
 
-  score += Math.min(openSpots, 6) * 10;
+  score += getOpenSpotsForScore(quest) * 10;
 
   if (quest.joinedByCurrentUser) {
     score -= 220;
@@ -162,7 +162,7 @@ function scoreEventsQuest(
     score -= 260;
   }
 
-  if (openSpots <= 0) {
+  if (isQuestFull(quest)) {
     score -= 180;
   }
 

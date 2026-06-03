@@ -5,6 +5,7 @@ import {
   filterHomeQuests,
   getDefaultHomeFilter,
   getHomeFilterOptions,
+  isHomeRecommendedQuest,
   selectHomeSpotlight,
 } from "@/components/screens/homeFeed";
 import type { Profile, Quest, QuestCategory } from "@/types/quest";
@@ -97,6 +98,65 @@ test("home filters return ranked for you picks and category sets", () => {
   );
 });
 
+test("home recommendation eligibility excludes unavailable events", () => {
+  assert.equal(
+    isHomeRecommendedQuest(makeQuest({ id: "full", goingCount: 4, maxPeople: 4 })),
+    false,
+  );
+  assert.equal(
+    isHomeRecommendedQuest(makeQuest({ id: "closed", status: "closed" })),
+    false,
+  );
+  assert.equal(
+    isHomeRecommendedQuest(makeQuest({ id: "past", status: "past" })),
+    false,
+  );
+  assert.equal(
+    isHomeRecommendedQuest(makeQuest({ id: "joined", joinedByCurrentUser: true })),
+    false,
+  );
+  assert.equal(
+    isHomeRecommendedQuest(makeQuest({ id: "hosted", createdByCurrentUser: true })),
+    false,
+  );
+  assert.equal(isHomeRecommendedQuest(makeQuest({ id: "joinable" })), true);
+});
+
+test("home model filters to joinable recommendations before category filtering", () => {
+  const profile = makeProfile({ interests: ["Food", "Study", "Social"] });
+  const quests = [
+    makeQuest({ id: "full-food", category: "Food", goingCount: 4, maxPeople: 4 }),
+    makeQuest({ id: "closed-study", category: "Study", status: "closed" }),
+    makeQuest({ id: "past-social", category: "Social", status: "past" }),
+    makeQuest({ id: "joined-food", category: "Food", joinedByCurrentUser: true }),
+    makeQuest({ id: "hosted-study", category: "Study", createdByCurrentUser: true }),
+    makeQuest({ id: "joinable-food", category: "Food" }),
+    makeQuest({ id: "joinable-social", category: "Social" }),
+  ];
+
+  const forYouModel = buildHomeFeedModel({
+    profile,
+    quests,
+    selectedFilter: "For you",
+    now,
+  });
+  const foodModel = buildHomeFeedModel({
+    profile,
+    quests,
+    selectedFilter: "Food",
+    now,
+  });
+
+  assert.deepEqual(
+    forYouModel.filteredQuests.map((quest) => quest.id),
+    ["joinable-food", "joinable-social"],
+  );
+  assert.deepEqual(
+    foodModel.filteredQuests.map((quest) => quest.id),
+    ["joinable-food"],
+  );
+});
+
 test("home filters are fixed with For you first", () => {
   const profile = makeProfile({ interests: [] });
 
@@ -163,6 +223,46 @@ test("buildHomeFeedModel removes the spotlight from the compact rows", () => {
   assert.deepEqual(
     model.rowQuests.map((quest) => quest.id),
     ["study"],
+  );
+});
+
+test("home spotlight and rows are drawn from joinable recommendations", () => {
+  const profile = makeProfile({ interests: ["Food"] });
+  const fullFood = makeQuest({
+    id: "full-food",
+    category: "Food",
+    goingCount: 4,
+    maxPeople: 4,
+    startTimeISO: "2026-01-15T18:30:00.000Z",
+  });
+  const joinedFood = makeQuest({
+    id: "joined-food",
+    category: "Food",
+    joinedByCurrentUser: true,
+    startTimeISO: "2026-01-15T19:00:00.000Z",
+  });
+  const joinableFood = makeQuest({
+    id: "joinable-food",
+    category: "Food",
+    startTimeISO: "2026-01-15T20:00:00.000Z",
+  });
+  const joinableSocial = makeQuest({
+    id: "joinable-social",
+    category: "Social",
+    startTimeISO: "2026-01-16T20:00:00.000Z",
+  });
+
+  const model = buildHomeFeedModel({
+    profile,
+    quests: [fullFood, joinedFood, joinableSocial, joinableFood],
+    selectedFilter: "For you",
+    now,
+  });
+
+  assert.equal(model.spotlightQuest?.id, "joinable-food");
+  assert.deepEqual(
+    model.rowQuests.map((quest) => quest.id),
+    ["joinable-social"],
   );
 });
 

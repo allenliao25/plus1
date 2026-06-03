@@ -137,13 +137,16 @@ function useEditQuestModalContent({
       }
     }
 
-    const maxPeople = Number(form.maxPeople);
-    if (!Number.isInteger(maxPeople) || maxPeople > 12) {
+    const maxPeople = form.maxPeople;
+    if (
+      maxPeople !== null &&
+      (!Number.isInteger(maxPeople) || maxPeople > 12)
+    ) {
       setError("Max people must be a whole number up to 12.");
       return;
     }
 
-    if (maxPeople < quest.goingCount) {
+    if (maxPeople !== null && maxPeople < quest.goingCount) {
       setError(`Max people cannot be less than current going (${quest.goingCount}).`);
       return;
     }
@@ -398,9 +401,13 @@ function useEditQuestModalContent({
               type="number"
               min={quest.goingCount}
               max={12}
-              value={form.maxPeople}
+              value={form.maxPeople ?? ""}
+              placeholder="No max"
               onChange={(event) =>
-                updateForm("maxPeople", Number(event.target.value))
+                updateForm(
+                  "maxPeople",
+                  event.target.value ? Number(event.target.value) : null,
+                )
               }
               className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
             />

@@ -398,7 +398,9 @@ function useAiQuestDraftContent({
                   {formatDraftStartTime(draft.startTime)}
                 </dd>
                 <dt className="font-bold text-zinc-500">Max</dt>
-                <dd className="font-semibold">{draft.maxPeople}</dd>
+                <dd className="font-semibold">
+                  {draft.maxPeople === null ? "No max" : draft.maxPeople}
+                </dd>
                 {draft.inviteeProfiles?.length ||
                 draft.selfInviteHints?.length ||
                 draft.unresolvedInviteHints?.length ? (

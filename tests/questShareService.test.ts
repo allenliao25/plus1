@@ -120,6 +120,29 @@ test("mapPublicQuestShareRow normalizes stale overcapacity rows", () => {
   assert.equal(share.maxPeople, 6);
 });
 
+test("mapPublicQuestShareRow preserves no-cap shares", () => {
+  const share = mapPublicQuestShareRow({
+    token: "abc123",
+    quest_id: "quest-1",
+    title: "Pickup run",
+    category: "Fitness",
+    location: "Court",
+    start_time: null,
+    description: "Run a few games.",
+    card_image_url: null,
+    visibility: "local",
+    status: "open",
+    host_display_name: "Maya",
+    host_handle: "maya",
+    going_count: 6,
+    max_people: null,
+    created_at: "2026-05-31T12:00:00Z",
+  });
+
+  assert.equal(share.goingCount, 6);
+  assert.equal(share.maxPeople, null);
+});
+
 test("local demo events create public preview links without Supabase UUIDs", async () => {
   const shareLink = await createQuestShareLink("local-demo-quest-dish-sunset");
 

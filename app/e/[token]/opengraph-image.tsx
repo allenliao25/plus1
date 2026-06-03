@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { type CSSProperties } from "react";
+import { formatCapacitySummary } from "@/lib/questCapacity";
 import { fetchPublicQuestShare } from "@/lib/questShareService";
 import { sharePalettes } from "@/app/e/[token]/sharePreviewStyles";
 
@@ -114,9 +115,8 @@ export default async function image({ params }: ImageProps) {
   }
 
   const palette = sharePalettes[share.category];
-  const openSpots = Math.max(0, share.maxPeople - share.goingCount);
   const metaLabel = `${share.category} / ${visibilityLabel(share.visibility)}`;
-  const spotsLabel = `${share.startTimeRelative || share.startTime} - ${share.goingCount}/${share.maxPeople} going - ${openSpots} open`;
+  const spotsLabel = `${share.startTimeRelative || share.startTime} - ${formatCapacitySummary(share)}`;
 
   return new ImageResponse(
     (
