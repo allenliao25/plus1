@@ -1,56 +1,67 @@
 # plus1
 
-Hangouts, without the group text.
+**Hangouts, without the group text.**
 
-plus1 is a mobile-first social app for lightweight events. People can sign in with phone OTP, discover realistic nearby plans, join or host events, and use AI to draft event details from text or flyers.
+plus1 is a mobile-first social app for finding casual things to do and people to do them with. Instead of coordinating through messy group chats, users can discover nearby plans, join events, host their own, message friends or attendees, and use AI to turn rough ideas or flyers into event drafts.
 
-## Why this project
+Live app: https://plus1-livid.vercel.app  
+Demo video: [add demo video link]
 
-Most casual coordination happens in fragmented group chats. plus1 tries to reduce that friction with:
+---
 
-- one-tap event discovery
-- frictionless joins/leaves
-- clear host ownership and capacity limits
-- AI-assisted draft creation for faster posting
+## Problem & Motivation
 
-## Current feature set
+I built plus1 because casual social plans are often harder to coordinate than they should be.
 
-### Auth and profile
+A lot of everyday plans start with something simple like "who wants to get food?" or "anyone down to study?" But in practice, those plans get buried in group chats, depend on knowing who is free, and require someone to take the initiative. Existing event platforms usually feel too formal for small, spontaneous plans, while group chats can be messy or awkward.
 
-- Phone-only OTP authentication (Supabase Auth)
-- Session persistence across refresh and native app relaunch
-- Automatic profile bootstrap on first sign-in
-- Profile editing (display name, unique @handle, local area, bio)
+plus1 is designed for lightweight plans: grabbing lunch, studying, playing basketball, going to the gym, taking a walk, or finding people who are down to do something nearby. The goal is not to make another endless social media feed, but to reduce the friction between wanting to do something and actually finding people to do it with.
 
-### Events
+---
 
-- Home feed of open events
-- Lightweight local-area filtering so users see realistic nearby events
-- Events screen with search + category filters
-- People screen with search, suggestions, friend requests, and friends
-- Create event flow with form validation
-- Join / leave event
-- Host edit / close event
-- Event detail with attendees and status badges
-- Shareable event card with native share sheet / clipboard fallback
+## What I Built
 
-### Activity, messages, and realtime
+plus1 is a functional mobile-first web app with authentication, profiles, event discovery, event creation, joining/leaving, friend requests, messaging, activity updates, AI-assisted event drafting, and iOS testing through Capacitor.
 
-- Activity feed for joins, edits, and closures
-- Home header bell with unread activity badge
-- Friends-only direct messages and host/attendee event chats
-- Home header messages button with unread chat badge
-- Supabase Realtime subscriptions for live updates
-- Local notifications on native iOS (best-effort)
+Core features include:
 
-### AI flows
+- phone OTP authentication with Supabase Auth
+- first-run profile setup after sign-in
+- editable profiles with display name, handle, pronouns, bio, interests, profile photo, website, and local area
+- home feed of open events
+- event search and category filters
+- local-area filtering for more realistic nearby plans
+- event creation, editing, joining, leaving, and closing
+- host-only controls for editing and closing open events
+- event detail pages with attendees, status badges, and share actions
+- event card image uploads
+- people search, suggested nearby users, friend requests, and friends list
+- friends-only direct messages
+- host/attendee event chats
+- activity feed for joins, edits, closures, invites, and friend activity
+- unread badges for activity and messages
+- Supabase Realtime subscriptions for feed, activity, friendship, and messaging updates
+- shareable public event preview links
+- AI text-to-event drafting
+- AI flyer-image-to-event extraction
+- Capacitor iOS wrapper for native-device testing
 
-- Text-to-event drafting: `app/api/ai/quest-draft/route.ts`
-- Flyer-image-to-event extraction: `app/api/ai/flyer-to-quest/route.ts`
-- Server-side validation/clamping of AI JSON output in `lib/aiQuestDraft.ts`
-- AI routes require a signed-in user and include basic input/rate limits
+A typical user flow is:
 
-## Architecture
+1. Sign in with phone OTP.
+2. Complete a profile.
+3. Browse nearby events.
+4. Join an event or create a new one.
+5. Use event chat after joining.
+6. Add friends and message them directly.
+7. Use AI to draft an event from text or a flyer.
+8. Share an event card with others.
+
+---
+
+## Technical Implementation
+
+plus1 is built as a mobile-first Next.js app and deployed on Vercel. I used Capacitor so the deployed web app could also be tested in an iOS shell without needing a full native rewrite or App Store submission.
 
 ```mermaid
 flowchart LR
@@ -62,187 +73,134 @@ flowchart LR
   ClientApp --> CapacitorIos["Capacitor iOS Wrapper"]
 ```
 
-## Tech stack
+Tech stack:
 
-- Next.js 16 (App Router), React 19, TypeScript
+- Next.js 16 with App Router
+- React 19
+- TypeScript
 - Tailwind CSS 4
-- Supabase (Auth, Postgres, Realtime)
-- OpenAI API (event drafting)
-- Capacitor iOS shell for native testing
-- Vercel for deployment
+- Supabase Auth
+- Supabase Postgres with Row Level Security
+- Supabase Realtime
+- OpenAI API
+- Capacitor iOS
+- Vercel
 
-## Quick start (local)
+Supabase handles authentication, database storage, permissions, and live updates. The app uses RLS policies and server-side database functions for important authorization behavior such as event visibility and atomic joins.
 
-### 1) Install
+OpenAI is used for the AI drafting features. The AI routes are server-side, require a signed-in user, include basic rate/input guards, and validate/clamp model output before using it. The app does not blindly trust raw AI JSON.
 
-```bash
-npm install
-```
+---
 
-### 2) Configure environment variables
+## Automated Testing
 
-```bash
-cp .env.example .env.local
-```
+The project includes unit tests and Supabase-backed integration tests. These tests check important permission and safety behaviors, including:
 
-Required vars in `.env.local`:
+- event capacity limits
+- rejecting host self-joins
+- rejecting users outside an event's local area
+- invite-only visibility
+- friends-only visibility
+- friendship removal behavior
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_SITE_URL` (used for public share preview links; production is `https://plus1-livid.vercel.app`)
-- `OPENAI_API_KEY` (required for AI draft routes)
-
-Optional vars:
-
-- `OPENAI_MODEL` (defaults to `gpt-4o-mini`)
-- `DEV_ORIGIN` (optional LAN override in `next.config.ts`)
-
-### 3) Apply Supabase migrations
-
-Apply all SQL files in `supabase/migrations/` (or use the combined schema in `supabase/schema.sql`) in your Supabase project.
-
-Minimum migrations for current feature set:
-
-- `supabase/migrations/20260529_auth_rls_upgrade.sql`
-- `supabase/migrations/20260529_push_tokens.sql`
-- `supabase/migrations/20260530045200_phone_auth_profiles.sql`
-- `supabase/migrations/20260530045300_profile_bio_interests.sql`
-- `supabase/migrations/20260530045400_activity_events.sql`
-- `supabase/migrations/20260530053000_profile_handles.sql`
-- `supabase/migrations/20260530054500_profile_website_url.sql`
-- `supabase/migrations/20260530060000_profile_photos_events_categories.sql`
-- `supabase/migrations/20260530061000_quest_card_images.sql`
-- `supabase/migrations/20260531020500_nullable_quest_start_time.sql`
-- `supabase/migrations/20260531030000_profile_pronouns.sql`
-- `supabase/migrations/20260531040000_course_hardening.sql`
-- `supabase/migrations/20260531043000_local_area_boundary.sql`
-- `supabase/migrations/20260531052000_event_visibility_invites.sql`
-- `supabase/migrations/20260531060000_local_visibility_name.sql`
-- `supabase/migrations/20260531223000_public_quest_share_links.sql`
-- `supabase/migrations/20260531233000_messaging_threads.sql`
-- `supabase/migrations/20260531240000_fix_direct_thread_ambiguous_thread_id.sql`
-
-### 4) Enable Realtime for activity and messages
-
-Ensure `activity_events`, `message_threads`, `message_thread_participants`, and `messages` are part of publication `supabase_realtime`.
-
-Code deploys, Supabase migrations, Realtime publication changes, and demo data
-seeding are separate steps. A Vercel deploy alone does not apply SQL migrations
-or populate production demo rows.
-
-### 5) Configure phone auth (choose one)
-
-- Real SMS path: Supabase Phone provider with Twilio credentials and Messaging Service SID.
-- Fast test path: Supabase "Test phone numbers and OTP" pair (recommended for demos).
-
-### 6) Run app
+The test suite can be run with:
 
 ```bash
-npm run dev
+npm run test
 ```
 
-Open `http://localhost:3000`.
+If the Supabase test environment variables are missing, the RLS integration tests are skipped. In that case, the unit tests still run, but the test run is not full proof of database authorization behavior.
 
-## iPhone testing
+---
 
-- Ensure `capacitor.config.ts` points to your deployed URL (or local URL setup if desired)
-- Sync/open iOS project:
+## Development Process & Iteration
 
-```bash
-npm run cap:sync:ios
-npm run cap:open:ios
-```
+plus1 started as a simpler mobile-first event discovery MVP. As I built and tested it, I realized that just showing events was not enough. For the app to feel useful, it needed more of the social layer around events.
 
-## Production deploy (Vercel)
+Major iterations included:
 
-1. Set environment variables in Vercel project settings:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `OPENAI_API_KEY`
-   - optional `OPENAI_MODEL`
-2. Deploy:
+- adding authenticated profiles instead of anonymous browsing
+- adding first-run profile setup after phone sign-in
+- adding local-area filtering so events felt realistic instead of global
+- adding richer profile fields and profile photo uploads
+- adding friend requests and friends-only direct messages
+- adding host/attendee event chats
+- adding activity updates and unread badges
+- adding Realtime subscriptions for fresher app state
+- adding AI drafting to make event creation faster
+- adding public event share previews
+- adding Supabase RLS policies and tests around permissions
+- adding demo seed data for a more realistic final presentation
+- polishing the mobile UI and iOS safe-area behavior through Capacitor testing
 
-```bash
-npx vercel deploy --prod
-```
+A major design decision was to keep plus1 focused on casual, everyday plans instead of formal events. I wanted the app to feel low-pressure enough that someone could post a small plan without making it a big deal.
 
-## Scripts
+---
 
-- `npm run dev` - run dev server on LAN
-- `npm run build` - production build
-- `npm run start` - start production server locally
-- `npm run lint` - lint codebase
-- `npm run test` - run unit + integration tests (integration auto-skips when env is missing)
-- `npm run test:unit` - run lightweight deterministic unit tests
-- `npm run seed:demo:dry-run` - validate and preview production demo seed rows without writing data
-- `npm run seed:demo:prod` - seed demo profiles, events, friendships, messages, and activity using the service-role key
-- `npm run seed:demo:cleanup` - remove demo rows created by the production demo seed
-- `npm run cap:sync:ios` - sync Capacitor iOS project
-- `npm run cap:open:ios` - open iOS project in Xcode
-- `npm run cap:run:ios` - run on selected iOS target
+## AI Usage & Disclosure
 
-## Reproducible 5-minute demo checklist
+I used AI tools during development. I used ChatGPT for ideation, planning, writing help, debugging support, and thinking through product direction. I used Codex and Cursor for coding assistance and implementation help.
 
-1. Open app and sign in via Test OTP (or Twilio SMS).
-2. Confirm first-run profile setup appears for new users.
-3. Create an event manually.
-4. Create another event draft via AI text prompt.
-5. Open Events and filter/search events.
-6. Join an event and verify the Home bell opens Activity.
-7. Open event detail and verify Chat appears after joining.
-8. Open Messages from Home and verify Inbox loads.
-9. Edit profile bio/interests and verify persistence.
+AI is also part of the product itself. plus1 uses OpenAI API routes to draft event details from text prompts and extract event information from flyers. Because AI output can be wrong or incomplete, the app validates and clamps AI JSON output server-side before using it.
 
-## Supabase integration test environment
+---
 
-`npm run test` always runs unit tests. The RLS integration tests in
-`lib/questService.test.mjs` run when these variables are present:
+## Known Limitations
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `PLUS1_TEST_PASSWORD`
-- `PLUS1_TEST_EMAIL_HOST`
-- `PLUS1_TEST_EMAIL_JOINER`
-- `PLUS1_TEST_EMAIL_THIRD` (needed for capacity and outside-area rejection)
+plus1 is a course project prototype and is not production-ready as a real social platform yet.
 
-Use disposable test users and a disposable Supabase project or schema. The test
-updates those users' `profiles.area` values and creates temporary events.
+Current limitations include:
 
-Expected local behavior:
+- real SMS delivery in the US may require Twilio A2P 10DLC registration
+- Supabase Test OTP is the most reliable auth path for demos
+- AI flyer extraction can miss or hallucinate details from noisy images
+- native push token registration is best-effort
+- production push notification delivery is not fully wired
+- message push notifications are not implemented
+- network effects are limited without enough active local users
+- local area is profile-selected for demo purposes and is not GPS-verified
+- trust and safety features are documented but incomplete
+- closed or past host events can remain visible on profiles
+- some internal database and TypeScript names still use legacy `quest` naming while user-facing copy says "events"
 
-- without the `PLUS1_TEST_*` variables, `npm run test` should pass unit tests and
-  report the Supabase-backed RLS checks as skipped with `Missing Supabase test env vars`
-- with the variables configured, `npm run test` should execute the six RLS checks
-  for atomic capacity, host self-join rejection, outside-area rejection,
-  invite-only visibility, friends-only visibility, and friendship removal
+---
 
-## Project documentation for submission
+## Future Work
 
-- Evaluation evidence: `docs/evaluation.md`
-- AI/process disclosure: `docs/ai-disclosure.md`
-- Demo script: `docs/demo-script.md`
+The biggest future direction is trust and safety. A real version of plus1 would need stronger safety systems before being used by a larger community.
 
-## Known limitations
-
-- Real SMS delivery in US may require Twilio A2P 10DLC registration.
-- AI flyer extraction can miss or hallucinate event details from noisy images.
-- Native push token registration is best-effort in development builds.
-- Production push delivery is not wired yet: the app can register tokens and
-  refresh in-app/local notification surfaces, but `lib/pushSender.ts` is not
-  called by a production job or API route.
-- Network effects are limited without enough active local users.
-- Local area is profile-selected for demo purposes; it is not GPS or address verification.
-- Activity for joins/host edits/closures is server-side, while reminder activity remains best-effort.
-- Message push notifications are not implemented; unread chat badges are in-app only.
-- Internal database and TypeScript names still use legacy `quest` naming for this pass; user-facing copy treats them as events.
-
-## Future trust/safety work
-
-The current course-hardening pass documents but does not implement the full
-trust/safety surface. Before treating plus1 as production-ready, add:
+Future features I would add include:
 
 - report flows for events and users
-- block/mute controls that hide blocked users and their events
+- block and mute controls
+- stronger privacy settings
 - host reputation or verification signals
-- moderator takedown tools for unsafe events or profiles
-- a clear escalation/review process for reports
+- moderator tools for unsafe events or profiles
+- better production push notifications
+- message push notifications
+- stronger location verification
+- deeper event recommendations based on interests, friends, time, and location
+- deep links for opening shared events directly in the app
+- more structured user feedback and usage analytics
+
+I would also want to test the app with a larger group of students to see whether people would actually use plus1 for spontaneous plans instead of relying on existing group chats.
+
+---
+
+## Reproducible Demo Flow
+
+A short demo can follow this flow:
+
+1. Open the app and sign in through Supabase Test OTP or SMS.
+2. Complete first-run profile setup.
+3. Browse the home feed and events page.
+4. Search and filter events by category.
+5. Open an event detail page and inspect attendees.
+6. Join an event and open the event chat.
+7. Check the activity feed and unread badge.
+8. Open messages and direct message a friend.
+9. Create an event manually.
+10. Create another event draft through AI text input.
+11. Extract event details from a flyer image.
+12. Share an event card.
+13. Edit profile information and verify persistence.
