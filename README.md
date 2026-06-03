@@ -92,27 +92,6 @@ OpenAI is used for the AI drafting features. The AI routes are server-side, requ
 
 ---
 
-## Automated Testing
-
-The project includes unit tests and Supabase-backed integration tests. These tests check important permission and safety behaviors, including:
-
-- event capacity limits
-- rejecting host self-joins
-- rejecting users outside an event's local area
-- invite-only visibility
-- friends-only visibility
-- friendship removal behavior
-
-The test suite can be run with:
-
-```bash
-npm run test
-```
-
-If the Supabase test environment variables are missing, the RLS integration tests are skipped. In that case, the unit tests still run, but the test run is not full proof of database authorization behavior.
-
----
-
 ## Development Process & Iteration
 
 plus1 started as a simpler mobile-first event discovery MVP. As I built and tested it, I realized that just showing events was not enough. For the app to feel useful, it needed more of the social layer around events.
