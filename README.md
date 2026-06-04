@@ -5,7 +5,6 @@
 plus1 is a mobile-first social app for finding casual things to do and people to do them with. Instead of coordinating through messy group chats, users can discover nearby plans, join events, host their own, message friends or attendees, and use AI to turn rough ideas or flyers into event drafts.
 
 Live app: https://plus1-livid.vercel.app  
-Demo video: [add demo video link]
 
 ---
 
@@ -108,8 +107,6 @@ Major iterations included:
 - adding Realtime subscriptions for fresher app state
 - adding AI drafting to make event creation faster
 - adding public event share previews
-- adding Supabase RLS policies and tests around permissions
-- adding demo seed data for a more realistic final presentation
 - polishing the mobile UI and iOS safe-area behavior through Capacitor testing
 
 A major design decision was to keep plus1 focused on casual, everyday plans instead of formal events. I wanted the app to feel low-pressure enough that someone could post a small plan without making it a big deal.
@@ -135,12 +132,9 @@ Current limitations include:
 - AI flyer extraction can miss or hallucinate details from noisy images
 - native push token registration is best-effort
 - production push notification delivery is not fully wired
-- message push notifications are not implemented
 - network effects are limited without enough active local users
 - local area is profile-selected for demo purposes and is not GPS-verified
 - trust and safety features are documented but incomplete
-- closed or past host events can remain visible on profiles
-- some internal database and TypeScript names still use legacy `quest` naming while user-facing copy says "events"
 
 ---
 
