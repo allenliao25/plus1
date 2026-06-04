@@ -41,7 +41,7 @@ export default function EventsScreen({
   );
 
   return (
-    <div className="-mx-5 space-y-4">
+    <div className="-mx-5 space-y-2">
       <div className="snap-start border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
         <div className="mb-2 flex items-center justify-between gap-3">
           <div>
@@ -90,7 +90,7 @@ export default function EventsScreen({
           />
         </div>
       ) : (
-        <div className="space-y-4 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+8.75rem)] pt-8">
+        <div className="space-y-4 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+8.75rem)] pt-2">
           {feedModel.filteredQuests.map((quest) => (
             <EventDiscoveryCard
               key={quest.id}
