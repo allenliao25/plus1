@@ -2592,6 +2592,15 @@ function useStableKeyboardViewport() {
 
       root.style.setProperty("--plus1-app-height", `${stableHeight}px`);
       root.classList.toggle("plus1-keyboard-open", keyboardLooksOpen);
+
+      // iOS WKWebView shifts the page up to reveal a focused input and leaves
+      // that scroll offset in place after the keyboard dismisses, which shows
+      // as a large white gap. The document never scrolls on its own (all
+      // scrolling lives in .app-scroll), so once the keyboard is gone we reset
+      // any leftover window offset back to the top.
+      if (!keyboardLooksOpen && !focusedTextField && window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
     }
 
     function scheduleApply() {
