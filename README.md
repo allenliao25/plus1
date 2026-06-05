@@ -1,6 +1,6 @@
 # plus1
 
-**Hangouts, without the group text.**
+**Hangouts, sidequests, and plans.**
 
 plus1 is a mobile-first social app for finding casual things to do and people to do them with. Instead of coordinating through messy group chats, users can discover nearby plans, join events, host their own, message friends or attendees, and use AI to turn rough ideas or flyers into event drafts.
 
