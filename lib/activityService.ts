@@ -81,8 +81,10 @@ type NewActivityEvent = {
 
 /**
  * Insert activity events for recipients. RLS requires the caller to be the
- * actor (`actor_id`), so this is only used to notify other users about an
- * action the current user performed.
+ * actor (`actor_id`), and the recipient (`user_id`) must be the actor
+ * themself, an invitee of the actor on the quest, or have a pending/accepted
+ * friendship with the actor. So this is only used to notify other users about
+ * an action the current user performed.
  */
 export async function recordActivityEvents(events: NewActivityEvent[]) {
   if (events.length === 0) {

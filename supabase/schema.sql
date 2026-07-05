@@ -159,6 +159,9 @@ create unique index if not exists profiles_phone_unique
 create unique index if not exists quest_joins_quest_id_user_id_unique
   on quest_joins (quest_id, user_id);
 
+create index if not exists quest_joins_user_id_idx
+  on quest_joins (user_id);
+
 create unique index if not exists friendships_user_pair_unique
   on friendships (
     least(requester_id, addressee_id),
@@ -357,6 +360,36 @@ $$;
 
 revoke all on function public.are_friends(uuid, uuid) from public;
 grant execute on function public.are_friends(uuid, uuid) to authenticated;
+
+create or replace function public.can_send_activity_to(recipient_id uuid, target_quest_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    recipient_id = auth.uid()
+    or exists (
+      select 1
+      from quest_invites
+      where quest_invites.quest_id = target_quest_id
+        and quest_invites.inviter_id = auth.uid()
+        and quest_invites.invitee_id = recipient_id
+    )
+    or exists (
+      select 1
+      from friendships
+      where friendships.status in ('pending', 'accepted')
+        and (
+          (friendships.requester_id = auth.uid() and friendships.addressee_id = recipient_id)
+          or (friendships.requester_id = recipient_id and friendships.addressee_id = auth.uid())
+        )
+    );
+$$;
+
+revoke all on function public.can_send_activity_to(uuid, uuid) from public;
+grant execute on function public.can_send_activity_to(uuid, uuid) to authenticated;
 
 create or replace function public.is_event_chat_member(
   target_quest_id uuid,
@@ -1144,7 +1177,10 @@ drop policy if exists "actors create activity" on activity_events;
 create policy "actors create activity"
   on activity_events for insert
   to authenticated
-  with check (auth.uid() = actor_id);
+  with check (
+    auth.uid() = actor_id
+    and public.can_send_activity_to(user_id, quest_id)
+  );
 
 drop policy if exists "users update own activity" on activity_events;
 create policy "users update own activity"
