@@ -223,6 +223,10 @@ struct ChatThreadView: View {
             await loadMissingSenders(for: list)
             try? await Repo.markThreadRead(threadId: threadId)
         } catch {
+            guard !(error is CancellationError) else {
+                loaded = true
+                return
+            }
             errorMessage = error.localizedDescription
         }
         loaded = true

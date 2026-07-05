@@ -215,6 +215,7 @@ struct PublicProfileView: View {
             quests = try await Repo.questsByCreator(profileId)
             try await reloadFriendship()
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }

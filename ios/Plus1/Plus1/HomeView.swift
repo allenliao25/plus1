@@ -200,6 +200,7 @@ struct HomeView: View {
             hasUnreadActivity = activity.contains { !$0.isRead }
             loaded = true
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }

@@ -171,6 +171,7 @@ struct ExploreView: View {
             self.friendships = friendships
             loaded = true
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }

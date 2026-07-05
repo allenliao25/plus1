@@ -124,6 +124,10 @@ struct InboxView: View {
             threads = list
             unreadCount = list.filter { $0.unreadCount > 0 }.count
         } catch {
+            guard !(error is CancellationError) else {
+                loaded = true
+                return
+            }
             errorMessage = error.localizedDescription
         }
         loaded = true

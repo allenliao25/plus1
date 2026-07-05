@@ -106,6 +106,7 @@ struct InvitePickerView: View {
                     $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
                 }
         } catch {
+            guard !(error is CancellationError) else { return }
             loadError = error.localizedDescription
         }
     }

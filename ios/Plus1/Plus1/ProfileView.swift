@@ -177,6 +177,7 @@ struct ProfileView: View {
                 friendCount = rows.filter { $0.state(for: me) == .friends }.count
             }
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }

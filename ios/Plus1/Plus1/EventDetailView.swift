@@ -401,6 +401,7 @@ struct EventDetailView: View {
                 await loadShareLink()
             }
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = error.localizedDescription
         }
     }
