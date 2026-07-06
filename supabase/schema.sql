@@ -809,6 +809,7 @@ create policy "users create friend requests"
     auth.uid() = requester_id
     and requester_id <> addressee_id
     and status = 'pending'
+    and not public.are_blocked(auth.uid(), addressee_id)
   );
 
 drop policy if exists "addressees update friend requests" on friendships;

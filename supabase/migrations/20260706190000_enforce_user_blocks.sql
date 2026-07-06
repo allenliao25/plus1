@@ -214,3 +214,16 @@ $$;
 revoke all on function public.get_or_create_direct_thread(uuid) from public;
 revoke execute on function public.get_or_create_direct_thread(uuid) from anon;
 grant execute on function public.get_or_create_direct_thread(uuid) to authenticated;
+
+-- Friend requests: a blocked pair (either direction) can no longer send a
+-- friend request. The requester is auth.uid(); the "other user" is addressee_id.
+drop policy if exists "users create friend requests" on friendships;
+create policy "users create friend requests"
+  on friendships for insert
+  to authenticated
+  with check (
+    auth.uid() = requester_id
+    and requester_id <> addressee_id
+    and status = 'pending'
+    and not public.are_blocked(auth.uid(), addressee_id)
+  );
