@@ -11,10 +11,16 @@ import XCTest
 final class SmokeTests: XCTestCase {
     private var app: XCUIApplication!
 
-    // Test account (Supabase test OTP). Typing 10 ones + the UI's +1 prefix
-    // normalizes to +11111111111; the OTP 111111 auto-verifies on the 6th digit.
-    private let testPhoneDigits = "1111111111"
-    private let testOTP = "111111"
+    // Sign in as the seeded demo host "Maya Chen" (Supabase test OTP, see
+    // docs/demo-data.md). Maya hosts several events and owns the ramen event
+    // group chat, so the Inbox / chat / profile screens render with live data
+    // instead of empty states — unlike the reserved +11111111111 UI-test
+    // account, which has no chats or hosted events. Typing 10 digits + the UI's
+    // +1 prefix normalizes to +18005550123; OTP 789012 auto-verifies on the 6th
+    // digit. Maya already has a display name/handle, so first-run profile setup
+    // is skipped.
+    private let testPhoneDigits = "8005550123"
+    private let testOTP = "789012"
 
     override func setUpWithError() throws {
         continueAfterFailure = true
@@ -186,26 +192,35 @@ final class SmokeTests: XCTestCase {
 
         capture("\(prefix)04-home-dock") {
             self.app.swipeUp()
+            // Let the scroll settle so the shot isn't caught mid-animation with
+            // the header overlapping the status bar.
+            self.waitUntil(timeout: 0.8) { false }
         }
 
         goToTab("Explore", prefix: prefix)
+        // Let the default sections (contacts prompt + friend suggestions) load
+        // so the shot isn't the skeleton placeholder state.
+        _ = app.staticTexts["Find friends"].waitForExistence(timeout: 8)
+        waitUntil(timeout: 1.0) { false }
         capture("\(prefix)05-explore")
 
-        capture("\(prefix)06-explore-search") {
-            self.searchExplore("maya")
-        }
-        // A keyboard "Enable Dictation?" prompt can pop on first text entry and
-        // block subsequent taps — dismiss it before moving on.
-        dismissSystemAlertIfPresent()
-        // Clear search so it doesn't bleed into later tabs.
-        dismissKeyboardAndSearch()
+        // NOTE: we deliberately do NOT drive the searchable field here. Typing
+        // into Explore search triggers the contacts-sync flow (a springboard
+        // "would like to access your Contacts" system alert) and iOS 26's
+        // searchable dismiss control isn't a plain "Cancel" button, so the
+        // keyboard would stay up and swallow every subsequent tab tap — which
+        // corrupted the Create / Inbox / Profile / event-detail shots. A clean
+        // Explore capture is a better store asset than a keyboard-up search.
 
-        // Invoke Create from a clean Home tab (not with the Explore search
-        // keyboard up, which can swallow the tap and leave the sheet unopened).
+        // Invoke Create from a clean Home tab.
         goToTab("Home", prefix: prefix)
         captureCreateSheet(prefix: prefix)
 
         goToTab("Inbox", prefix: prefix)
+        // Maya's seeded conversations are event threads (the ramen run), which
+        // live under the "Events" segment. Select it so the inbox shows a real
+        // thread row instead of the Direct tab's empty state.
+        selectInboxEventsTab()
         capture("\(prefix)10-inbox")
         captureFirstChatThread(prefix: prefix)
 
@@ -220,27 +235,6 @@ final class SmokeTests: XCTestCase {
         // Event detail from the first Home card.
         goToTab("Home", prefix: prefix)
         openFirstEventFromHome(prefix: prefix)
-    }
-
-    private func searchExplore(_ text: String) {
-        let searchField = app.searchFields.firstMatch
-        if searchField.waitForExistence(timeout: 5) {
-            searchField.tap()
-            searchField.typeText(text)
-            // Let the debounced people search resolve.
-            waitUntil(timeout: 3) { false }  // just a short settle
-        }
-    }
-
-    private func dismissKeyboardAndSearch() {
-        let cancel = app.buttons["Cancel"]
-        if cancel.exists { cancel.tap() }
-        let searchField = app.searchFields.firstMatch
-        if searchField.exists {
-            // Clear any residual text.
-            let clear = searchField.buttons["Clear text"]
-            if clear.exists { clear.tap() }
-        }
     }
 
     private func captureCreateSheet(prefix: String) {
@@ -301,22 +295,56 @@ final class SmokeTests: XCTestCase {
         }
     }
 
+    /// Select the "Events" segment of the inbox filter so seeded event threads
+    /// (the ramen group chat) are listed. The control is a segmented Picker.
+    private func selectInboxEventsTab() {
+        let events = app.buttons["Events"]
+        if events.waitForExistence(timeout: 5), events.isHittable {
+            events.tap()
+        } else if app.segmentedControls.buttons["Events"].exists {
+            app.segmentedControls.buttons["Events"].tap()
+        }
+        // Let the (already-loaded) list re-filter.
+        waitUntil(timeout: 0.6) { false }
+    }
+
     private func captureFirstChatThread(prefix: String) {
-        // A thread row shows a title; tapping the first cell opens ChatThreadView.
+        // Thread rows are NavigationLinks inside the inbox list. Only tap a real
+        // row (a cell/button inside the scroll view) — a loose "first enabled
+        // button" fallback used to tap the tab bar and capture the wrong screen
+        // when the inbox was empty. Match a row by its seeded thread title.
+        let ramenRow = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "ramen")
+        ).firstMatch
         let firstCell = app.scrollViews.otherElements.buttons.firstMatch
-        let anyLink = app.buttons.matching(NSPredicate(format: "isEnabled == true")).firstMatch
-        // Prefer a cell inside the list; fall back to the first tappable button.
-        let target = firstCell.exists ? firstCell : anyLink
+        let target: XCUIElement = ramenRow.waitForExistence(timeout: 4)
+            ? ramenRow
+            : firstCell
         if target.exists {
             target.tap()
-            capture("\(prefix)11-chat-thread")
-            // Back out to the inbox.
-            let back = app.navigationBars.buttons.firstMatch
-            if back.exists { back.tap() }
-        } else {
-            log("No chat thread to open — capturing inbox empty state instead")
-            capture("\(prefix)11-chat-empty")
+            // Confirm we actually pushed a chat (a nav bar back button appears)
+            // before capturing, so we never shoot the inbox list by mistake.
+            if app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 4) {
+                // Wait for the message bubbles to load — the thread opens on a
+                // spinner and the bodies arrive async. Poll for a seeded bubble
+                // (the ramen thread's last line) so we don't capture the empty
+                // loading state.
+                let bubble = app.staticTexts.matching(
+                    NSPredicate(format: "label CONTAINS[c] %@", "grab us a table")
+                ).firstMatch
+                if !bubble.waitForExistence(timeout: 6) {
+                    // Fallback: any non-trivial text bubble beyond the nav title.
+                    waitUntil(timeout: 3) { self.app.staticTexts.count > 4 }
+                }
+                waitUntil(timeout: 0.6) { false }
+                capture("\(prefix)11-chat-thread")
+                let back = app.navigationBars.buttons.firstMatch
+                if back.exists { back.tap() }
+                return
+            }
         }
+        log("No chat thread to open — capturing inbox instead")
+        capture("\(prefix)11-chat-empty")
     }
 
     private func captureActivity(prefix: String) {
@@ -346,13 +374,28 @@ final class SmokeTests: XCTestCase {
     }
 
     private func openFirstEventFromHome(prefix: String) {
-        // Event cards are NavigationLinks in the Home scroll view. Tap the first
-        // enabled cell/button that isn't a tab or filter chip.
-        let cards = app.scrollViews.firstMatch.buttons
+        // Event cards are NavigationLinks whose accessibilityLabel starts with
+        // the event title (e.g. "Dinner at Wilbur, …"). Match a card by its
+        // title prefix rather than a positional index — index-based taps hit the
+        // All/Friends/category filter chips instead of a real card.
         var tapped = false
-        if cards.count > 0 {
-            // Skip the filter chips (All/Friends/categories) — try cells lower down.
-            let candidate = cards.element(boundBy: min(cards.count - 1, 3))
+        // Match a card by any of the seeded event titles (demo-data.md). The
+        // live feed also carries a few extra events; whichever renders first
+        // gives a clean detail shot.
+        let titles = ["Finals grind", "Late night ramen", "Sunrise Dish",
+                      "Movie night", "Pickup basketball", "Dinner at Wilbur"]
+        let predicate = NSPredicate(
+            format: "label MATCHES[c] %@",
+            "(" + titles.map { NSRegularExpression.escapedPattern(for: $0) }.joined(separator: "|") + ").*"
+        )
+        let byTitle = app.buttons.matching(predicate).firstMatch
+        if byTitle.waitForExistence(timeout: 5) {
+            byTitle.tap()
+            tapped = true
+        } else {
+            // Fallback: any card-shaped button below the filter chips.
+            let cards = app.scrollViews.firstMatch.buttons
+            let candidate = cards.element(boundBy: min(cards.count - 1, 4))
             if candidate.exists {
                 candidate.tap()
                 tapped = true
