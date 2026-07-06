@@ -41,7 +41,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.allenliao.Plus1
-        CODE_SIGN_ENTITLEMENTS: Plus1/Plus1.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: PNQXU683AK
         MARKETING_VERSION: "1.0"
@@ -60,6 +59,15 @@ targets:
         INFOPLIST_KEY_POSTHOG_API_KEY: $(POSTHOG_API_KEY)
         INFOPLIST_KEY_POSTHOG_HOST: $(POSTHOG_HOST)
         INFOPLIST_KEY_SENTRY_DSN: $(SENTRY_DSN)
+      configs:
+        # aps-environment is per-config: debug builds use the sandbox APNs
+        # gateway; Release (archive/TestFlight/App Store) uses production. Two
+        # entitlements files make this explicit rather than relying on Xcode's
+        # archive-time rewrite of the development value.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Plus1/Plus1.entitlements
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Plus1/Plus1.Release.entitlements
   Plus1UITests:
     type: bundle.ui-testing
     platform: iOS

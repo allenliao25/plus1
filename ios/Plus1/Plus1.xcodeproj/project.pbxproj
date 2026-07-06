@@ -19,6 +19,7 @@
 		29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 851E350FF5328B1F89E36E7E /* ReportSheet.swift */; };
 		4BB4DD68C853B55B4AFDDA7F /* ContactsSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95278990F74785C6D810019F /* ContactsSync.swift */; };
 		4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0190D2F5AF90DD2E6C999CF /* RootView.swift */; };
+		4F4DD7B49BE6B4E48F4EC874 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */; };
 		51DBB311E4B5A0A5C9B8979C /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E89001FB8F4F09BA1F135570 /* Sentry */; };
 		6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692EB899F48256B64FE0623E /* Theme.swift */; };
 		71153423D043F83F069961F9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860BFBFD23F04849EEA1F554 /* ProfileView.swift */; };
@@ -58,6 +59,7 @@
 		1179F83CBF5605DE80500150 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 		152AA2C461A025618217FBC6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		183939407C68712AE9528152 /* Plus1.Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Plus1.Release.entitlements; sourceTree = "<group>"; };
 		1CBCF2620798234F1E3409C7 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		2A402D5B343C467BFAC17C7D /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 		2A7AD834C6E37902F4F3B648 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
@@ -77,6 +79,7 @@
 		D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
 		D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileView.swift; sourceTree = "<group>"; };
 		D5A59FF80237E9527F6F5A8C /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
+		DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F0190D2F5AF90DD2E6C999CF /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Plus1.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -130,7 +133,9 @@
 				B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */,
 				00E5BBB4C422D43516DAEF30 /* Models.swift */,
 				FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */,
+				183939407C68712AE9528152 /* Plus1.Release.entitlements */,
 				66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */,
+				DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */,
 				04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */,
 				860BFBFD23F04849EEA1F554 /* ProfileView.swift */,
 				D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */,
@@ -257,6 +262,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				29AA2BC634B6CB36D34C0606 /* Assets.xcassets in Resources */,
+				4F4DD7B49BE6B4E48F4EC874 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -401,7 +407,7 @@
 			baseConfigurationReference = 57E45FE168CCD73FE609B489 /* Analytics.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.Release.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
