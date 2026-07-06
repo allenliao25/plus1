@@ -18,6 +18,9 @@ final class AppModel {
     /// A tab a screen wants to switch to (e.g. an empty-state CTA). RootView
     /// observes this, applies the selection, then clears it back to nil.
     var requestedTab: RootView.Tab?
+    /// An event to present as a sheet (notification tap / universal link).
+    /// RootView drives a `.sheet(item:)` off this and clears it on dismiss.
+    var deepLinkQuestId: UUID?
 
     func bumpData() { dataVersion += 1 }
 

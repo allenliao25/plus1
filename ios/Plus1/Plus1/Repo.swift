@@ -663,3 +663,45 @@ enum RepoError: LocalizedError {
         }
     }
 }
+
+// MARK: - Push & deep links
+
+extension Repo {
+    /// Register this device's APNs token via the SECURITY DEFINER RPC. The RPC
+    /// deletes any prior row for this token (past RLS) before inserting one owned
+    /// by the caller, so a token that still belongs to a previously signed-in
+    /// user gets reassigned instead of hitting the standalone token-unique
+    /// constraint.
+    static func upsertPushToken(_ token: String) async throws {
+        guard currentUserId != nil else { throw RepoError.notSignedIn }
+        struct Params: Encodable {
+            let target_token: String
+            let target_platform: String
+        }
+        try await db.rpc(
+            "register_push_token",
+            params: Params(target_token: token, target_platform: "ios")
+        ).execute()
+    }
+
+    /// Delete this device's own token row (used on sign-out) via the RPC.
+    static func deletePushToken(_ token: String) async throws {
+        guard currentUserId != nil else { return }
+        struct Params: Encodable { let target_token: String }
+        try await db.rpc(
+            "unregister_push_token",
+            params: Params(target_token: token)
+        ).execute()
+    }
+
+    /// Resolve a public share token to its quest id, mirroring the web
+    /// `/e/[token]` page: the `get_public_quest_share(share_token)` RPC.
+    static func questIdForShareToken(_ token: String) async throws -> UUID? {
+        struct Params: Encodable { let share_token: String }
+        struct ShareRow: Decodable { let quest_id: UUID }
+        let rows: [ShareRow] = try await db
+            .rpc("get_public_quest_share", params: Params(share_token: token))
+            .execute().value
+        return rows.first?.quest_id
+    }
+}

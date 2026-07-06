@@ -1,0 +1,7 @@
+project_id = "qjuiqeclnrvkyjnqltxq"
+
+# The push function is invoked by Postgres triggers (via pg_net), not by
+# end-user JWTs. It authenticates the caller with the x-push-secret header, so
+# Supabase's built-in JWT verification is disabled for it.
+[functions.push]
+verify_jwt = false

@@ -38,6 +38,39 @@ struct HomeView: View {
 
     private var live: [Quest] { filtered.filter(\.isLive) }
     private var upcoming: [Quest] { filtered.filter { !$0.isLive } }
+
+    /// "Tonight" rail: open events live now OR starting today between 16:00 and
+    /// 04:00 next-day (local). Live first, then by start time. Reuses the loaded
+    /// feed — no extra fetch. Events here are ALSO left in the normal sections
+    /// below (featured-rail pattern; duplication is intentional for v1).
+    private var tonight: [Quest] {
+        let calendar = Calendar.current
+        let now = Date()
+        let candidates = quests.filter { quest in
+            guard quest.isOpen else { return false }
+            if quest.isLive { return true }
+            guard let start = quest.startDate else { return false }
+            let hour = calendar.component(.hour, from: start)
+            let inWindow = hour >= 16 || hour < 4
+            guard inWindow else { return false }
+            // A non-live event only belongs in "Tonight" if it hasn't started yet
+            // — otherwise a 2am-today event that's already past would show here.
+            guard start > now else { return false }
+            // "Today" = the evening/late-night block anchored on today's date.
+            // 16:00–23:59 must be today; 00:00–03:59 counts as tonight's tail.
+            if hour >= 16 {
+                return calendar.isDateInToday(start)
+            }
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: start) ?? start
+            return calendar.isDateInToday(start) || calendar.isDateInToday(yesterday)
+        }
+        return candidates.sorted { a, b in
+            if a.isLive != b.isLive { return a.isLive }
+            return (a.startDate ?? .distantPast) < (b.startDate ?? .distantPast)
+        }
+    }
+
+    private var showsTonight: Bool { filter == .all && !tonight.isEmpty }
     private var friendQuests: [Quest] { quests.filter(isFromFriends) }
     private var yourQuests: [Quest] { quests.filter(\.createdByCurrentUser) }
     private var campusQuests: [Quest] { quests.filter { $0.visibility == .local } }
@@ -56,8 +89,10 @@ struct HomeView: View {
                 if !loaded {
                     ForEach(0..<3, id: \.self) { _ in SkeletonCard(height: 92) }
                 } else if showsEmptyFriends {
+                    if showsTonight { tonightRail }
                     emptyFriendsSections
                 } else {
+                    if showsTonight { tonightRail }
                     feedSections
                 }
             }
@@ -140,6 +175,28 @@ struct HomeView: View {
     }
 
     // MARK: Feed
+
+    /// Featured "Tonight" rail — a horizontal snap-scroll of the evening's
+    /// live/soon events, above the normal sections.
+    private var tonightRail: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Tonight", caption: "\(tonight.count)")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(tonight) { quest in
+                        NavigationLink {
+                            EventDetailView(questId: quest.id)
+                        } label: {
+                            TonightCard(quest: quest)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+        }
+    }
 
     /// Your own hosted events, shown as a labeled slice under the All filter
     /// so they aren't silently counted as "friends'".
@@ -303,6 +360,61 @@ private struct LiveQuestCard: View {
             .padding(.vertical, 4)
             .background(.white, in: Capsule())
             .padding(8)
+        }
+    }
+}
+
+// MARK: - Tonight rail card (240×140)
+
+private struct TonightCard: View {
+    let quest: Quest
+
+    private var metaLine: String {
+        if let left = quest.spotsLeft, left > 0, left <= 2 {
+            let spots = left == 1 ? "1 spot left" : "\(left) spots left"
+            return "\(quest.timeLabel) · \(spots)"
+        }
+        return "\(quest.timeLabel) · \(quest.location)"
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            CategoryArtwork(category: quest.category, imageURL: quest.cardImageURL, emojiSize: 40)
+            LinearGradient(
+                stops: [
+                    .init(color: .black.opacity(0.68), location: 0),
+                    .init(color: .clear, location: 0.6)
+                ],
+                startPoint: .bottom, endPoint: .top
+            )
+            VStack(alignment: .leading, spacing: 3) {
+                Text(quest.title)
+                    .font(.system(size: 15, weight: .heavy))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Text(metaLine)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+            }
+            .padding(10)
+        }
+        .frame(width: 240, height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(alignment: .topLeading) {
+            if quest.isLive {
+                HStack(spacing: 4) {
+                    Circle().fill(Theme.accent).frame(width: 6, height: 6)
+                    Text("LIVE")
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(Theme.accentInk)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.white, in: Capsule())
+                .padding(8)
+            }
         }
     }
 }

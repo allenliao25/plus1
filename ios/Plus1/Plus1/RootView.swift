@@ -10,7 +10,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
     @State private var selection: Tab = .home
     @State private var previousTab: Tab = .home
-    @State private var creating = false
+    @State private var sheet: RootSheet?
     @State private var unreadThreads = 0
 
     var body: some View {
@@ -36,17 +36,11 @@ struct RootView: View {
         .tabBarMinimizeOnScroll()
         .onChange(of: selection) { _, newValue in
             if newValue == .create {
-                creating = true
+                sheet = .create
                 selection = previousTab
             } else {
                 previousTab = newValue
             }
-        }
-        .sheet(isPresented: $creating) {
-            CreateEventView()
-        }
-        .onChange(of: creating) { _, isPresenting in
-            if !isPresenting { Task { await app.refreshBadges() } }
         }
         .onChange(of: app.requestedTab) { _, requested in
             guard let requested else { return }
@@ -54,7 +48,51 @@ struct RootView: View {
             previousTab = requested
             app.requestedTab = nil
         }
+        // A deep link (notification tap / universal link) must win any open
+        // create sheet, so replace the current sheet item rather than relying on
+        // a second `.sheet` that would be suppressed while the first is up.
+        .onChange(of: app.deepLinkQuestId) { _, questId in
+            if let questId { sheet = .event(questId) }
+        }
+        // A link set while signed-out lands in `deepLinkQuestId` before RootView
+        // exists; pick it up on first appearance.
+        .onAppear {
+            if let questId = app.deepLinkQuestId { sheet = .event(questId) }
+        }
+        .sheet(item: $sheet, onDismiss: {
+            app.deepLinkQuestId = nil
+            Task { await app.refreshBadges() }
+        }) { item in
+            switch item {
+            case .create:
+                CreateEventView()
+            case .event(let questId):
+                NavigationStack {
+                    EventDetailView(questId: questId)
+                }
+            }
+        }
         .task { await app.refreshBadges() }
+        .task {
+            // Ask for push permission once the signed-in UI has settled.
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            PushManager.shared.requestPushPermissionIfNeeded()
+        }
+    }
+}
+
+/// The single sheet RootView presents — either the create form or a deep-linked
+/// event. One `.sheet(item:)` (not two overlapping ones) so a deep link arriving
+/// while Create is open replaces it instead of being dropped.
+private enum RootSheet: Identifiable {
+    case create
+    case event(UUID)
+
+    var id: String {
+        switch self {
+        case .create: "create"
+        case .event(let questId): questId.uuidString
+        }
     }
 }
 

@@ -3,6 +3,7 @@ import Supabase
 
 @main
 struct Plus1App: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var session = SessionStore()
     @State private var app = AppModel()
 
@@ -28,6 +29,25 @@ struct Plus1App: App {
             .environmentObject(session)
             .environment(app)
             .tint(Theme.accent)
+            .onAppear { PushManager.shared.app = app }
+            .onOpenURL { url in handleDeepLink(url) }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                if let url = activity.webpageURL { handleDeepLink(url) }
+            }
+        }
+    }
+
+    /// Resolve a plus1 `/e/<token>` share URL to a quest and present it.
+    /// Unknown or unresolvable links are ignored silently.
+    private func handleDeepLink(_ url: URL) {
+        guard url.host == "plus1-livid.vercel.app" else { return }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count >= 2, parts[0] == "e" else { return }
+        let token = parts[1]
+        Task {
+            if let questId = try? await Repo.questIdForShareToken(token) {
+                app.deepLinkQuestId = questId
+            }
         }
     }
 }
@@ -118,6 +138,16 @@ final class SessionStore: ObservableObject {
     }
 
     func signOut() async {
+        // Drop this device's push token first (best-effort) while the session
+        // still authorizes the delete, then sign out. Await it so the delete
+        // actually runs before the session is torn down, but cap it at ~2s so a
+        // dead network can't hang sign-out.
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await PushManager.shared.clearTokenOnSignOut() }
+            group.addTask { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+            await group.next()
+            group.cancelAll()
+        }
         try? await Supa.client.auth.signOut()
     }
 }

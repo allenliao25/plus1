@@ -1,6 +1,7 @@
 import SwiftUI
 import Supabase
 import PhotosUI
+import UserNotifications
 
 /// Own profile — Instagram-compact header (avatar left, stats right, one
 /// name/bio block, edit button) so the event grid owns the screen.
@@ -565,6 +566,7 @@ private struct SettingsSheet: View {
     @State private var confirmingDeleteFinal = false
     @State private var deleting = false
     @State private var errorMessage: String?
+    @State private var notificationsEnabled: Bool?
 
     private static let termsURL = URL(string: "https://plus1-livid.vercel.app/terms")!
     private static let privacyURL = URL(string: "https://plus1-livid.vercel.app/privacy")!
@@ -578,6 +580,21 @@ private struct SettingsSheet: View {
                             BlockedUsersView()
                         } label: {
                             settingsRow("Blocked users", icon: "hand.raised", chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    section("Notifications") {
+                        Button {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            settingsRow(
+                                "Push notifications", icon: "bell",
+                                chevron: true,
+                                trailing: notificationsEnabled.map { $0 ? "On" : "Off" }
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -624,6 +641,7 @@ private struct SettingsSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .task { await loadNotificationState() }
             .confirmationDialog(
                 "Sign out of plus1?",
                 isPresented: $confirmingSignOut,
@@ -722,6 +740,13 @@ private struct SettingsSheet: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
         .contentShape(Rectangle())
+    }
+
+    private func loadNotificationState() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        notificationsEnabled = settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
+            || settings.authorizationStatus == .ephemeral
     }
 
     private func deleteAccount() {
