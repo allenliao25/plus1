@@ -68,6 +68,9 @@ struct HomeView: View {
             if a.isLive != b.isLive { return a.isLive }
             return (a.startDate ?? .distantPast) < (b.startDate ?? .distantPast)
         }
+        // Cap the rail so it stays a rail, not the whole feed.
+        .prefix(10)
+        .map { $0 }
     }
 
     private var showsTonight: Bool { filter == .all && !tonight.isEmpty }

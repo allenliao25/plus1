@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 /// Shared app state so mutations propagate across tabs. Every screen holds its
 /// own `@State`; without a common signal a join/leave/accept/edit in one screen
@@ -28,7 +29,11 @@ final class AppModel {
     /// on failure the previous values are left untouched.
     func refreshBadges() async {
         if let threads = try? await Repo.threadSummaries() {
-            unreadMessages = threads.reduce(0) { $0 + $1.unreadCount }
+            // Muted threads keep their per-row count but stay out of the total.
+            unreadMessages = threads.reduce(0) { $0 + ($1.muted ? 0 : $1.unreadCount) }
+            // Mirror the total on the app icon badge (iOS 16+). Silently a no-op
+            // if the user hasn't granted .badge authorization.
+            try? await UNUserNotificationCenter.current().setBadgeCount(unreadMessages)
         }
         if let activity = try? await Repo.activity() {
             hasUnreadActivity = activity.contains { !$0.isRead }

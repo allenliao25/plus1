@@ -38,6 +38,9 @@ struct ChatThreadView: View {
     @State private var revealedTimestamps: Set<UUID> = []
     /// Long-pressed other-user message to report.
     @State private var reportingMessageId: UUID?
+    /// Whether the caller has muted this thread (bell-slash toggle).
+    @State private var muted = false
+    @State private var toastMessage: String?
     @FocusState private var composerFocused: Bool
 
     @Environment(AppModel.self) private var app
@@ -96,8 +99,25 @@ struct ChatThreadView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { inputBar }
+        .toast($toastMessage)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        toggleMute()
+                    } label: {
+                        Label(muted ? "Unmute" : "Mute",
+                              systemImage: muted ? "bell" : "bell.slash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .accessibilityLabel("More")
+            }
+        }
         .task {
             await initialLoad()
+            muted = (try? await Repo.threadMuted(threadId: threadId)) ?? false
             startRealtime()
             startPolling()
         }
@@ -357,6 +377,24 @@ struct ChatThreadView: View {
         failedIds.remove(message.id)
         pendingIds.insert(message.id)
         deliver(localId: message.id, body: body)
+    }
+
+    // MARK: Mute
+
+    private func toggleMute() {
+        let next = !muted
+        Haptics.tap()
+        muted = next  // optimistic
+        Task {
+            do {
+                try await Repo.setThreadMuted(threadId: threadId, muted: next)
+                toastMessage = next ? "Muted" : "Unmuted"
+                await app.refreshBadges()
+            } catch {
+                muted = !next  // revert
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     // MARK: Data

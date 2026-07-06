@@ -176,6 +176,7 @@ struct EventDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Theme.foreground)
                 }
                 .accessibilityLabel("Event options")
             }
@@ -189,6 +190,7 @@ struct EventDetailView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
+                        .foregroundStyle(Theme.foreground)
                 }
                 .accessibilityLabel("Event options")
             }
@@ -372,7 +374,7 @@ struct EventDetailView: View {
                 } label: {
                     Text("Message")
                         .font(.system(size: 12.5, weight: .bold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(Theme.accentText)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .background(Theme.chip)

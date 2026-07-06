@@ -13,6 +13,7 @@ struct PublicProfileView: View {
 
     @State private var profile: ProfileRow?
     @State private var quests: [Quest] = []
+    @State private var stats: ProfileStats?
     @State private var friendship: FriendshipRow?
     @State private var busy = false
     @State private var confirmingCancel = false
@@ -131,9 +132,9 @@ struct PublicProfileView: View {
                     size: 72
                 )
                 HStack(spacing: 0) {
-                    statColumn("\(quests.count)", "Hosted")
-                    statColumn("—", "Joined")
-                    statColumn("—", "Friends")
+                    statColumn(stats.map { "\($0.hosted)" } ?? "—", "Hosted")
+                    statColumn(stats.map { "\($0.joined)" } ?? "—", "Joined")
+                    statColumn(stats.map { "\($0.friends)" } ?? "—", "Friends")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -252,6 +253,7 @@ struct PublicProfileView: View {
         do {
             profile = try await Repo.profile(id: profileId)
             quests = try await Repo.questsByCreator(profileId)
+            stats = try? await Repo.profileStats(userId: profileId)
             try await reloadFriendship()
         } catch {
             errorMessage = error.localizedDescription

@@ -118,9 +118,13 @@ create table if not exists message_thread_participants (
   thread_id uuid not null references message_threads(id) on delete cascade,
   user_id uuid not null references profiles(id) on delete cascade,
   last_read_at timestamp,
+  muted_at timestamp,
   created_at timestamp default now(),
   primary key (thread_id, user_id)
 );
+
+alter table message_thread_participants
+  add column if not exists muted_at timestamp;
 
 create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
@@ -1213,6 +1217,8 @@ create policy "message participants created through rpc"
   to authenticated
   with check (false);
 
+-- Scoped to the caller's own participant row, so it also covers setting or
+-- clearing muted_at (per-thread mute) — no separate mute policy is needed.
 drop policy if exists "users update own message read state" on message_thread_participants;
 create policy "users update own message read state"
   on message_thread_participants for update
@@ -1562,6 +1568,33 @@ revoke execute on function public.join_quest_atomic(uuid) from anon;
 revoke execute on function public.get_or_create_direct_thread(uuid) from anon;
 revoke execute on function public.get_or_create_event_thread(uuid) from anon;
 revoke execute on function public.create_quest_share_link(uuid) from anon;
+
+-- Public profile stats: hosted / joined / friends counts for a profile header.
+-- SECURITY DEFINER so it counts past RLS, but requires an authenticated caller
+-- and returns plain aggregates only. anon/public EXECUTE explicitly revoked
+-- (Supabase default-privileges grant EXECUTE to both on new functions).
+create or replace function public.profile_stats(target_id uuid)
+returns table (hosted int, joined int, friends int)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    (select count(*) from quests q where q.creator_id = target_id)::int as hosted,
+    (select count(*) from quest_joins j where j.user_id = target_id)::int as joined,
+    (
+      select count(*)
+      from friendships f
+      where f.status = 'accepted'
+        and (f.requester_id = target_id or f.addressee_id = target_id)
+    )::int as friends
+  where auth.uid() is not null;
+$$;
+
+revoke all on function public.profile_stats(uuid) from public;
+revoke all on function public.profile_stats(uuid) from anon;
+grant execute on function public.profile_stats(uuid) to authenticated;
 
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.
