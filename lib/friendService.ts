@@ -37,7 +37,7 @@ export async function searchPeople(currentUserId: string, query: string) {
   }
 
   const supabase = getSupabaseClient();
-  const [{ data, error }, friendships] = await Promise.all([
+  const [{ data, error }, friendships, blockedIds] = await Promise.all([
     supabase
       .from("profiles")
       .select(publicProfileSelect)
@@ -47,15 +47,16 @@ export async function searchPeople(currentUserId: string, query: string) {
       .neq("id", currentUserId)
       .limit(20),
     fetchFriendshipRows(currentUserId),
+    fetchBlockedIds(currentUserId),
   ]);
 
   if (error) {
     throw new Error(`Could not search people: ${error.message}`);
   }
 
-  return (data ?? []).map((profile) =>
-    mapPeopleSearchResult(profile, currentUserId, friendships),
-  );
+  return (data ?? [])
+    .filter((profile) => !blockedIds.has(profile.id))
+    .map((profile) => mapPeopleSearchResult(profile, currentUserId, friendships));
 }
 
 export async function searchProfilesForInvite(
@@ -98,7 +99,10 @@ export async function fetchSuggestedFriends(
   currentArea: string,
 ) {
   const supabase = getSupabaseClient();
-  const friendships = await fetchFriendshipRows(currentUserId);
+  const [friendships, blockedIds] = await Promise.all([
+    fetchFriendshipRows(currentUserId),
+    fetchBlockedIds(currentUserId),
+  ]);
   const relatedUserIds = new Set(
     friendships.flatMap((row) => [row.requester_id, row.addressee_id]),
   );
@@ -114,7 +118,7 @@ export async function fetchSuggestedFriends(
   }
 
   return (data ?? []).reduce<PeopleSearchResult[]>((suggestions, profile) => {
-    if (!relatedUserIds.has(profile.id)) {
+    if (!relatedUserIds.has(profile.id) && !blockedIds.has(profile.id)) {
       suggestions.push(mapPeopleSearchResult(profile, currentUserId, friendships));
     }
 
@@ -308,6 +312,28 @@ async function fetchFriendshipRows(currentUserId: string) {
   }
 
   return data ?? [];
+}
+
+// Users the current user has blocked. RLS only exposes the caller's own blocks,
+// so this hides people you've blocked from your own search/suggestions; the
+// symmetric server-side enforcement (are_blocked in RLS predicates) is the real
+// guard for the other direction.
+async function fetchBlockedIds(currentUserId: string) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("user_blocks")
+    .select("blocked_id")
+    .eq("blocker_id", currentUserId);
+
+  if (isMissingRelationError(error, "user_blocks")) {
+    return new Set<string>();
+  }
+
+  if (error) {
+    throw new Error(`Could not load blocks: ${error.message}`);
+  }
+
+  return new Set((data ?? []).map((row) => row.blocked_id));
 }
 
 async function fetchFriendshipBetween(leftUserId: string, rightUserId: string) {

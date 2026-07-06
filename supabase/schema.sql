@@ -365,6 +365,40 @@ $$;
 revoke all on function public.are_friends(uuid, uuid) from public;
 grant execute on function public.are_friends(uuid, uuid) to authenticated;
 
+-- user_blocks is defined here (ahead of the reports section) because are_blocked
+-- below depends on it and schema.sql applies top-to-bottom; RLS + policies for
+-- the table live in the reports/blocks section further down.
+create table if not exists user_blocks (
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+create index if not exists user_blocks_blocked_id_idx
+  on user_blocks (blocked_id);
+
+-- Symmetric block check: true if either user has blocked the other. Used by the
+-- view/message/activity predicates so a block hides content in BOTH directions.
+create or replace function public.are_blocked(left_user_id uuid, right_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from user_blocks
+    where (user_blocks.blocker_id = left_user_id and user_blocks.blocked_id = right_user_id)
+       or (user_blocks.blocker_id = right_user_id and user_blocks.blocked_id = left_user_id)
+  );
+$$;
+
+revoke all on function public.are_blocked(uuid, uuid) from public;
+grant execute on function public.are_blocked(uuid, uuid) to authenticated;
+
 create or replace function public.can_send_activity_to(recipient_id uuid, target_quest_id uuid)
 returns boolean
 language sql
@@ -373,22 +407,25 @@ security definer
 set search_path = public
 as $$
   select
-    recipient_id = auth.uid()
-    or exists (
-      select 1
-      from quest_invites
-      where quest_invites.quest_id = target_quest_id
-        and quest_invites.inviter_id = auth.uid()
-        and quest_invites.invitee_id = recipient_id
-    )
-    or exists (
-      select 1
-      from friendships
-      where friendships.status in ('pending', 'accepted')
-        and (
-          (friendships.requester_id = auth.uid() and friendships.addressee_id = recipient_id)
-          or (friendships.requester_id = recipient_id and friendships.addressee_id = auth.uid())
-        )
+    not public.are_blocked(auth.uid(), recipient_id)
+    and (
+      recipient_id = auth.uid()
+      or exists (
+        select 1
+        from quest_invites
+        where quest_invites.quest_id = target_quest_id
+          and quest_invites.inviter_id = auth.uid()
+          and quest_invites.invitee_id = recipient_id
+      )
+      or exists (
+        select 1
+        from friendships
+        where friendships.status in ('pending', 'accepted')
+          and (
+            (friendships.requester_id = auth.uid() and friendships.addressee_id = recipient_id)
+            or (friendships.requester_id = recipient_id and friendships.addressee_id = auth.uid())
+          )
+      )
     );
 $$;
 
@@ -444,6 +481,13 @@ as $$
             from message_thread_participants
             where message_thread_participants.thread_id = message_threads.id
               and message_thread_participants.user_id = target_user_id
+          )
+          and not exists (
+            select 1
+            from message_thread_participants other
+            where other.thread_id = message_threads.id
+              and other.user_id <> target_user_id
+              and public.are_blocked(target_user_id, other.user_id)
           )
         )
         or (
@@ -516,8 +560,8 @@ begin
     raise exception 'cannot_message_self';
   end if;
 
-  if public.is_blocked_pair(auth.uid(), target_user_id) then
-    raise exception 'Could not start conversation.';
+  if public.are_blocked(auth.uid(), target_user_id) then
+    raise exception 'cannot_message_blocked_user';
   end if;
 
   if not public.are_friends(auth.uid(), target_user_id) then
@@ -609,33 +653,6 @@ $$;
 revoke all on function public.get_or_create_event_thread(uuid) from public;
 grant execute on function public.get_or_create_event_thread(uuid) to authenticated;
 
--- Symmetric block test. SECURITY DEFINER because user_blocks RLS only exposes
--- the caller's own rows (blocker_id = auth.uid()); the check must see BOTH
--- directions without leaking which side placed the block.
-create or replace function public.is_blocked_pair(a uuid, b uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from user_blocks
-    where (blocker_id = a and blocked_id = b)
-       or (blocker_id = b and blocked_id = a)
-  );
-$$;
-
-revoke all on function public.is_blocked_pair(uuid, uuid) from public;
-revoke all on function public.is_blocked_pair(uuid, uuid) from anon;
-grant execute on function public.is_blocked_pair(uuid, uuid) to authenticated;
-
--- The creator branch is untouched (a host always sees their own event). Every
--- OTHER visibility branch is gated on the caller and creator not being a blocked
--- pair, so a block in either direction hides the blocker's discoverable events
--- from the blocked user across the quests / quest_joins / quest_share_links
--- select paths (all of which funnel through this function).
 create or replace function public.can_view_quest(target_quest_id uuid)
 returns boolean
 language sql
@@ -647,33 +664,29 @@ as $$
     select 1
     from quests
     where quests.id = target_quest_id
+      and not public.are_blocked(auth.uid(), quests.creator_id)
       and (
         quests.creator_id = auth.uid()
         or (
-          not public.is_blocked_pair(auth.uid(), quests.creator_id)
-          and (
-            (
-              quests.visibility = 'local'
-              and quests.area = public.current_user_area()
-            )
-            or (
-              quests.visibility = 'friends'
-              and public.are_friends(auth.uid(), quests.creator_id)
-            )
-            or exists (
-              select 1
-              from quest_joins
-              where quest_joins.quest_id = quests.id
-                and quest_joins.user_id = auth.uid()
-            )
-            or exists (
-              select 1
-              from quest_invites
-              where quest_invites.quest_id = quests.id
-                and quest_invites.invitee_id = auth.uid()
-                and quest_invites.status <> 'declined'
-            )
-          )
+          quests.visibility = 'local'
+          and quests.area = public.current_user_area()
+        )
+        or (
+          quests.visibility = 'friends'
+          and public.are_friends(auth.uid(), quests.creator_id)
+        )
+        or exists (
+          select 1
+          from quest_joins
+          where quest_joins.quest_id = quests.id
+            and quest_joins.user_id = auth.uid()
+        )
+        or exists (
+          select 1
+          from quest_invites
+          where quest_invites.quest_id = quests.id
+            and quest_invites.invitee_id = auth.uid()
+            and quest_invites.status <> 'declined'
         )
       )
   );
@@ -759,7 +772,6 @@ create policy "users create friend requests"
     auth.uid() = requester_id
     and requester_id <> addressee_id
     and status = 'pending'
-    and not public.is_blocked_pair(auth.uid(), addressee_id)
   );
 
 drop policy if exists "addressees update friend requests" on friendships;
@@ -896,8 +908,7 @@ begin
     raise exception 'event_not_found';
   end if;
 
-  if target_quest.status <> 'open'
-    or public.is_blocked_pair(auth.uid(), target_quest.creator_id) then
+  if target_quest.status <> 'open' then
     raise exception 'event_closed';
   end if;
 
@@ -955,7 +966,6 @@ end;
 $$;
 
 revoke all on function public.join_quest_atomic(uuid) from public;
-revoke all on function public.join_quest_atomic(uuid) from anon;
 grant execute on function public.join_quest_atomic(uuid) to authenticated;
 
 create or replace function public.create_quest_share_link(target_quest_id uuid)
@@ -1277,34 +1287,6 @@ create policy "users read accessible messages"
   to authenticated
   using (public.can_access_message_thread(thread_id, auth.uid()));
 
--- Direct-thread messages: block the send path too, so that even if a direct
--- thread already exists (created before a block), neither party can post to the
--- other once a block is in place. The guard fires only for 2-person direct
--- threads (checks the OTHER participant against the sender). Event/group threads
--- are exempt by design — a block should not silently mute a shared event chat.
-create or replace function public.direct_thread_send_allowed(target_thread_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select not exists (
-    select 1
-    from message_threads t
-    join message_thread_participants other
-      on other.thread_id = t.id
-     and other.user_id <> auth.uid()
-    where t.id = target_thread_id
-      and t.kind = 'direct'
-      and public.is_blocked_pair(auth.uid(), other.user_id)
-  );
-$$;
-
-revoke all on function public.direct_thread_send_allowed(uuid) from public;
-revoke all on function public.direct_thread_send_allowed(uuid) from anon;
-grant execute on function public.direct_thread_send_allowed(uuid) to authenticated;
-
 drop policy if exists "users send accessible messages" on messages;
 create policy "users send accessible messages"
   on messages for insert
@@ -1312,7 +1294,6 @@ create policy "users send accessible messages"
   with check (
     sender_id = auth.uid()
     and public.can_access_message_thread(thread_id, auth.uid())
-    and public.direct_thread_send_allowed(thread_id)
     and char_length(trim(body)) between 1 and 1000
   );
 
@@ -1378,17 +1359,8 @@ create table if not exists reports (
 create index if not exists reports_created_at_idx
   on reports (created_at desc);
 
-create table if not exists user_blocks (
-  blocker_id uuid not null references auth.users(id) on delete cascade,
-  blocked_id uuid not null references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (blocker_id, blocked_id),
-  check (blocker_id <> blocked_id)
-);
-
-create index if not exists user_blocks_blocked_id_idx
-  on user_blocks (blocked_id);
-
+-- user_blocks table is defined earlier (before the are_blocked predicate that
+-- depends on it); RLS + policies for it stay here alongside reports.
 alter table reports enable row level security;
 alter table user_blocks enable row level security;
 

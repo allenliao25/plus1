@@ -451,6 +451,22 @@ export type Database = {
           },
         ];
       };
+      user_blocks: {
+        Row: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at: string | null;
+        };
+        Insert: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
