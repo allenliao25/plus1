@@ -9,13 +9,22 @@ struct AuthView: View {
         case phone, code
     }
 
+    private enum Field {
+        case phone, code
+    }
+
     @State private var step: Step = .phone
     @State private var phone = ""
     @State private var code = ""
     @State private var error: String?
     @State private var busy = false
+    @State private var resendSeconds = 0
+    @State private var toastMessage: String?
+    @FocusState private var focused: Field?
 
     private static let phoneInputError = "Enter a 3-digit area code and 7-digit phone number."
+    private static let termsURL = URL(string: "https://plus1-livid.vercel.app/terms")!
+    private static let privacyURL = URL(string: "https://plus1-livid.vercel.app/privacy")!
 
     var body: some View {
         ZStack {
@@ -45,6 +54,14 @@ struct AuthView: View {
             }
             .padding(.horizontal, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focused = nil }
+            }
+        }
+        .toast($toastMessage)
     }
 
     // MARK: Pieces
@@ -72,11 +89,16 @@ struct AuthView: View {
                         .keyboardType(.numberPad)
                         .textContentType(.telephoneNumber)
                         .font(.system(size: 16))
+                        .focused($focused, equals: .phone)
                 }
             }
 
             Button(action: sendCode) {
-                Text(busy ? "Sending…" : "Send code")
+                if busy {
+                    ProgressView().tint(Theme.accentInk)
+                } else {
+                    Text("Send code")
+                }
             }
             .buttonStyle(MintButtonStyle())
             .disabled(busy)
@@ -84,7 +106,21 @@ struct AuthView: View {
             Text("We'll text you a 6-digit code. No passwords.")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.sub)
+
+            legalFooter
         }
+    }
+
+    private var legalFooter: some View {
+        (Text("By continuing you agree to our ")
+            + Text("[Terms of Service](\(Self.termsURL.absoluteString))")
+            + Text(" and ")
+            + Text("[Privacy Policy](\(Self.privacyURL.absoluteString))."))
+            .font(.system(size: 11))
+            .foregroundStyle(Theme.sub)
+            .tint(Theme.accentText)
+            .multilineTextAlignment(.center)
+            .padding(.top, 4)
     }
 
     private var codeStep: some View {
@@ -96,13 +132,23 @@ struct AuthView: View {
                     .font(.system(size: 22, weight: .bold, design: .monospaced))
                     .kerning(6)
                     .multilineTextAlignment(.center)
+                    .focused($focused, equals: .code)
                     .onChange(of: code) { _, next in
-                        code = String(next.filter(\.isNumber).prefix(6))
+                        let filtered = String(next.filter(\.isNumber).prefix(6))
+                        if filtered != code { code = filtered }
+                        // Auto-verify once the 6th digit lands.
+                        if filtered.count == 6, !busy {
+                            verifyCode()
+                        }
                     }
             }
 
             Button(action: verifyCode) {
-                Text(busy ? "Verifying…" : "Verify")
+                if busy {
+                    ProgressView().tint(Theme.accentInk)
+                } else {
+                    Text("Verify")
+                }
             }
             .buttonStyle(MintButtonStyle())
             .disabled(busy)
@@ -112,16 +158,17 @@ struct AuthView: View {
                 .foregroundStyle(Theme.sub)
 
             HStack(spacing: 20) {
-                Button("Resend code", action: sendCode)
+                Button(resendSeconds > 0 ? "Resend in \(resendSeconds)s" : "Resend code", action: sendCode)
+                    .disabled(busy || resendSeconds > 0)
                 Button("Change number") {
                     step = .phone
                     code = ""
                     error = nil
                 }
+                .disabled(busy)
             }
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Theme.accent)
-            .disabled(busy)
+            .foregroundStyle(Theme.accentText)
             .padding(.top, 4)
         }
     }
@@ -171,6 +218,17 @@ struct AuthView: View {
         phone.range(of: #"^\+[1-9]\d{1,14}$"#, options: .regularExpression) != nil
     }
 
+    /// Map raw auth/network errors to one friendly line.
+    private static func friendlyMessage(_ error: Error) -> String {
+        if error is URLError { return "You're offline — check your connection." }
+        let text = error.localizedDescription.lowercased()
+        if text.contains("rate") { return "Too many tries — wait a minute and try again." }
+        if text.contains("invalid") || text.contains("expired") || text.contains("token") || text.contains("otp") {
+            return "That code didn't match — check it and try again."
+        }
+        return "Something went wrong — try again in a moment."
+    }
+
     // MARK: Actions
 
     private func sendCode() {
@@ -179,6 +237,7 @@ struct AuthView: View {
             error = Self.phoneInputError
             return
         }
+        let resending = step == .code
         error = nil
         busy = true
         Task {
@@ -186,13 +245,26 @@ struct AuthView: View {
             do {
                 try await Supa.client.auth.signInWithOTP(phone: normalized)
                 step = .code
+                startResendCooldown()
+                if resending { toastMessage = "Code sent" }
             } catch {
-                self.error = error.localizedDescription
+                self.error = Self.friendlyMessage(error)
+            }
+        }
+    }
+
+    private func startResendCooldown() {
+        resendSeconds = 30
+        Task {
+            while resendSeconds > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                resendSeconds -= 1
             }
         }
     }
 
     private func verifyCode() {
+        guard !busy else { return }
         let normalized = normalizedPhone
         let token = code.trimmingCharacters(in: .whitespaces)
         guard token.count == 6 else {
@@ -207,7 +279,7 @@ struct AuthView: View {
                 try await Supa.client.auth.verifyOTP(phone: normalized, token: token, type: .sms)
                 // Success: SessionStore's auth listener routes to setup/app.
             } catch {
-                self.error = error.localizedDescription
+                self.error = Self.friendlyMessage(error)
             }
         }
     }

@@ -1,6 +1,8 @@
 import SwiftUI
 import Supabase
 import UIKit
+import EventKit
+import EventKitUI
 
 /// Event detail — full-bleed artwork hero with the title on the image,
 /// grouped info card, host row, Going stack, and a liquid-glass join dock
@@ -9,6 +11,8 @@ struct EventDetailView: View {
     let questId: UUID
 
     @Environment(\.openURL) private var openURL
+    @Environment(AppModel.self) private var app
+    @EnvironmentObject private var session: SessionStore
 
     @State private var quest: Quest?
     @State private var shareURL: URL?
@@ -21,6 +25,9 @@ struct EventDetailView: View {
     @State private var chatThreadId: UUID?
     @State private var chatTitle = ""
     @State private var chatPresented = false
+    @State private var reporting = false
+    @State private var addingToCalendar = false
+    @State private var toastMessage: String?
 
     /// Deployed web app (capacitor.config.ts) — share links resolve there.
     private static let webBaseURL = "https://plus1-livid.vercel.app"
@@ -30,14 +37,15 @@ struct EventDetailView: View {
             if let quest {
                 content(quest)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                skeletonContent
             }
         }
         .background(Theme.background)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
-        .task { await load() }
+        .toast($toastMessage)
+        .task(id: app.dataVersion) { await load() }
         .refreshable { await load() }
         .alert("Something went wrong", isPresented: .init(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
@@ -59,11 +67,38 @@ struct EventDetailView: View {
         .sheet(isPresented: $editing) {
             CreateEventView(editing: quest, onSaved: { Task { await load() } })
         }
+        .sheet(isPresented: $reporting) {
+            ReportSheet(kind: "quest", targetId: questId)
+        }
+        .sheet(isPresented: $addingToCalendar) {
+            if let quest {
+                CalendarEventEditor(quest: quest) { addingToCalendar = false }
+                    .ignoresSafeArea()
+            }
+        }
         .navigationDestination(isPresented: $chatPresented) {
             if let chatThreadId {
                 ChatThreadView(threadId: chatThreadId, title: chatTitle)
             }
         }
+    }
+
+    // MARK: - Skeleton (initial load)
+
+    private var skeletonContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(Theme.chip)
+                    .frame(height: 230)
+                SkeletonCard(height: 120)
+                SkeletonCard(height: 64)
+                SkeletonCard(height: 70)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+        }
+        .scrollIndicators(.hidden)
     }
 
     // MARK: - Layout
@@ -80,6 +115,9 @@ struct EventDetailView: View {
                     hostRow(host)
                 }
                 goingSection(quest)
+                if quest.createdByCurrentUser && !quest.invitedProfiles.isEmpty {
+                    invitedSection(quest)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -91,12 +129,12 @@ struct EventDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if let shareURL, quest?.createdByCurrentUser != true {
+        if let shareURL {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: shareURL)
             }
         }
-        if quest?.createdByCurrentUser == true {
+        if let quest, quest.createdByCurrentUser {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
@@ -104,15 +142,31 @@ struct EventDetailView: View {
                     } label: {
                         Label("Edit event", systemImage: "pencil")
                     }
-                    if let shareURL {
-                        ShareLink(item: shareURL) {
-                            Label("Share", systemImage: "square.and.arrow.up")
+                    if quest.isOpen {
+                        Button(role: .destructive) {
+                            confirmingClose = true
+                        } label: {
+                            Label("Close event", systemImage: "xmark.circle")
+                        }
+                    } else {
+                        Button {
+                            reopen()
+                        } label: {
+                            Label("Reopen event", systemImage: "arrow.uturn.up")
                         }
                     }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Event options")
+            }
+        } else if quest != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
                     Button(role: .destructive) {
-                        confirmingClose = true
+                        reporting = true
                     } label: {
-                        Label("Close event", systemImage: "xmark.circle")
+                        Label("Report event", systemImage: "flag")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -190,10 +244,22 @@ struct EventDetailView: View {
 
     private func infoCard(_ quest: Quest) -> some View {
         VStack(spacing: 0) {
-            infoRow(
-                icon: "clock.fill", tint: .orange,
-                title: quest.timeLabel, subtitle: "Add to calendar"
-            )
+            if quest.startDate != nil {
+                Button {
+                    addingToCalendar = true
+                } label: {
+                    infoRow(
+                        icon: "clock.fill", tint: .orange,
+                        title: quest.timeLabel, subtitle: "Add to calendar"
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                infoRow(
+                    icon: "clock.fill", tint: .orange,
+                    title: quest.timeLabel, subtitle: "Happening now"
+                )
+            }
             divider
             Button {
                 openInMaps(quest.location)
@@ -358,6 +424,38 @@ struct EventDetailView: View {
         }
     }
 
+    // MARK: - Invited (host only)
+
+    private func invitedSection(_ quest: Quest) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(
+                title: "Invited",
+                caption: quest.invitedProfiles.count == 1 ? "1 pending" : "\(quest.invitedProfiles.count) pending"
+            )
+            VStack(spacing: 10) {
+                ForEach(quest.invitedProfiles) { person in
+                    HStack(spacing: 10) {
+                        AvatarView(
+                            initials: person.initials,
+                            url: person.avatarUrl.flatMap(URL.init),
+                            size: 36
+                        )
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(person.displayName)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.foreground)
+                            Text("Pending")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.sub)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .card()
+        }
+    }
+
     // MARK: - Join dock
 
     private func dock(_ quest: Quest) -> some View {
@@ -397,7 +495,9 @@ struct EventDetailView: View {
         do {
             let loaded = try await Repo.quest(id: questId)
             quest = loaded
-            if loaded.createdByCurrentUser && shareURL == nil {
+            // Mint the share link for ALL viewers so the toolbar ShareLink
+            // works for attendees too (audit blocker: it was host-only).
+            if shareURL == nil {
                 await loadShareLink()
             }
         } catch {
@@ -419,29 +519,72 @@ struct EventDetailView: View {
     }
 
     private func join() {
+        guard let me = Repo.currentUserId, let snapshot = quest else { return }
         joining = true
+        // Optimistic: flip membership + counts immediately, revert on error.
+        applyMembership(joined: true, userId: me)
+        Haptics.success()
+        withAnimation { justJoined = true }
+        scheduleBannerDismiss()
         Task {
             defer { joining = false }
             do {
                 try await Repo.joinQuest(id: questId)
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                withAnimation { justJoined = true }
                 await load()
+                app.bumpData()
+                await app.refreshBadges()
             } catch {
+                quest = snapshot
+                justJoined = false
                 errorMessage = "Couldn't join this event. Try again."
             }
         }
     }
 
     private func leave() {
+        guard let me = Repo.currentUserId, let snapshot = quest else { return }
+        // Optimistic: drop membership + counts immediately, revert on error.
+        applyMembership(joined: false, userId: me)
+        justJoined = false
         Task {
             do {
                 try await Repo.leaveQuest(id: questId)
-                justJoined = false
                 await load()
+                app.bumpData()
+                await app.refreshBadges()
             } catch {
+                quest = snapshot
                 errorMessage = "Couldn't leave this event. Try again."
             }
+        }
+    }
+
+    /// Local-only membership flip for optimistic UI; the RPC reload is the
+    /// source of truth and overwrites this shortly after.
+    private func applyMembership(joined: Bool, userId: UUID) {
+        guard var current = quest else { return }
+        if joined {
+            guard !current.joinedByCurrentUser else { return }
+            current.joinedByCurrentUser = true
+            if !current.attendees.contains(where: { $0.id == userId }),
+               let me = session.profile {
+                current.attendees.append(QuestAttendee(
+                    id: userId, displayName: me.displayName,
+                    avatarInitials: me.initials, avatarUrl: me.avatarUrl, isHost: false
+                ))
+            }
+        } else {
+            current.joinedByCurrentUser = false
+            current.attendees.removeAll { $0.id == userId && !$0.isHost }
+        }
+        quest = current
+    }
+
+    /// Auto-dismiss the "You're going!" banner after ~4s with animation.
+    private func scheduleBannerDismiss() {
+        Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            withAnimation { justJoined = false }
         }
     }
 
@@ -450,8 +593,25 @@ struct EventDetailView: View {
             do {
                 try await Repo.closeQuest(id: questId)
                 await load()
+                Haptics.success()
+                toastMessage = "Event closed"
+                app.bumpData()
             } catch {
                 errorMessage = "Couldn't close this event. Try again."
+            }
+        }
+    }
+
+    private func reopen() {
+        Task {
+            do {
+                try await Repo.reopenQuest(questId: questId)
+                await load()
+                Haptics.success()
+                toastMessage = "Event reopened"
+                app.bumpData()
+            } catch {
+                errorMessage = "Couldn't reopen this event. Try again."
             }
         }
     }
@@ -466,6 +626,48 @@ struct EventDetailView: View {
             } catch {
                 errorMessage = "Couldn't open the event chat. Try again."
             }
+        }
+    }
+}
+
+// MARK: - Add to calendar
+
+/// Presents the system `EKEventEditViewController` prefilled from the quest.
+/// On iOS 17+ this VC runs out of process and needs no calendar permission or
+/// usage-description keys — the user grants the single event inline.
+private struct CalendarEventEditor: UIViewControllerRepresentable {
+    let quest: Quest
+    let onDismiss: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onDismiss: onDismiss) }
+
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let store = EKEventStore()
+        let event = EKEvent(eventStore: store)
+        event.title = quest.title
+        event.location = quest.location
+        if let start = quest.startDate {
+            event.startDate = start
+            event.endDate = start.addingTimeInterval(2 * 60 * 60)
+        }
+        let controller = EKEventEditViewController()
+        controller.eventStore = store
+        controller.event = event
+        controller.editViewDelegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ controller: EKEventEditViewController, context: Context) {}
+
+    final class Coordinator: NSObject, EKEventEditViewDelegate {
+        let onDismiss: () -> Void
+        init(onDismiss: @escaping () -> Void) { self.onDismiss = onDismiss }
+
+        func eventEditViewController(
+            _ controller: EKEventEditViewController,
+            didCompleteWith action: EKEventEditViewAction
+        ) {
+            controller.dismiss(animated: true) { [onDismiss] in onDismiss() }
         }
     }
 }

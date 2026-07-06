@@ -22,15 +22,20 @@ struct CreateEventView: View {
         _noCap = State(initialValue: editing.map { $0.row.maxPeople == nil } ?? false)
         _spots = State(initialValue: editing?.row.maxPeople ?? 4)
         _schedule = State(initialValue: editing?.startDate != nil)
-        _startTime = State(initialValue: max(
-            editing?.startDate ?? Date().addingTimeInterval(3600), Date()
-        ))
+        // New events floor to "now + 1h"; editing preserves the original start
+        // time even if it's already in the past (don't silently clamp).
+        if let existingStart = editing?.startDate {
+            _startTime = State(initialValue: existingStart)
+        } else {
+            _startTime = State(initialValue: Date().addingTimeInterval(3600))
+        }
         _invitees = State(initialValue: editing?.invitedProfiles ?? [])
         _existingImageUrl = State(initialValue: editing?.row.cardImageUrl)
     }
 
     @EnvironmentObject private var session: SessionStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var app
 
     // Form state
     @State private var title: String
@@ -51,6 +56,8 @@ struct CreateEventView: View {
     @State private var showPreview = false
     @State private var posting = false
     @State private var postError: String?
+    @State private var photoError: String?
+    @State private var coverUploadFailed = false
 
     var body: some View {
         NavigationStack {
@@ -60,11 +67,36 @@ struct CreateEventView: View {
         .onChange(of: photoItem) { _, newItem in
             guard let newItem else { return }
             Task {
-                if let data = try? await newItem.loadTransferable(type: Data.self) {
-                    photoData = data
+                guard let data = try? await newItem.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) else {
+                    photoError = "Couldn't load that photo. Try picking another."
+                    return
                 }
+                // Downscale huge photos so a 12MP shot can't blow the 8MB cap.
+                photoData = Self.downscaledJPEG(image) ?? data
             }
         }
+        .alert("Photo problem", isPresented: Binding(
+            get: { photoError != nil },
+            set: { if !$0 { photoError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(photoError ?? "")
+        }
+    }
+
+    /// Downscale to a max 1600px dimension, then JPEG-encode at 0.85 quality.
+    private static func downscaledJPEG(_ image: UIImage, maxDimension: CGFloat = 1600) -> Data? {
+        let longest = max(image.size.width, image.size.height)
+        let scale = longest > maxDimension ? maxDimension / longest : 1
+        let target = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return resized.jpegData(compressionQuality: 0.85)
     }
 
     // MARK: - Step 1 · Compose
@@ -77,12 +109,21 @@ struct CreateEventView: View {
                     .foregroundStyle(Theme.foreground)
                     .padding(.horizontal, 4)
                     .padding(.top, 4)
+                    .onChange(of: title) { _, newValue in
+                        if newValue.count > 80 { title = String(newValue.prefix(80)) }
+                    }
 
                 whenCard
                 categoryCard
                 spotsCard
                 visibilityCard
                 detailRows
+                if !invitees.isEmpty, visibility != .inviteOnly {
+                    Text("\(invitees.count) \(invitees.count == 1 ? "friend" : "friends") will still get an invite notification.")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(Theme.sub)
+                        .padding(.horizontal, 4)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
@@ -100,6 +141,15 @@ struct CreateEventView: View {
         .safeAreaInset(edge: .bottom) { composeFooter }
     }
 
+    /// New events can't start in the past; editing preserves an already-past
+    /// start, so the picker allows down to that original time.
+    private var datePickerRange: PartialRangeFrom<Date> {
+        if editing != nil, startTime < Date() {
+            return startTime...
+        }
+        return Date()...
+    }
+
     private var whenCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             CardLabel("When")
@@ -112,7 +162,7 @@ struct CreateEventView: View {
                 DatePicker(
                     "Starts",
                     selection: $startTime,
-                    in: Date()...,
+                    in: datePickerRange,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 .font(.system(size: 14, weight: .semibold))
@@ -168,6 +218,11 @@ struct CreateEventView: View {
                     .foregroundStyle(Theme.sub)
             }
             .tint(Theme.accent)
+            if !noCap {
+                Text("including you")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.sub)
+            }
         }
         .card(padding: 14)
     }
@@ -310,7 +365,9 @@ struct CreateEventView: View {
         if location.trimmingCharacters(in: .whitespaces).isEmpty {
             return "Add a place so people know where to go."
         }
-        if schedule, startTime <= Date() {
+        // Only nag on past start for NEW events — editing preserves an
+        // already-past original start time (web parity).
+        if schedule, editing == nil, startTime <= Date() {
             return "Pick a future start time."
         }
         if visibility == .inviteOnly, invitees.isEmpty {
@@ -387,6 +444,12 @@ struct CreateEventView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(postError ?? "")
+        }
+        .alert("Cover photo didn't upload", isPresented: $coverUploadFailed) {
+            Button("Post without photo") { Task { await post(skipPhoto: true) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("We couldn't upload your cover photo. You can post the event without it, or cancel and try again.")
         }
     }
 
@@ -526,16 +589,25 @@ struct CreateEventView: View {
 
     // MARK: - Posting
 
-    private func post() async {
+    /// Post the event. When `skipPhoto` is set (after a cover-upload failure
+    /// the user chose to skip), the event is saved without the picked photo so
+    /// the whole event isn't lost.
+    private func post(skipPhoto: Bool = false) async {
         posting = true
         defer { posting = false }
-        do {
-            var imageUrl = existingImageUrl
-            if let photoData,
-               let image = UIImage(data: photoData),
-               let jpeg = image.jpegData(compressionQuality: 0.85) {
-                imageUrl = try await Repo.uploadCardImage(data: jpeg, contentType: "image/jpeg")
+
+        var imageUrl = existingImageUrl
+        if let photoData, !skipPhoto {
+            do {
+                imageUrl = try await Repo.uploadCardImage(data: photoData, contentType: "image/jpeg")
+            } catch {
+                // Don't lose the event — offer to post without the photo.
+                coverUploadFailed = true
+                return
             }
+        }
+
+        do {
             let input = Repo.QuestInput(
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 category: category,
@@ -553,6 +625,7 @@ struct CreateEventView: View {
                 _ = try await Repo.createQuest(input)
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            app.bumpData()
             onSaved?()
             dismiss()
         } catch {

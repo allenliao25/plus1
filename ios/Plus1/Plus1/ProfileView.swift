@@ -1,10 +1,12 @@
 import SwiftUI
 import Supabase
+import PhotosUI
 
 /// Own profile — Instagram-compact header (avatar left, stats right, one
 /// name/bio block, edit button) so the event grid owns the screen.
 struct ProfileView: View {
     @EnvironmentObject private var session: SessionStore
+    @Environment(AppModel.self) private var app
 
     @State private var hosted: [Quest] = []
     @State private var joined: [Quest] = []
@@ -13,6 +15,7 @@ struct ProfileView: View {
     @State private var showingSettings = false
     @State private var showingEdit = false
     @State private var errorMessage: String?
+    @State private var loaded = false
 
     private enum GridTab: String, CaseIterable {
         case hosted = "Hosted"
@@ -41,7 +44,7 @@ struct ProfileView: View {
             .padding(16)
         }
         .background(Theme.background)
-        .compactNavTitle("@\(session.profile?.handle ?? "me")")
+        .compactNavTitle(session.profile.map { "@\($0.handle)" } ?? "")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -54,14 +57,14 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsSheet()
-                .presentationDetents([.medium])
+                .presentationDetents([.large])
         }
         .sheet(isPresented: $showingEdit) {
             if let profile = session.profile {
                 EditProfileSheet(profile: profile)
             }
         }
-        .task { await load() }
+        .task(id: app.dataVersion) { await load() }
         .refreshable { await load() }
         .alert("Something went wrong", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -139,7 +142,16 @@ struct ProfileView: View {
 
     @ViewBuilder private var grid: some View {
         let quests = tab == .hosted ? hosted : joined
-        if quests.isEmpty {
+        if !loaded {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3),
+                spacing: 7
+            ) {
+                ForEach(0..<6, id: \.self) { _ in
+                    SkeletonCard(height: 86)
+                }
+            }
+        } else if quests.isEmpty {
             EmptyStateCard(
                 emoji: tab == .hosted ? "🗓️" : "🧭",
                 title: tab == .hosted ? "No events hosted yet" : "No events joined yet",
@@ -179,26 +191,45 @@ struct ProfileView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+        loaded = true
     }
 }
 
 /// Square grid tile: category artwork (or cover photo) with attendance count.
+/// Open events read "N going"; closed/ended events dim and read "N went".
 private struct ProfileEventTile: View {
     let quest: Quest
+
+    private var ended: Bool { !quest.isOpen }
+    private var countLabel: String {
+        ended ? "\(quest.goingCount) went" : "\(quest.goingCount) going"
+    }
 
     var body: some View {
         CategoryArtwork(category: quest.category, imageURL: quest.cardImageURL, emojiSize: 26)
             .frame(height: 86)
             .frame(maxWidth: .infinity)
+            .opacity(ended ? 0.55 : 1)
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(alignment: .topTrailing) {
+                if ended {
+                    Text("Ended")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.5), in: Capsule())
+                        .padding(5)
+                }
+            }
             .overlay(alignment: .bottomLeading) {
-                Text("\(quest.goingCount) went")
+                Text(countLabel)
                     .font(.system(size: 10.5, weight: .heavy))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 3)
                     .padding(7)
             }
-            .accessibilityLabel("\(quest.title), \(quest.goingCount) went")
+            .accessibilityLabel("\(quest.title), \(countLabel)")
     }
 }
 
@@ -206,6 +237,7 @@ private struct ProfileEventTile: View {
 
 private struct EditProfileSheet: View {
     @EnvironmentObject private var session: SessionStore
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
 
     let profile: ProfileRow
@@ -218,6 +250,17 @@ private struct EditProfileSheet: View {
     @State private var selectedInterests: Set<String>
     @State private var busy = false
     @State private var errorMessage: String?
+
+    // Avatar
+    @State private var photoItem: PhotosPickerItem?
+    @State private var pickedImage: UIImage?
+    @State private var uploadedAvatarUrl: String?
+    @State private var uploadingPhoto = false
+
+    // Handle availability
+    @State private var handleAvailable: Bool?
+    @State private var checkingHandle = false
+    @State private var handleCheckTask: Task<Void, Never>?
 
     private static let interestOptions = [
         "Food", "Study", "Fitness", "Outdoors", "Social", "Running",
@@ -240,13 +283,48 @@ private struct EditProfileSheet: View {
     }
 
     private var isValid: Bool {
-        name.trimmingCharacters(in: .whitespaces).count >= 2 && handle.count >= 3
+        name.trimmingCharacters(in: .whitespaces).count >= 2
+            && handle.count >= 3
+            && handleAvailable != false
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Spacer()
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    if let pickedImage {
+                                        Image(uiImage: pickedImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 76, height: 76)
+                                            .clipShape(Circle())
+                                    } else {
+                                        AvatarView(
+                                            initials: profile.initials,
+                                            url: profile.avatarUrl.flatMap(URL.init),
+                                            size: 76
+                                        )
+                                    }
+                                    if uploadingPhoto {
+                                        Circle().fill(.black.opacity(0.35))
+                                            .frame(width: 76, height: 76)
+                                        ProgressView().tint(.white)
+                                    }
+                                }
+                                Text("Change photo")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Theme.accentText)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 4)
+
                     field("Name") {
                         TextField("Your name", text: $name)
                             .textContentType(.name)
@@ -254,17 +332,33 @@ private struct EditProfileSheet: View {
                     }
 
                     field("Handle") {
-                        HStack(spacing: 2) {
-                            Text("@")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Theme.accent)
-                            TextField("handle", text: $handle)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .font(.system(size: 16))
-                                .onChange(of: handle) { _, next in
-                                    handle = Self.sanitizeHandle(next)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 2) {
+                                Text("@")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(Theme.accent)
+                                TextField("handle", text: $handle)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                    .font(.system(size: 16))
+                                    .onChange(of: handle) { _, next in
+                                        let clean = Self.sanitizeHandle(next)
+                                        if clean != handle { handle = clean }
+                                        scheduleHandleCheck()
+                                    }
+                                if checkingHandle {
+                                    ProgressView().scaleEffect(0.7)
+                                } else if handleAvailable == true {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Theme.accentText)
+                                        .font(.system(size: 15))
                                 }
+                            }
+                            if handleAvailable == false {
+                                Text("@\(handle) is taken")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.destructive)
+                            }
                         }
                     }
 
@@ -312,6 +406,10 @@ private struct EditProfileSheet: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+        }
+        .onChange(of: photoItem) { _, newItem in
+            guard let newItem else { return }
+            Task { await handlePickedPhoto(newItem) }
         }
     }
 
@@ -365,6 +463,53 @@ private struct EditProfileSheet: View {
         })
     }
 
+    // MARK: Avatar
+
+    private func handlePickedPhoto(_ item: PhotosPickerItem) async {
+        uploadingPhoto = true
+        defer { uploadingPhoto = false }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data),
+              let jpeg = ProfileSetupView.downscaledJPEG(image) else {
+            errorMessage = "Couldn't use that photo — try another."
+            return
+        }
+        pickedImage = image
+        do {
+            uploadedAvatarUrl = try await Repo.uploadAvatar(data: jpeg, userId: profile.id)
+        } catch {
+            pickedImage = nil
+            uploadedAvatarUrl = nil
+            errorMessage = "Couldn't upload your photo — try again."
+        }
+    }
+
+    // MARK: Handle availability
+
+    private func scheduleHandleCheck() {
+        handleCheckTask?.cancel()
+        // Unchanged handle → treat as available (it's already theirs).
+        if handle.lowercased() == profile.handle.lowercased() {
+            handleAvailable = nil
+            checkingHandle = false
+            return
+        }
+        handleAvailable = nil
+        guard handle.count >= 3 else {
+            checkingHandle = false
+            return
+        }
+        checkingHandle = true
+        handleCheckTask = Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            if Task.isCancelled { return }
+            let available = (try? await Repo.isHandleAvailable(handle, excluding: profile.id)) ?? true
+            if Task.isCancelled { return }
+            checkingHandle = false
+            handleAvailable = available
+        }
+    }
+
     private func save() {
         guard !busy else { return }
         busy = true
@@ -377,7 +522,7 @@ private struct EditProfileSheet: View {
                 let trimmedArea = area.trimmingCharacters(in: .whitespaces)
                 let interests = allOptions.filter { selectedInterests.contains($0) }
                 let initialParts = trimmedName.split(separator: " ").prefix(2).compactMap(\.first)
-                try await Repo.updateProfile([
+                var fields: [String: AnyJSON] = [
                     "display_name": .string(trimmedName),
                     "handle": .string(handle),
                     "bio": trimmedBio.isEmpty ? .null : .string(trimmedBio),
@@ -385,13 +530,27 @@ private struct EditProfileSheet: View {
                     "area": .string(trimmedArea),
                     "interests": .array(interests.map { .string($0) }),
                     "avatar_initials": .string(String(initialParts).uppercased()),
-                ], userId: profile.id)
+                ]
+                if let uploadedAvatarUrl {
+                    fields["avatar_url"] = .string(uploadedAvatarUrl)
+                }
+                try await Repo.updateProfile(fields, userId: profile.id)
                 await session.refreshProfile()
+                app.bumpData()
                 dismiss()
             } catch {
-                errorMessage = error.localizedDescription
+                errorMessage = Self.saveError(error)
             }
         }
+    }
+
+    /// Friendly wrapper for a raw handle collision that beats the async check.
+    private static func saveError(_ error: Error) -> String {
+        let text = error.localizedDescription.lowercased()
+        if text.contains("duplicate") || text.contains("unique") || text.contains("handle") {
+            return "That handle just got taken — try another."
+        }
+        return error.localizedDescription
     }
 }
 
@@ -399,37 +558,63 @@ private struct EditProfileSheet: View {
 
 private struct SettingsSheet: View {
     @EnvironmentObject private var session: SessionStore
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingSignOut = false
+    @State private var confirmingDelete = false
+    @State private var confirmingDeleteFinal = false
+    @State private var deleting = false
+    @State private var errorMessage: String?
+
+    private static let termsURL = URL(string: "https://plus1-livid.vercel.app/terms")!
+    private static let privacyURL = URL(string: "https://plus1-livid.vercel.app/privacy")!
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 12) {
-                Button {
-                    confirmingSignOut = true
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 15, weight: .semibold))
-                            .frame(width: 22)
-                        Text("Sign out")
-                            .font(.system(size: 15, weight: .semibold))
-                        Spacer()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    section("Account") {
+                        NavigationLink {
+                            BlockedUsersView()
+                        } label: {
+                            settingsRow("Blocked users", icon: "hand.raised", chevron: true)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .foregroundStyle(Theme.destructive)
-                    .padding(.vertical, 4)
+
+                    section("About") {
+                        Link(destination: Self.termsURL) {
+                            settingsRow("Terms of Service", icon: "doc.text", chevron: true)
+                        }
+                        divider
+                        Link(destination: Self.privacyURL) {
+                            settingsRow("Privacy Policy", icon: "lock.shield", chevron: true)
+                        }
+                        divider
+                        settingsRow("Version", icon: "info.circle", trailing: "v\(Self.appVersion)")
+                    }
+
+                    section {
+                        Button {
+                            confirmingSignOut = true
+                        } label: {
+                            settingsRow("Sign out", icon: "rectangle.portrait.and.arrow.right", tint: Theme.destructive)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    section("Danger zone") {
+                        Button {
+                            confirmingDelete = true
+                        } label: {
+                            settingsRow("Delete account", icon: "trash", tint: Theme.destructive)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(deleting)
+                    }
                 }
-                .buttonStyle(.plain)
-                .card()
-
-                Text("plus1 v\(Self.appVersion)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(Theme.sub)
-                    .frame(maxWidth: .infinity)
-
-                Spacer()
+                .padding(16)
             }
-            .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
             .navigationTitle("Settings")
@@ -448,11 +633,199 @@ private struct SettingsSheet: View {
                     Task { await session.signOut() }
                 }
             }
+            .confirmationDialog(
+                "Delete your account?",
+                isPresented: $confirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete account", role: .destructive) {
+                    confirmingDeleteFinal = true
+                }
+            } message: {
+                Text("Deleting your account is permanent and can't be undone.")
+            }
+            .alert("Delete account?", isPresented: $confirmingDeleteFinal) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete my account", role: .destructive) { deleteAccount() }
+            } message: {
+                Text("This permanently deletes your profile, events, and messages. There's no undo.")
+            }
+            .alert("Couldn't delete account", isPresented: errorBinding) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .overlay {
+                if deleting {
+                    ZStack {
+                        Color.black.opacity(0.25).ignoresSafeArea()
+                        ProgressView("Deleting…").tint(Theme.accent)
+                            .padding(20)
+                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+            }
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )
+    }
+
+    // MARK: Pieces
+
+    @ViewBuilder
+    private func section(_ title: String? = nil, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let title {
+                Text(title.uppercased())
+                    .font(.system(size: 10, design: .monospaced))
+                    .kerning(1.2)
+                    .foregroundStyle(Theme.sub)
+                    .padding(.leading, 4)
+            }
+            VStack(spacing: 0) { content() }
+                .card(padding: 0)
+        }
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Theme.hair).frame(height: 0.5).padding(.leading, 46)
+    }
+
+    private func settingsRow(
+        _ title: String, icon: String, tint: Color = Theme.foreground,
+        chevron: Bool = false, trailing: String? = nil
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22)
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+            Spacer()
+            if let trailing {
+                Text(trailing)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundStyle(Theme.sub)
+            }
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.sub)
+            }
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
+    }
+
+    private func deleteAccount() {
+        guard !deleting else { return }
+        deleting = true
+        Task {
+            defer { deleting = false }
+            do {
+                try await Repo.deleteAccount()
+                // deleteAccount signs out; the session phase change dismisses this.
+            } catch {
+                errorMessage = "Couldn't delete your account — try again in a moment."
+            }
         }
     }
 
     private static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+}
+
+// MARK: - Blocked users
+
+private struct BlockedUsersView: View {
+    @Environment(AppModel.self) private var app
+    @State private var profiles: [ProfileRow] = []
+    @State private var loaded = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                if !loaded {
+                    ForEach(0..<3, id: \.self) { _ in SkeletonCard(height: 56) }
+                } else if profiles.isEmpty {
+                    EmptyStateCard(
+                        emoji: "🙂",
+                        title: "No one blocked",
+                        message: "You haven't blocked anyone."
+                    )
+                } else {
+                    ForEach(profiles) { profile in
+                        HStack(spacing: 12) {
+                            AvatarView(
+                                initials: profile.initials,
+                                url: profile.avatarUrl.flatMap(URL.init),
+                                size: 40
+                            )
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(profile.displayName)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(Theme.foreground)
+                                Text("@\(profile.handle)")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.sub)
+                            }
+                            Spacer()
+                            Button("Unblock") { unblock(profile) }
+                                .buttonStyle(GhostButtonStyle(fullWidth: false))
+                        }
+                        .padding(10)
+                        .card()
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .background(Theme.background)
+        .compactNavTitle("Blocked")
+        .task { await load() }
+        .alert("Something went wrong", isPresented: errorBinding) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )
+    }
+
+    private func load() async {
+        do {
+            profiles = try await Repo.blockedProfiles()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        loaded = true
+    }
+
+    private func unblock(_ profile: ProfileRow) {
+        Task {
+            do {
+                try await Repo.unblock(userId: profile.id)
+                profiles.removeAll { $0.id == profile.id }
+                app.blockedIds.remove(profile.id)
+                app.bumpData()
+            } catch {
+                errorMessage = "Couldn't unblock — try again."
+            }
+        }
     }
 }
 

@@ -11,17 +11,19 @@ private enum HomeFilter: Hashable {
 
 struct HomeView: View {
     @EnvironmentObject private var session: SessionStore
+    @Environment(AppModel.self) private var app
     @State private var quests: [Quest] = []
     @State private var friendIds: Set<UUID> = []
-    @State private var hasUnreadActivity = false
     @State private var filter: HomeFilter = .all
     @State private var loaded = false
     @State private var errorMessage: String?
 
     // MARK: Derived feed slices
 
+    /// A friend's event — excludes your own hosted events (those get their
+    /// own "Yours" slice) and joined events (surfaced normally in the feed).
     private func isFromFriends(_ quest: Quest) -> Bool {
-        if quest.joinedByCurrentUser || quest.createdByCurrentUser { return true }
+        if quest.createdByCurrentUser { return false }
         if let host = quest.host { return friendIds.contains(host.id) }
         return false
     }
@@ -37,14 +39,23 @@ struct HomeView: View {
     private var live: [Quest] { filtered.filter(\.isLive) }
     private var upcoming: [Quest] { filtered.filter { !$0.isLive } }
     private var friendQuests: [Quest] { quests.filter(isFromFriends) }
+    private var yourQuests: [Quest] { quests.filter(\.createdByCurrentUser) }
     private var campusQuests: [Quest] { quests.filter { $0.visibility == .local } }
+
+    /// Only the All filter falls back to the zero-friends layout — a category
+    /// filter with no results shows a normal category empty state instead.
+    private var showsEmptyFriends: Bool {
+        loaded && filter == .all && friendQuests.isEmpty && yourQuests.isEmpty
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 header
                 filterChips
-                if loaded && friendQuests.isEmpty {
+                if !loaded {
+                    ForEach(0..<3, id: \.self) { _ in SkeletonCard(height: 92) }
+                } else if showsEmptyFriends {
                     emptyFriendsSections
                 } else {
                     feedSections
@@ -54,7 +65,13 @@ struct HomeView: View {
         }
         .background(Theme.background)
         .toolbar(.hidden, for: .navigationBar)
-        .task { await load() }
+        .task(id: app.dataVersion) { await load() }
+        .onAppear {
+            // Re-fires when a detail/create screen is popped — surfaces
+            // joins/leaves/creates made elsewhere (InboxView's pattern).
+            if loaded { Task { await load() } }
+            Task { await app.refreshBadges() }
+        }
         .refreshable { await load() }
         .alert("Something went wrong", isPresented: .init(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
@@ -78,7 +95,7 @@ struct HomeView: View {
                     .frame(width: 36, height: 36)
                     .background(Theme.card, in: Circle())
                     .overlay(alignment: .topTrailing) {
-                        if hasUnreadActivity {
+                        if app.hasUnreadActivity {
                             Circle().fill(.red)
                                 .frame(width: 8, height: 8)
                                 .offset(x: -2, y: 2)
@@ -109,6 +126,7 @@ struct HomeView: View {
     private func chip(_ value: HomeFilter, _ label: String) -> some View {
         let selected = filter == value
         return Button {
+            Haptics.tap()
             filter = value
         } label: {
             Text(label)
@@ -123,7 +141,34 @@ struct HomeView: View {
 
     // MARK: Feed
 
+    /// Your own hosted events, shown as a labeled slice under the All filter
+    /// so they aren't silently counted as "friends'".
+    @ViewBuilder private var yoursSection: some View {
+        if filter == .all, !yourQuests.isEmpty {
+            SectionHeader(
+                title: "Yours",
+                caption: "\(yourQuests.count) \(yourQuests.count == 1 ? "event" : "events")"
+            )
+            ForEach(yourQuests) { quest in
+                NavigationLink {
+                    EventDetailView(questId: quest.id)
+                } label: {
+                    HomeQuestRow(quest: quest)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var categoryEmptyMessage: String {
+        if case .category(let category) = filter {
+            return "No \(category.rawValue.lowercased()) hangouts right now — start one?"
+        }
+        return "No open events match this filter — try another, or start one."
+    }
+
     @ViewBuilder private var feedSections: some View {
+        yoursSection
         if !live.isEmpty {
             SectionHeader(title: "Happening now", caption: "\(live.count) live")
             ScrollView(.horizontal, showsIndicators: false) {
@@ -153,11 +198,11 @@ struct HomeView: View {
                 .buttonStyle(.plain)
             }
         }
-        if loaded && live.isEmpty && upcoming.isEmpty {
+        if loaded && live.isEmpty && upcoming.isEmpty && !(filter == .all && !yourQuests.isEmpty) {
             EmptyStateCard(
                 emoji: "🤙",
                 title: "Nothing here yet",
-                message: "No open events match this filter — try another, or start one."
+                message: categoryEmptyMessage
             )
         }
     }
@@ -187,8 +232,7 @@ struct HomeView: View {
         do {
             async let questsTask = Repo.feedQuests()
             async let friendshipsTask = Repo.friendships()
-            async let activityTask = Repo.activity()
-            let (feed, friendships, activity) = try await (questsTask, friendshipsTask, activityTask)
+            let (feed, friendships) = try await (questsTask, friendshipsTask)
             quests = feed
             if let me = Repo.currentUserId {
                 friendIds = Set(
@@ -197,7 +241,6 @@ struct HomeView: View {
                         .map { $0.otherId(for: me) }
                 )
             }
-            hasUnreadActivity = activity.contains { !$0.isRead }
             loaded = true
         } catch {
             errorMessage = error.localizedDescription
@@ -254,7 +297,7 @@ private struct LiveQuestCard: View {
                 Circle().fill(Theme.accent).frame(width: 6, height: 6)
                 Text("LIVE")
                     .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Theme.accentInk)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -272,8 +315,9 @@ private struct HomeQuestRow: View {
     private var meta: Text {
         let time = Text(quest.timeLabel).foregroundStyle(Theme.sub)
         let dot = Text(" · ").foregroundStyle(Theme.sub)
-        if quest.spotsLeft == 1 {
-            return time + dot + Text("1 spot left").bold().foregroundStyle(Theme.accent)
+        if let left = quest.spotsLeft, left > 0, left <= 2 {
+            let label = left == 1 ? "1 spot left" : "\(left) spots left"
+            return time + dot + Text(label).bold().foregroundStyle(Theme.accentText)
         }
         return time + dot + Text(quest.location).foregroundStyle(Theme.sub)
     }

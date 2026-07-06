@@ -3,6 +3,7 @@ import SwiftUI
 /// Inbox tab: Direct / Events segmented lists of message threads
 /// (web InboxScreen parity, styled per the v3 mockups).
 struct InboxView: View {
+    @Environment(AppModel.self) private var app
     @Binding var unreadCount: Int
 
     init(unreadCount: Binding<Int>) {
@@ -35,9 +36,9 @@ struct InboxView: View {
                 .pickerStyle(.segmented)
 
                 if !loaded {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
+                    VStack(spacing: 10) {
+                        ForEach(0..<5, id: \.self) { _ in SkeletonCard(height: 60) }
+                    }
                 } else if activeThreads.isEmpty {
                     emptyState
                 } else {
@@ -54,9 +55,10 @@ struct InboxView: View {
         }
         .background(Theme.background)
         .compactNavTitle("Inbox")
-        .task { await load() }
+        .task(id: app.dataVersion) { await load() }
         .onAppear {
             // Re-fires when a chat is popped — keeps unread badges fresh.
+            // Guard against the double-fire with `.task` on first show.
             if loaded { Task { await load() } }
         }
         .refreshable { await load() }
@@ -75,7 +77,9 @@ struct InboxView: View {
                 EmptyStateCard(
                     emoji: "💬",
                     title: "No messages yet",
-                    message: "Message a friend from their profile to start a chat."
+                    message: "Message a friend from their profile to start a chat.",
+                    actionTitle: "Find friends",
+                    action: { app.requestedTab = .explore }
                 )
             } else {
                 EmptyStateCard(
@@ -122,11 +126,14 @@ struct InboxView: View {
         do {
             let list = try await Repo.threadSummaries()
             threads = list
-            unreadCount = list.filter { $0.unreadCount > 0 }.count
+            // Feed the binding total unread MESSAGES (RootView badges from
+            // app.unreadMessages, which sums the same counts).
+            unreadCount = list.reduce(0) { $0 + $1.unreadCount }
         } catch {
             errorMessage = error.localizedDescription
         }
         loaded = true
+        await app.refreshBadges()
     }
 }
 

@@ -8,14 +8,19 @@ struct PublicProfileView: View {
     let profileId: UUID
 
     @EnvironmentObject private var session: SessionStore
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
 
     @State private var profile: ProfileRow?
     @State private var quests: [Quest] = []
     @State private var friendship: FriendshipRow?
     @State private var busy = false
     @State private var confirmingCancel = false
+    @State private var confirmingBlock = false
+    @State private var showingReport = false
     @State private var chatTarget: ChatTarget?
     @State private var errorMessage: String?
+    @State private var optimisticState: FriendshipState?
 
     /// Thread to push after "Message" resolves the direct thread.
     private struct ChatTarget: Identifiable, Hashable {
@@ -31,6 +36,7 @@ struct PublicProfileView: View {
 
     private var friendshipState: FriendshipState {
         if isSelf { return .selfProfile }
+        if let optimisticState { return optimisticState }
         guard let me = session.userId else { return .none }
         return friendship?.state(for: me) ?? .none
     }
@@ -55,6 +61,27 @@ struct PublicProfileView: View {
         }
         .background(Theme.background)
         .compactNavTitle("@\(profile?.handle ?? "")")
+        .toolbar {
+            if !isSelf {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            showingReport = true
+                        } label: {
+                            Label("Report user", systemImage: "flag")
+                        }
+                        Button(role: .destructive) {
+                            confirmingBlock = true
+                        } label: {
+                            Label("Block user", systemImage: "hand.raised")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
+                    .accessibilityLabel("More")
+                }
+            }
+        }
         .navigationDestination(item: $chatTarget) { target in
             ChatThreadView(threadId: target.id, title: target.title)
         }
@@ -71,6 +98,18 @@ struct PublicProfileView: View {
             titleVisibility: .visible
         ) {
             Button("Cancel request", role: .destructive) { cancelRequest() }
+        }
+        .confirmationDialog(
+            "Block this person?",
+            isPresented: $confirmingBlock,
+            titleVisibility: .visible
+        ) {
+            Button("Block user", role: .destructive) { blockUser() }
+        } message: {
+            Text("You won't see their events, messages, or activity.")
+        }
+        .sheet(isPresented: $showingReport) {
+            ReportSheet(kind: "profile", targetId: profileId)
         }
     }
 
@@ -241,9 +280,31 @@ struct PublicProfileView: View {
     }
 
     private func addFriend() {
+        guard !busy else { return }
+        Haptics.tap()
+        // Optimistic: flip to Requested immediately, revert on failure.
+        optimisticState = .outgoing
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try await Repo.requestFriend(addresseeId: profileId)
+                try await reloadFriendship()
+                optimisticState = nil
+            } catch {
+                optimisticState = nil
+                errorMessage = "Couldn't send that request — try again."
+            }
+        }
+    }
+
+    private func blockUser() {
         run {
-            try await Repo.requestFriend(addresseeId: profileId)
-            try await reloadFriendship()
+            try await Repo.block(userId: profileId)
+            Haptics.success()
+            app.bumpData()
+            await app.refreshBadges()
+            dismiss()
         }
     }
 

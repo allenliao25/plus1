@@ -88,10 +88,43 @@ enum Repo {
             .eq("id", value: userId).execute()
     }
 
+    /// True if no other profile already uses `handle` (case-insensitive).
+    static func isHandleAvailable(_ handle: String, excluding userId: UUID) async throws -> Bool {
+        let normalized = handle.lowercased().replacingOccurrences(of: "@", with: "")
+        struct IdRow: Decodable { let id: UUID }
+        let matches: [IdRow] = try await db.from("profiles").select("id")
+            .ilike("handle", value: normalized)
+            .neq("id", value: userId)
+            .limit(1).execute().value
+        return matches.isEmpty
+    }
+
+    /// Upload a profile photo to the shared `profile-photos` bucket (web parity:
+    /// same bucket, `<userId>/avatar-<timestamp>.jpg` path, 5 MB cap).
+    static func uploadAvatar(data: Data, userId: UUID) async throws -> String {
+        guard data.count <= 5 * 1024 * 1024 else { throw RepoError.imageTooLarge }
+        let path = "\(userId.uuidString.lowercased())/avatar-\(Int(Date().timeIntervalSince1970 * 1000)).jpg"
+        try await db.storage.from("profile-photos")
+            .upload(path, data: data,
+                    options: FileOptions(cacheControl: "3600", contentType: "image/jpeg", upsert: true))
+        return try db.storage.from("profile-photos").getPublicURL(path: path).absoluteString
+    }
+
     static func searchPeople(query: String, limit: Int = 20) async throws -> [ProfileRow] {
-        try await db.from("profiles").select()
-            .or("display_name.ilike.%\(query)%,handle.ilike.%\(query)%")
+        // Strip PostgREST filter metacharacters and escape ilike wildcards so
+        // raw user text can't break the `.or(...)` filter.
+        let sanitized = query
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+        let rows: [ProfileRow] = try await db.from("profiles").select()
+            .or("display_name.ilike.%\(sanitized)%,handle.ilike.%\(sanitized)%")
             .limit(limit).execute().value
+        let blocked = (try? await blockedUserIds()) ?? []
+        return blocked.isEmpty ? rows : rows.filter { !blocked.contains($0.id) }
     }
 
     // MARK: Quests — feed + hydration
@@ -106,7 +139,14 @@ enum Repo {
             .order("start_time", ascending: true, nullsFirst: true)
             .limit(100)
             .execute().value
-        return try await hydrate(rows)
+        // Blocking has teeth: hide events hosted by blocked users. Repo fetches
+        // the block list itself (one cheap query) rather than taking it as a
+        // parameter, so it stays correct wherever it's called from.
+        let blocked = (try? await blockedUserIds()) ?? []
+        let visible = blocked.isEmpty ? rows : rows.filter { row in
+            row.creatorId.map { !blocked.contains($0) } ?? true
+        }
+        return try await hydrate(visible)
     }
 
     static func quest(id: UUID) async throws -> Quest {
@@ -158,18 +198,20 @@ enum Repo {
         profileIds.formUnion(invites.map(\.inviteeId))
         let profileList = try await profiles(ids: Array(profileIds))
         let byId = Dictionary(uniqueKeysWithValues: profileList.map { ($0.id, $0) })
+        // Blocking has teeth: drop blocked people from the Going list.
+        let blocked = (try? await blockedUserIds()) ?? []
 
         return rows.map { row in
             let host = row.creatorId.flatMap { byId[$0] }
             var attendees: [QuestAttendee] = []
-            if let host {
+            if let host, !blocked.contains(host.id) {
                 attendees.append(QuestAttendee(
                     id: host.id, displayName: host.displayName,
                     avatarInitials: host.initials, avatarUrl: host.avatarUrl, isHost: true
                 ))
             }
             for join in joins where join.questId == row.id {
-                guard let profile = byId[join.userId] else { continue }
+                guard !blocked.contains(join.userId), let profile = byId[join.userId] else { continue }
                 attendees.append(QuestAttendee(
                     id: profile.id, displayName: profile.displayName,
                     avatarInitials: profile.initials, avatarUrl: profile.avatarUrl, isHost: false
@@ -203,6 +245,14 @@ enum Repo {
         guard let me = currentUserId else { throw RepoError.notSignedIn }
         try await db.from("quest_joins").delete()
             .eq("quest_id", value: id).eq("user_id", value: me).execute()
+        // Inverse of joinQuest's chat-membership sync: drop the user from the
+        // event thread. Best-effort like other secondary writes.
+        if let thread: ThreadRow = try? await db.from("message_threads")
+            .select().eq("quest_id", value: id).eq("kind", value: "event")
+            .single().execute().value {
+            try? await db.from("message_thread_participants").delete()
+                .eq("thread_id", value: thread.id).eq("user_id", value: me).execute()
+        }
     }
 
     struct QuestInput {
@@ -247,7 +297,7 @@ enum Repo {
                 area: profile.area
             ), returning: .representation)
             .single().execute().value
-        try await replaceInvites(questId: row.id, inviterId: me, inviteeIds: input.inviteeIds)
+        try await replaceInvites(questId: row.id, inviterId: me, inviteeIds: input.inviteeIds, questTitle: input.title)
         return row
     }
 
@@ -263,7 +313,7 @@ enum Repo {
             visibility: input.visibility.rawValue,
             card_image_url: input.cardImageUrl
         )).eq("id", value: id).execute()
-        try await replaceInvites(questId: id, inviterId: me, inviteeIds: input.inviteeIds)
+        try await replaceInvites(questId: id, inviterId: me, inviteeIds: input.inviteeIds, questTitle: input.title)
     }
 
     static func closeQuest(id: UUID) async throws {
@@ -271,11 +321,12 @@ enum Repo {
             .eq("id", value: id).execute()
     }
 
-    private static func replaceInvites(questId: UUID, inviterId: UUID, inviteeIds: [UUID]) async throws {
+    private static func replaceInvites(questId: UUID, inviterId: UUID, inviteeIds: [UUID], questTitle: String) async throws {
         let existing: [QuestInviteRow] = try await db.from("quest_invites")
             .select().eq("quest_id", value: questId).execute().value
-        let wanted = Set(inviteeIds)
-        let current = Set(existing.map(\.inviteeId))
+        let wanted = Set(inviteeIds.filter { $0 != inviterId })
+        // Diff against non-declined existing invites, matching web parity.
+        let currentActive = Set(existing.filter { $0.status != "declined" }.map(\.inviteeId))
         let stale = existing.filter { !wanted.contains($0.inviteeId) && $0.status == "pending" }
         if !stale.isEmpty {
             try await db.from("quest_invites").delete()
@@ -286,12 +337,34 @@ enum Repo {
             let inviter_id: UUID
             let invitee_id: UUID
         }
-        let additions = wanted.subtracting(current).map {
-            NewInvite(quest_id: questId, inviter_id: inviterId, invitee_id: $0)
+        let addedIds = Array(wanted.subtracting(currentActive))
+        guard !addedIds.isEmpty else { return }
+        // Clear any prior `declined` rows for these invitees so re-inviting
+        // doesn't stack a duplicate row (no unique index in the DB).
+        let staleDeclined = existing.filter { addedIds.contains($0.inviteeId) && $0.status == "declined" }
+        if !staleDeclined.isEmpty {
+            try await db.from("quest_invites").delete()
+                .in("id", values: staleDeclined.map(\.id)).execute()
         }
-        if !additions.isEmpty {
-            try await db.from("quest_invites").insert(additions).execute()
+        try await db.from("quest_invites")
+            .insert(addedIds.map { NewInvite(quest_id: questId, inviter_id: inviterId, invitee_id: $0) })
+            .execute()
+        // Notify added invitees (makes the "they'll get a notification" promise true).
+        struct InviteActivity: Encodable {
+            let user_id: UUID
+            let actor_id: UUID
+            let quest_id: UUID
+            let type: String
+            let title: String
         }
+        try? await db.from("activity_events")
+            .insert(addedIds.map {
+                InviteActivity(
+                    user_id: $0, actor_id: inviterId, quest_id: questId,
+                    type: "invite", title: "You were invited to \(questTitle)"
+                )
+            })
+            .execute()
     }
 
     /// Upload a cover to the shared quest-card-images bucket (web parity:
@@ -420,8 +493,15 @@ enum Repo {
         let people = try await profiles(ids: Array(counterpartIds))
         let personById = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
         let myLastRead = Dictionary(uniqueKeysWithValues: mine.map { ($0.threadId, $0.lastReadAt) })
+        // Hide direct threads with blocked users (event threads stay visible).
+        let blocked = (try? await blockedUserIds()) ?? []
 
-        return threads.map { thread in
+        return threads.compactMap { thread -> ThreadSummary? in
+            if thread.kind == "direct", !blocked.isEmpty {
+                let counterpartId = everyone
+                    .first { $0.threadId == thread.id && $0.userId != me }?.userId
+                if let counterpartId, blocked.contains(counterpartId) { return nil }
+            }
             let threadMessages = recent.filter { $0.threadId == thread.id }
             let last = threadMessages.first
             let lastRead = Fmt.parse(myLastRead[thread.id] ?? nil)
@@ -452,9 +532,13 @@ enum Repo {
     }
 
     static func messages(threadId: UUID) async throws -> [MessageRow] {
-        try await db.from("messages").select()
+        let rows: [MessageRow] = try await db.from("messages").select()
             .eq("thread_id", value: threadId)
             .order("created_at", ascending: true).limit(150).execute().value
+        // Hide event-chat messages from blocked senders (direct threads with a
+        // blocked user are already filtered out of threadSummaries).
+        let blocked = (try? await blockedUserIds()) ?? []
+        return blocked.isEmpty ? rows : rows.filter { !blocked.contains($0.senderId) }
     }
 
     static func sendMessage(threadId: UUID, body: String) async throws -> MessageRow {
@@ -481,9 +565,15 @@ enum Repo {
 
     static func activity() async throws -> [ActivityRow] {
         guard let me = currentUserId else { return [] }
-        return try await db.from("activity_events").select()
+        let rows: [ActivityRow] = try await db.from("activity_events").select()
             .eq("user_id", value: me)
             .order("created_at", ascending: false).limit(50).execute().value
+        // Blocking has teeth: drop rows whose actor (e.g. a blocked user's
+        // friend request) I've blocked, so no live Accept button surfaces.
+        let blocked = (try? await blockedUserIds()) ?? []
+        return blocked.isEmpty ? rows : rows.filter { row in
+            row.actorId.map { !blocked.contains($0) } ?? true
+        }
     }
 
     static func markAllActivityRead() async throws {
@@ -493,6 +583,72 @@ enum Repo {
             .eq("user_id", value: me)
             .is("read_at", value: nil)
             .execute()
+    }
+
+    // MARK: Moderation — report, block, delete account
+
+    /// File an insert-only report against a user or event.
+    static func report(kind: String, id: UUID, reason: String, details: String?) async throws {
+        guard let me = currentUserId else { throw RepoError.notSignedIn }
+        struct NewReport: Encodable {
+            let reporter_id: UUID
+            let target_kind: String
+            let target_id: UUID
+            let reason: String
+            let details: String?
+        }
+        try await db.from("reports")
+            .insert(NewReport(reporter_id: me, target_kind: kind, target_id: id, reason: reason, details: details))
+            .execute()
+    }
+
+    static func block(userId: UUID) async throws {
+        guard let me = currentUserId else { throw RepoError.notSignedIn }
+        struct NewBlock: Encodable {
+            let blocker_id: UUID
+            let blocked_id: UUID
+        }
+        try await db.from("user_blocks")
+            .insert(NewBlock(blocker_id: me, blocked_id: userId))
+            .execute()
+    }
+
+    static func unblock(userId: UUID) async throws {
+        guard let me = currentUserId else { throw RepoError.notSignedIn }
+        try await db.from("user_blocks").delete()
+            .eq("blocker_id", value: me).eq("blocked_id", value: userId).execute()
+    }
+
+    static func blockedUserIds() async throws -> Set<UUID> {
+        guard let me = currentUserId else { return [] }
+        struct BlockRow: Decodable { let blocked_id: UUID }
+        let rows: [BlockRow] = try await db.from("user_blocks")
+            .select("blocked_id").eq("blocker_id", value: me).execute().value
+        return Set(rows.map(\.blocked_id))
+    }
+
+    static func blockedProfiles() async throws -> [ProfileRow] {
+        try await profiles(ids: Array(try await blockedUserIds()))
+    }
+
+    /// Permanently delete the account via RPC, then sign out locally.
+    static func deleteAccount() async throws {
+        try await db.rpc("delete_account").execute()
+        // A global sign-out revokes server sessions but can fail offline; always
+        // follow with a local-scope sign-out so the stored session is cleared and
+        // authStateChanges fires, leaving no dead-but-.ready session behind.
+        try? await db.auth.signOut()
+        try? await db.auth.signOut(scope: .local)
+    }
+}
+
+// MARK: - Event detail additions
+
+extension Repo {
+    /// Reopen a previously closed event (inverse of `closeQuest`).
+    static func reopenQuest(questId: UUID) async throws {
+        try await db.from("quests").update(["status": "open"])
+            .eq("id", value: questId).execute()
     }
 }
 

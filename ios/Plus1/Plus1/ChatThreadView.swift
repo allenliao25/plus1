@@ -17,14 +17,34 @@ struct ChatThreadView: View {
     @State private var senders: [UUID: ProfileRow] = [:]
     @State private var draft = ""
     @State private var loaded = false
-    @State private var sending = false
+    /// In-flight deliver() round-trips; `sending` is true while any is active.
+    /// A counter (not a Bool) so a second deliver can't clear the first's flag.
+    @State private var sendingCount = 0
     @State private var errorMessage: String?
     @State private var channel: RealtimeChannelV2?
     @State private var listenTask: Task<Void, Never>?
+    @State private var statusTask: Task<Void, Never>?
     @State private var pollTask: Task<Void, Never>?
+    /// Set in teardownLive() so a late status callback can't restart polling.
+    @State private var tornDown = false
+    /// Realtime is connected — while true we stop the poll fallback.
+    @State private var realtimeHealthy = false
+    /// Local ids of optimistic bubbles awaiting / failing their round-trip.
+    @State private var pendingIds: Set<UUID> = []
+    @State private var failedIds: Set<UUID> = []
+    /// Body to restore/resend for a failed optimistic bubble.
+    @State private var retryBodies: [UUID: String] = [:]
+    /// Bubbles whose timestamp is revealed on tap.
+    @State private var revealedTimestamps: Set<UUID> = []
+    /// Long-pressed other-user message to report.
+    @State private var reportingMessageId: UUID?
+    @FocusState private var composerFocused: Bool
+
+    @Environment(AppModel.self) private var app
 
     private var myId: UUID? { Repo.currentUserId }
     private var trimmedDraft: String { draft.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var sending: Bool { sendingCount > 0 }
 
     private var errorBinding: Binding<Bool> {
         Binding(
@@ -64,6 +84,13 @@ struct ChatThreadView: View {
                     proxy.scrollTo(last.id, anchor: .bottom)
                 }
             }
+            .onChange(of: composerFocused) { _, focused in
+                // Keep the latest message visible when the keyboard rises.
+                guard focused, let last = messages.last else { return }
+                withAnimation(.easeOut(duration: 0.2)) {
+                    proxy.scrollTo(last.id, anchor: .bottom)
+                }
+            }
         }
         .background(Theme.background)
         .navigationTitle(title)
@@ -74,7 +101,13 @@ struct ChatThreadView: View {
             startRealtime()
             startPolling()
         }
-        .onDisappear { teardownLive() }
+        .onDisappear {
+            teardownLive()
+            Task { await app.refreshBadges() }
+        }
+        .sheet(item: reportingBinding) { target in
+            ReportSheet(kind: "message", targetId: target.id)
+        }
         .alert("Something went wrong", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -82,11 +115,21 @@ struct ChatThreadView: View {
         }
     }
 
+    private var reportingBinding: Binding<ReportTarget?> {
+        Binding(
+            get: { reportingMessageId.map(ReportTarget.init) },
+            set: { reportingMessageId = $0?.id }
+        )
+    }
+
+    private struct ReportTarget: Identifiable, Hashable { let id: UUID }
+
     // MARK: Message rows
 
     @ViewBuilder
     private func messageBlock(_ message: MessageRow, at index: Int) -> some View {
         let mine = message.senderId == myId
+        let isNewest = index == messages.count - 1
         VStack(spacing: 8) {
             if showsDayChip(at: index) {
                 DayChip(label: dayLabel(message))
@@ -104,12 +147,30 @@ struct ChatThreadView: View {
             } else {
                 theirBubble(message)
             }
+            if showsTimestamp(message, isNewest: isNewest) {
+                Text(timeLabel(message))
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.sub)
+                    .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
+                    .padding(mine ? .trailing : .leading, mine ? 4 : 40)
+            }
         }
     }
 
     private func myBubble(_ message: MessageRow) -> some View {
-        HStack {
+        let pending = pendingIds.contains(message.id)
+        let failed = failedIds.contains(message.id)
+        return HStack(spacing: 5) {
             Spacer(minLength: 56)
+            if failed {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.destructive)
+            } else if pending {
+                Image(systemName: "clock")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.sub)
+            }
             Text(message.body)
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.accentInk)
@@ -119,7 +180,18 @@ struct ChatThreadView: View {
                 .clipShape(UnevenRoundedRectangle(cornerRadii: .init(
                     topLeading: 17, bottomLeading: 17, bottomTrailing: 5, topTrailing: 17
                 )))
+                .opacity(pending ? 0.6 : 1)
         }
+        .overlay(alignment: .bottomTrailing) {
+            if failed {
+                Text("Tap to retry")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .foregroundStyle(Theme.destructive)
+                    .offset(y: 13)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { onMyBubbleTap(message) }
     }
 
     private func theirBubble(_ message: MessageRow) -> some View {
@@ -138,8 +210,44 @@ struct ChatThreadView: View {
                 .clipShape(UnevenRoundedRectangle(cornerRadii: .init(
                     topLeading: 17, bottomLeading: 5, bottomTrailing: 17, topTrailing: 17
                 )))
+                .contentShape(Rectangle())
+                .onTapGesture { toggleTimestamp(message) }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        reportingMessageId = message.id
+                    } label: {
+                        Label("Report message", systemImage: "flag")
+                    }
+                }
             Spacer(minLength: 56)
         }
+    }
+
+    private func onMyBubbleTap(_ message: MessageRow) {
+        if failedIds.contains(message.id) {
+            retry(message)
+        } else if !pendingIds.contains(message.id) {
+            toggleTimestamp(message)
+        }
+    }
+
+    private func toggleTimestamp(_ message: MessageRow) {
+        if revealedTimestamps.contains(message.id) {
+            revealedTimestamps.remove(message.id)
+        } else {
+            revealedTimestamps.insert(message.id)
+        }
+    }
+
+    private func showsTimestamp(_ message: MessageRow, isNewest: Bool) -> Bool {
+        isNewest || revealedTimestamps.contains(message.id)
+    }
+
+    private func timeLabel(_ message: MessageRow) -> String {
+        if pendingIds.contains(message.id) { return "Sending…" }
+        if failedIds.contains(message.id) { return "Not delivered" }
+        guard let date = Fmt.parse(message.createdAt) else { return "" }
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     private func showsDayChip(at index: Int) -> Bool {
@@ -177,6 +285,7 @@ struct ChatThreadView: View {
                 .background(Theme.card)
                 .clipShape(Capsule())
                 .submitLabel(.send)
+                .focused($composerFocused)
                 .onSubmit(send)
 
             Button(action: send) {
@@ -200,18 +309,54 @@ struct ChatThreadView: View {
     private func send() {
         let body = trimmedDraft
         guard !body.isEmpty, !sending else { return }
-        sending = true
+        guard let me = myId else { return }
+        Haptics.tap()
+        // Optimistic: append a pending local bubble and clear the draft now.
+        let localId = UUID()
+        let pending = MessageRow(
+            id: localId, threadId: threadId, senderId: me, body: body,
+            createdAt: Fmt.pg.string(from: Date())
+        )
+        messages.append(pending)
+        pendingIds.insert(localId)
+        retryBodies[localId] = body
+        draft = ""
+        deliver(localId: localId, body: body)
+    }
+
+    /// Round-trip a pending optimistic bubble: swap in the server row on
+    /// success, mark it failed (tap-to-retry) on failure.
+    private func deliver(localId: UUID, body: String) {
+        sendingCount += 1
         Task {
-            defer { sending = false }
+            defer { sendingCount -= 1 }
             do {
                 let message = try await Repo.sendMessage(threadId: threadId, body: body)
-                appendIfNew(message)
-                draft = ""
+                if let index = messages.firstIndex(where: { $0.id == localId }) {
+                    if messages.contains(where: { $0.id == message.id }) {
+                        messages.remove(at: index)  // realtime already delivered it
+                    } else {
+                        messages[index] = message
+                    }
+                }
+                pendingIds.remove(localId)
+                failedIds.remove(localId)
+                retryBodies[localId] = nil
                 try? await Repo.markThreadRead(threadId: threadId)
+                await app.refreshBadges()
             } catch {
-                errorMessage = error.localizedDescription
+                pendingIds.remove(localId)
+                failedIds.insert(localId)
             }
         }
+    }
+
+    private func retry(_ message: MessageRow) {
+        guard !pendingIds.contains(message.id), let body = retryBodies[message.id] else { return }
+        Haptics.tap()
+        failedIds.remove(message.id)
+        pendingIds.insert(message.id)
+        deliver(localId: message.id, body: body)
     }
 
     // MARK: Data
@@ -222,6 +367,7 @@ struct ChatThreadView: View {
             messages = list
             await loadMissingSenders(for: list)
             try? await Repo.markThreadRead(threadId: threadId)
+            await app.refreshBadges()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -237,6 +383,7 @@ struct ChatThreadView: View {
         messages.append(contentsOf: fresh)
         await loadMissingSenders(for: fresh)
         try? await Repo.markThreadRead(threadId: threadId)
+        await app.refreshBadges()
     }
 
     private func appendIfNew(_ message: MessageRow) {
@@ -263,6 +410,19 @@ struct ChatThreadView: View {
             table: "messages",
             filter: .eq("thread_id", value: threadId)
         )
+        // Track subscription health: while subscribed we suspend the poll
+        // and rely on realtime; if it drops we resume polling.
+        let statusChanges = channel.statusChange
+        statusTask = Task {
+            for await status in statusChanges {
+                realtimeHealthy = (status == .subscribed)
+                if realtimeHealthy {
+                    stopPolling()
+                } else {
+                    startPolling()
+                }
+            }
+        }
         listenTask = Task {
             await channel.subscribe()
             for await insert in inserts {
@@ -272,14 +432,15 @@ struct ChatThreadView: View {
                 appendIfNew(message)
                 await loadMissingSenders(for: [message])
                 try? await Repo.markThreadRead(threadId: threadId)
+                await app.refreshBadges()
             }
         }
     }
 
-    /// Always-on fallback so the chat stays live even if realtime is
-    /// unavailable (e.g. the messages table isn't in the publication).
+    /// Fallback poll — runs only while realtime is NOT healthy (e.g. the
+    /// messages table isn't in the publication, or the socket dropped).
     private func startPolling() {
-        guard pollTask == nil else { return }
+        guard !tornDown, pollTask == nil, !realtimeHealthy else { return }
         pollTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
@@ -289,11 +450,19 @@ struct ChatThreadView: View {
         }
     }
 
-    private func teardownLive() {
-        listenTask?.cancel()
-        listenTask = nil
+    private func stopPolling() {
         pollTask?.cancel()
         pollTask = nil
+    }
+
+    private func teardownLive() {
+        tornDown = true
+        statusTask?.cancel()
+        statusTask = nil
+        listenTask?.cancel()
+        listenTask = nil
+        stopPolling()
+        realtimeHealthy = false
         if let channel {
             Task { await channel.unsubscribe() }
         }
