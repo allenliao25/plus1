@@ -44,6 +44,15 @@ create table if not exists quest_joins (
   unique (quest_id, user_id)
 );
 
+-- Guest RSVPs from the public share page (no profile / auth user). RPC-only.
+create table if not exists quest_guest_joins (
+  id uuid primary key default gen_random_uuid(),
+  quest_id uuid not null references quests(id) on delete cascade,
+  display_name text not null check (char_length(btrim(display_name)) between 1 and 40),
+  claim_token text not null unique default encode(gen_random_bytes(24), 'hex'),
+  created_at timestamp default now()
+);
+
 create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references profiles(id) on delete cascade,
@@ -166,6 +175,9 @@ create unique index if not exists quest_joins_quest_id_user_id_unique
 create index if not exists quest_joins_user_id_idx
   on quest_joins (user_id);
 
+create index if not exists quest_guest_joins_quest_id_idx
+  on quest_guest_joins (quest_id);
+
 create unique index if not exists friendships_user_pair_unique
   on friendships (
     least(requester_id, addressee_id),
@@ -242,6 +254,7 @@ set public = excluded.public;
 alter table profiles enable row level security;
 alter table quests enable row level security;
 alter table quest_joins enable row level security;
+alter table quest_guest_joins enable row level security;
 alter table friendships enable row level security;
 alter table quest_invites enable row level security;
 alter table quest_share_links enable row level security;
@@ -758,6 +771,30 @@ create policy "users delete their joins"
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "visible read guest joins" on quest_guest_joins;
+create policy "visible read guest joins"
+  on quest_guest_joins for select
+  to authenticated
+  using (public.can_view_quest(quest_id));
+
+drop policy if exists "guest joins created through rpc" on quest_guest_joins;
+create policy "guest joins created through rpc"
+  on quest_guest_joins for insert
+  to authenticated, anon
+  with check (false);
+
+drop policy if exists "guest joins updated through rpc" on quest_guest_joins;
+create policy "guest joins updated through rpc"
+  on quest_guest_joins for update
+  to authenticated, anon
+  using (false);
+
+drop policy if exists "guest joins deleted through rpc" on quest_guest_joins;
+create policy "guest joins deleted through rpc"
+  on quest_guest_joins for delete
+  to authenticated, anon
+  using (false);
+
 drop policy if exists "users read their friendships" on friendships;
 create policy "users read their friendships"
   on friendships for select
@@ -895,6 +932,7 @@ as $$
 declare
   target_quest quests%rowtype;
   join_count integer;
+  guest_count integer;
   actor_name text;
 begin
   select *
@@ -930,8 +968,13 @@ begin
   from quest_joins
   where quest_id = target_quest_id;
 
+  select count(*)::integer
+  into guest_count
+  from quest_guest_joins
+  where quest_id = target_quest_id;
+
   if target_quest.max_people is not null
-    and 1 + join_count >= target_quest.max_people then
+    and 1 + join_count + guest_count >= target_quest.max_people then
     raise exception 'event_full';
   end if;
 
@@ -1061,9 +1104,9 @@ as $$
     profiles.display_name as host_display_name,
     profiles.handle as host_handle,
     (
-      select count(*)
-      from quest_joins
-      where quest_joins.quest_id = quests.id
+      1
+      + (select count(*) from quest_joins where quest_joins.quest_id = quests.id)
+      + (select count(*) from quest_guest_joins where quest_guest_joins.quest_id = quests.id)
     ) as going_count,
     quests.max_people,
     quest_share_links.created_at
@@ -1078,6 +1121,125 @@ $$;
 revoke all on function public.get_public_quest_share(text) from public;
 grant execute on function public.get_public_quest_share(text) to anon, authenticated;
 
+-- Per-quest guest cap: abuse valve independent of max_people.
+create or replace function public.quest_guest_cap()
+returns integer
+language sql
+immutable
+as $$ select 20 $$;
+
+-- Anon-callable guest RSVP from the public share page. Returns the guest's
+-- claim_token (for self-cancel) and the updated going count.
+create or replace function public.guest_join_via_share(share_token text, guest_name text)
+returns table(claim_token text, going_count integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_quest quests%rowtype;
+  clean_name text;
+  join_count integer;
+  guest_count integer;
+  total_going integer;
+  new_claim_token text;
+begin
+  clean_name := btrim(coalesce(guest_name, ''));
+
+  if char_length(clean_name) < 1 then
+    raise exception 'guest_name_required';
+  end if;
+
+  if char_length(clean_name) > 40 then
+    clean_name := left(clean_name, 40);
+  end if;
+
+  select quests.*
+  into target_quest
+  from quest_share_links
+  join quests on quests.id = quest_share_links.quest_id
+  where quest_share_links.token = btrim(share_token)
+    and quest_share_links.revoked_at is null
+  limit 1
+  for update of quests;
+
+  if not found then
+    raise exception 'share_unavailable';
+  end if;
+
+  if target_quest.status <> 'open' then
+    raise exception 'event_closed';
+  end if;
+
+  if target_quest.start_time is not null
+     and target_quest.start_time < now() then
+    raise exception 'event_started';
+  end if;
+
+  select count(*)::integer into join_count
+  from quest_joins
+  where quest_id = target_quest.id;
+
+  select count(*)::integer into guest_count
+  from quest_guest_joins
+  where quest_id = target_quest.id;
+
+  if guest_count >= public.quest_guest_cap() then
+    raise exception 'guest_cap_reached';
+  end if;
+
+  total_going := 1 + join_count + guest_count;
+
+  if target_quest.max_people is not null
+     and total_going >= target_quest.max_people then
+    raise exception 'event_full';
+  end if;
+
+  insert into quest_guest_joins (quest_id, display_name)
+  values (target_quest.id, clean_name)
+  returning quest_guest_joins.claim_token into new_claim_token;
+
+  begin
+    insert into activity_events (user_id, actor_id, quest_id, type, title)
+    values (
+      target_quest.creator_id,
+      null,
+      target_quest.id,
+      'join',
+      clean_name || ' (guest) is in for ' || coalesce(target_quest.title, 'your event')
+    );
+  exception
+    when others then null;
+  end;
+
+  return query select new_claim_token, (total_going + 1);
+end;
+$$;
+
+revoke all on function public.guest_join_via_share(text, text) from public;
+grant execute on function public.guest_join_via_share(text, text) to anon, authenticated;
+
+-- Anon-callable cancel: a guest undoes their own RSVP via their claim_token.
+create or replace function public.guest_cancel_via_token(claim_token text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from quest_guest_joins
+  where quest_guest_joins.claim_token = btrim(guest_cancel_via_token.claim_token);
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
+end;
+$$;
+
+revoke all on function public.guest_cancel_via_token(text) from public;
+grant execute on function public.guest_cancel_via_token(text) to anon, authenticated;
+
 create or replace function public.prevent_quest_capacity_underflow()
 returns trigger
 language plpgsql
@@ -1087,14 +1249,16 @@ as $$
 declare
   attendee_count integer;
 begin
-  select (1 + count(*))::integer
-  into attendee_count
-  from quest_joins
-  where quest_id = new.id;
-
   if new.max_people is null then
     return new;
   end if;
+
+  select (
+    1
+    + (select count(*) from quest_joins where quest_id = new.id)
+    + (select count(*) from quest_guest_joins where quest_id = new.id)
+  )::integer
+  into attendee_count;
 
   if new.max_people < attendee_count then
     raise exception 'quest_capacity_below_attendance';
@@ -1119,6 +1283,7 @@ as $$
 declare
   target_max_people integer;
   join_count integer;
+  guest_count integer;
 begin
   select max_people
   into target_max_people
@@ -1135,7 +1300,12 @@ begin
   from quest_joins
   where quest_id = new.quest_id;
 
-  if 1 + join_count >= target_max_people then
+  select count(*)::integer
+  into guest_count
+  from quest_guest_joins
+  where quest_id = new.quest_id;
+
+  if 1 + join_count + guest_count >= target_max_people then
     raise exception 'event_full';
   end if;
 

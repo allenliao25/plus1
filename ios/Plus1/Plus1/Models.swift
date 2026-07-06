@@ -112,6 +112,20 @@ struct QuestJoinRow: Codable, Identifiable, Hashable {
     }
 }
 
+struct QuestGuestJoinRow: Codable, Identifiable, Hashable {
+    let id: UUID
+    let questId: UUID
+    let displayName: String
+    let createdAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case questId = "quest_id"
+        case displayName = "display_name"
+        case createdAt = "created_at"
+    }
+}
+
 struct FriendshipRow: Codable, Identifiable, Hashable {
     let id: UUID
     let requesterId: UUID
@@ -227,6 +241,8 @@ struct QuestAttendee: Identifiable, Hashable {
     let avatarInitials: String
     let avatarUrl: String?
     let isHost: Bool
+    /// Guest RSVP from the public share page — no profile, not tappable.
+    var isGuest: Bool = false
 }
 
 /// A quest joined with everything the screens need (web's hydrated Quest).

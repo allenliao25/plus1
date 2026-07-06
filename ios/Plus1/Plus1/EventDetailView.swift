@@ -410,23 +410,38 @@ struct EventDetailView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
                     ForEach(quest.attendees) { person in
-                        NavigationLink {
-                            PublicProfileView(profileId: person.id)
-                        } label: {
-                            AvatarView(
-                                initials: person.avatarInitials,
-                                url: person.avatarUrl.flatMap(URL.init),
-                                size: 32
-                            )
-                            .overlay {
-                                if quest.joinedByCurrentUser && person.id == Repo.currentUserId {
-                                    Circle()
-                                        .stroke(Theme.accent, lineWidth: 2)
-                                        .padding(-2.5)
+                        if person.isGuest {
+                            // Guests have no profile — show a labeled avatar, not a link.
+                            VStack(spacing: 3) {
+                                AvatarView(
+                                    initials: person.avatarInitials,
+                                    url: nil,
+                                    size: 32
+                                )
+                                Text("guest")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(Theme.sub)
+                            }
+                            .accessibilityLabel("\(person.displayName), guest")
+                        } else {
+                            NavigationLink {
+                                PublicProfileView(profileId: person.id)
+                            } label: {
+                                AvatarView(
+                                    initials: person.avatarInitials,
+                                    url: person.avatarUrl.flatMap(URL.init),
+                                    size: 32
+                                )
+                                .overlay {
+                                    if quest.joinedByCurrentUser && person.id == Repo.currentUserId {
+                                        Circle()
+                                            .stroke(Theme.accent, lineWidth: 2)
+                                            .padding(-2.5)
+                                    }
                                 }
                             }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                     ForEach(0..<min(quest.spotsLeft ?? 0, 5), id: \.self) { _ in
                         Circle()

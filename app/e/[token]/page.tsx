@@ -8,6 +8,7 @@ import { formatCapacitySummary } from "@/lib/questCapacity";
 import { getSiteOrigin } from "@/lib/questLinks";
 import { fetchPublicQuestShare } from "@/lib/questShareService";
 import { sharePalettes } from "@/app/e/[token]/sharePreviewStyles";
+import GuestRsvp from "@/app/e/[token]/GuestRsvp";
 
 type SharePageProps = {
   params: Promise<{ token: string }>;
@@ -104,6 +105,16 @@ export default async function SharePage({ params }: SharePageProps) {
   const palette = sharePalettes[share.category];
   const joinHref = `/?quest=${encodeURIComponent(share.questId)}`;
   const spotsLabel = formatCapacitySummary(share);
+  const isFull =
+    share.maxPeople !== null && share.goingCount >= share.maxPeople;
+  const rsvpDisabledReason =
+    share.status === "closed"
+      ? "The host closed this event."
+      : share.status === "past"
+        ? "This event has already started."
+        : isFull
+          ? "This event is full."
+          : null;
 
   return (
     <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] p-5 text-zinc-950">
@@ -185,11 +196,24 @@ export default async function SharePage({ params }: SharePageProps) {
               </p>
             </div>
 
+            <GuestRsvp
+              token={share.token}
+              questTitle={share.title}
+              goingCount={share.goingCount}
+              canRsvp={rsvpDisabledReason === null}
+              disabledReason={rsvpDisabledReason}
+              accent={{
+                base: palette.base,
+                dark: palette.dark,
+                pale: palette.pale,
+              }}
+            />
+
             <Link
               href={joinHref}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-extrabold text-white transition hover:bg-zinc-800"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-extrabold text-zinc-700 transition hover:bg-zinc-50"
             >
-              Join on plus1
+              Have the app? Open in plus1
             </Link>
           </div>
         </div>

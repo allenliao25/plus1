@@ -24,6 +24,7 @@ export type QuestAttendee = {
   avatarInitials: string;
   avatarUrl: string | null;
   isHost: boolean;
+  isGuest?: boolean;
 };
 
 export type Quest = {

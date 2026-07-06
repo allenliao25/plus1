@@ -4,6 +4,7 @@ import {
   canCreatePublicSharePreview,
   createQuestShareLink,
   fetchPublicQuestShare,
+  mapGuestJoinError,
   mapPublicQuestShareRow,
 } from "@/lib/questShareService";
 
@@ -141,6 +142,34 @@ test("mapPublicQuestShareRow preserves no-cap shares", () => {
 
   assert.equal(share.goingCount, 6);
   assert.equal(share.maxPeople, null);
+});
+
+test("mapGuestJoinError maps RPC exceptions to friendly guest messages", () => {
+  assert.equal(
+    mapGuestJoinError("guest_name_required"),
+    "Add your first name to RSVP.",
+  );
+  assert.equal(
+    mapGuestJoinError("new row violates check: event_full"),
+    "This event is full.",
+  );
+  assert.equal(mapGuestJoinError("event_closed"), "The host closed this event.");
+  assert.equal(
+    mapGuestJoinError("event_started"),
+    "This event has already started.",
+  );
+  assert.equal(
+    mapGuestJoinError("guest_cap_reached"),
+    "This event has reached its guest limit. Ask the host for an app invite.",
+  );
+  assert.equal(
+    mapGuestJoinError("share_unavailable"),
+    "This event link is no longer active.",
+  );
+  assert.equal(
+    mapGuestJoinError("some unexpected db error"),
+    "Could not save your RSVP. Try again.",
+  );
 });
 
 test("local demo events create public preview links without Supabase UUIDs", async () => {
