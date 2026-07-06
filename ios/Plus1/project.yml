@@ -14,6 +14,9 @@ schemes:
         Plus1: all
     run:
       config: Debug
+    test:
+      targets:
+        - Plus1UITests
 targets:
   Plus1:
     type: application
@@ -38,4 +41,18 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.9"
+  Plus1UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Plus1UITests]
+    dependencies:
+      - target: Plus1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.allenliao.Plus1UITests
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: PNQXU683AK
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Plus1
         SWIFT_VERSION: "5.9"

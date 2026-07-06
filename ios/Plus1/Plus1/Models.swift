@@ -194,11 +194,13 @@ struct ThreadParticipantRow: Codable, Hashable {
     let threadId: UUID
     let userId: UUID
     var lastReadAt: String?
+    var mutedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case threadId = "thread_id"
         case userId = "user_id"
         case lastReadAt = "last_read_at"
+        case mutedAt = "muted_at"
     }
 }
 
@@ -270,4 +272,5 @@ struct ThreadSummary: Identifiable, Hashable {
     let preview: String
     let lastMessageAt: String?
     let unreadCount: Int
+    let muted: Bool
 }

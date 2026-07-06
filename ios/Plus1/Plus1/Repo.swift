@@ -139,11 +139,18 @@ enum Repo {
             .order("start_time", ascending: true, nullsFirst: true)
             .limit(100)
             .execute().value
+        // right-now events auto-age out of the feed after 24h
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        let fresh = rows.filter { row in
+            guard row.startTime == nil else { return true }
+            guard let created = Fmt.parse(row.createdAt) else { return true }
+            return created >= cutoff
+        }
         // Blocking has teeth: hide events hosted by blocked users. Repo fetches
         // the block list itself (one cheap query) rather than taking it as a
         // parameter, so it stays correct wherever it's called from.
         let blocked = (try? await blockedUserIds()) ?? []
-        let visible = blocked.isEmpty ? rows : rows.filter { row in
+        let visible = blocked.isEmpty ? fresh : fresh.filter { row in
             row.creatorId.map { !blocked.contains($0) } ?? true
         }
         return try await hydrate(visible)
@@ -493,6 +500,7 @@ enum Repo {
         let people = try await profiles(ids: Array(counterpartIds))
         let personById = Dictionary(uniqueKeysWithValues: people.map { ($0.id, $0) })
         let myLastRead = Dictionary(uniqueKeysWithValues: mine.map { ($0.threadId, $0.lastReadAt) })
+        let myMuted = Dictionary(uniqueKeysWithValues: mine.map { ($0.threadId, $0.mutedAt != nil) })
         // Hide direct threads with blocked users (event threads stay visible).
         let blocked = (try? await blockedUserIds()) ?? []
 
@@ -526,7 +534,8 @@ enum Repo {
                 counterpart: counterpart,
                 preview: last?.body ?? "Say hi 👋",
                 lastMessageAt: thread.lastMessageAt,
-                unreadCount: unread
+                unreadCount: unread,
+                muted: myMuted[thread.id] ?? false
             )
         }
     }
@@ -704,4 +713,46 @@ extension Repo {
             .execute().value
         return rows.first?.quest_id
     }
+}
+
+// MARK: - Mutes & stats
+
+extension Repo {
+    /// Whether the caller has muted this thread (their own participant row).
+    static func threadMuted(threadId: UUID) async throws -> Bool {
+        guard let me = currentUserId else { return false }
+        struct Row: Decodable { let muted_at: String? }
+        let rows: [Row] = try await db.from("message_thread_participants")
+            .select("muted_at")
+            .eq("thread_id", value: threadId).eq("user_id", value: me)
+            .execute().value
+        return rows.first?.muted_at != nil
+    }
+
+    /// Set or clear muted_at on the caller's own participant row.
+    static func setThreadMuted(threadId: UUID, muted: Bool) async throws {
+        guard let me = currentUserId else { throw RepoError.notSignedIn }
+        struct MutePatch: Encodable { let muted_at: String? }
+        let patch = MutePatch(muted_at: muted ? Fmt.pg.string(from: Date()) : nil)
+        try await db.from("message_thread_participants")
+            .update(patch)
+            .eq("thread_id", value: threadId).eq("user_id", value: me)
+            .execute()
+    }
+
+    /// Hosted / joined / friends counts for a public profile via SECURITY
+    /// DEFINER RPC (counts past RLS).
+    static func profileStats(userId: UUID) async throws -> ProfileStats {
+        struct Params: Encodable { let target_id: UUID }
+        let rows: [ProfileStats] = try await db
+            .rpc("profile_stats", params: Params(target_id: userId))
+            .execute().value
+        return rows.first ?? ProfileStats(hosted: 0, joined: 0, friends: 0)
+    }
+}
+
+struct ProfileStats: Decodable {
+    let hosted: Int
+    let joined: Int
+    let friends: Int
 }

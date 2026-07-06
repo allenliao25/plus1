@@ -211,6 +211,14 @@ private struct ProfileEventTile: View {
             .frame(height: 86)
             .frame(maxWidth: .infinity)
             .opacity(ended ? 0.55 : 1)
+            .overlay(alignment: .bottom) {
+                // Subtle scrim so the white count caption stays legible on cover photos.
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.45)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(height: 40)
+            }
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(alignment: .topTrailing) {
                 if ended {
@@ -337,7 +345,7 @@ private struct EditProfileSheet: View {
                             HStack(spacing: 2) {
                                 Text("@")
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Theme.accent)
+                                    .foregroundStyle(Theme.accentText)
                                 TextField("handle", text: $handle)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()

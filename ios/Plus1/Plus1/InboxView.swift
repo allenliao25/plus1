@@ -127,8 +127,9 @@ struct InboxView: View {
             let list = try await Repo.threadSummaries()
             threads = list
             // Feed the binding total unread MESSAGES (RootView badges from
-            // app.unreadMessages, which sums the same counts).
-            unreadCount = list.reduce(0) { $0 + $1.unreadCount }
+            // app.unreadMessages, which sums the same counts). Muted threads are
+            // excluded from the total to stay consistent with refreshBadges().
+            unreadCount = list.reduce(0) { $0 + ($1.muted ? 0 : $1.unreadCount) }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -160,10 +161,18 @@ private struct ThreadRowView: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text(Fmt.relative(thread.lastMessageAt))
-                    .font(.system(size: 11))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.sub)
+                HStack(spacing: 4) {
+                    if thread.muted {
+                        Image(systemName: "bell.slash.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.sub)
+                            .accessibilityLabel("Muted")
+                    }
+                    Text(Fmt.relative(thread.lastMessageAt))
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.sub)
+                }
                 if thread.unreadCount > 0 {
                     Text("\(thread.unreadCount)")
                         .font(.system(size: 10, weight: .bold))

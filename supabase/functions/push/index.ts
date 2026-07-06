@@ -239,7 +239,7 @@ async function buildMessage(
 
   const { data: participants, error: partErr } = await client
     .from("message_thread_participants")
-    .select("user_id")
+    .select("user_id, muted_at")
     .eq("thread_id", record.thread_id);
 
   if (partErr) {
@@ -248,6 +248,7 @@ async function buildMessage(
   }
 
   const recipients = (participants ?? [])
+    .filter((p) => !p.muted_at)
     .map((p) => p.user_id as string)
     .filter((id) => id && id !== record.sender_id);
 
