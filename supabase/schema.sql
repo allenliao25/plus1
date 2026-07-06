@@ -1487,6 +1487,12 @@ create trigger messages_notify_push
   for each row
   execute function public.notify_push('message');
 
+drop trigger if exists reports_notify_push on public.reports;
+create trigger reports_notify_push
+  after insert on public.reports
+  for each row
+  execute function public.notify_push('report');
+
 
 -- Contact sync: privacy-preserving server-side phone matching.
 -- The client uploads normalized E.164 phone numbers from the device address

@@ -3,6 +3,7 @@
 // Invoked by Postgres AFTER INSERT triggers (via pg_net) with one of:
 //   { kind: "activity", record: <activity_events row> }
 //   { kind: "message",  record: <messages row> }
+//   { kind: "report",   record: <reports row> }
 //
 // Auth: header `x-push-secret` must equal env PUSH_WEBHOOK_SECRET (else 401).
 //
@@ -15,6 +16,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PUSH_WEBHOOK_SECRET = Deno.env.get("PUSH_WEBHOOK_SECRET") ?? "";
+
+const MODERATOR_HANDLE = Deno.env.get("MODERATOR_HANDLE") ?? "";
 
 const APNS_KEY_P8 = Deno.env.get("APNS_KEY_P8") ?? "";
 const APNS_KEY_ID = Deno.env.get("APNS_KEY_ID") ?? "";
@@ -291,6 +294,46 @@ async function buildMessage(
   };
 }
 
+type ReportRecord = {
+  id: string;
+  target_kind: string;
+  reason: string;
+  details: string | null;
+};
+
+async function buildReport(
+  record: ReportRecord,
+): Promise<{ recipients: string[]; note: Note } | null> {
+  if (!MODERATOR_HANDLE) {
+    console.log("MODERATOR_HANDLE not set, skipping report notification");
+    return null;
+  }
+
+  const client = service();
+  const { data: moderator } = await client
+    .from("profiles")
+    .select("id")
+    .eq("handle", MODERATOR_HANDLE)
+    .maybeSingle();
+
+  if (!moderator?.id) {
+    console.log(`moderator @${MODERATOR_HANDLE} not found, skipping`);
+    return null;
+  }
+
+  const details = record.details ? ` — ${truncate(record.details, 100)}` : "";
+
+  return {
+    recipients: [moderator.id as string],
+    note: {
+      title: `New report: ${record.target_kind}`,
+      body: truncate(`${record.reason}${details}`, 180),
+      threadId: `report:${record.id}`,
+      custom: { reportId: record.id },
+    },
+  };
+}
+
 // ---------- HTTP entry ----------
 
 Deno.serve(async (req) => {
@@ -328,6 +371,8 @@ Deno.serve(async (req) => {
     built = buildActivity(record as unknown as ActivityRecord);
   } else if (kind === "message") {
     built = await buildMessage(record as unknown as MessageRecord);
+  } else if (kind === "report") {
+    built = await buildReport(record as unknown as ReportRecord);
   } else {
     return new Response(JSON.stringify({ error: "unknown kind" }), {
       status: 400,
