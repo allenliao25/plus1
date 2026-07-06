@@ -15,6 +15,7 @@
 		29A911A581C77E2782E4D969 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B4433103A5E383BA256079 /* HomeView.swift */; };
 		29AA2BC634B6CB36D34C0606 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 152AA2C461A025618217FBC6 /* Assets.xcassets */; };
 		29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 851E350FF5328B1F89E36E7E /* ReportSheet.swift */; };
+		4BB4DD68C853B55B4AFDDA7F /* ContactsSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95278990F74785C6D810019F /* ContactsSync.swift */; };
 		4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0190D2F5AF90DD2E6C999CF /* RootView.swift */; };
 		6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692EB899F48256B64FE0623E /* Theme.swift */; };
 		71153423D043F83F069961F9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860BFBFD23F04849EEA1F554 /* ProfileView.swift */; };
@@ -26,8 +27,10 @@
 		CC95418DF39739CFC28D1ABF /* ExploreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7AD834C6E37902F4F3B648 /* ExploreView.swift */; };
 		CFE04CFDA9E9C80A0C058B6E /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */; };
 		D8123C29CD082E94B153CD45 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */; };
+		EDCA524AE89B1C1C46CA1988 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBCF2620798234F1E3409C7 /* PushManager.swift */; };
 		F383FFA4B66230186381AAF4 /* Plus1App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */; };
 		F4AA197BCD5581F97375B5DC /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A59FF80237E9527F6F5A8C /* EventDetailView.swift */; };
+		FB0DE8C3A33ACB88E33D7506 /* ShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1DEC213CE339BA63235EE1 /* ShareCard.swift */; };
 		FCCAE8F2787BCC63813E5683 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89441E8F88A0035D462DD56 /* InboxView.swift */; };
 /* End PBXBuildFile section */
 
@@ -38,6 +41,7 @@
 		08B4433103A5E383BA256079 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		152AA2C461A025618217FBC6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		1CBCF2620798234F1E3409C7 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		2A402D5B343C467BFAC17C7D /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 		2A7AD834C6E37902F4F3B648 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
 		66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Plus1App.swift; sourceTree = "<group>"; };
@@ -46,14 +50,17 @@
 		835BAF872C14E34E312EA089 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		851E350FF5328B1F89E36E7E /* ReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSheet.swift; sourceTree = "<group>"; };
 		860BFBFD23F04849EEA1F554 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		95278990F74785C6D810019F /* ContactsSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsSync.swift; sourceTree = "<group>"; };
 		B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvitePickerView.swift; sourceTree = "<group>"; };
 		B412B4A9827E4B34557BD938 /* CreateEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateEventView.swift; sourceTree = "<group>"; };
 		B89441E8F88A0035D462DD56 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		CC77262853F694A1411308C0 /* Supa.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supa.swift; sourceTree = "<group>"; };
+		CF1DEC213CE339BA63235EE1 /* ShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCard.swift; sourceTree = "<group>"; };
 		D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
 		D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileView.swift; sourceTree = "<group>"; };
 		D5A59FF80237E9527F6F5A8C /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
 		F0190D2F5AF90DD2E6C999CF /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Plus1.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,6 +91,7 @@
 				152AA2C461A025618217FBC6 /* Assets.xcassets */,
 				166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */,
 				D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */,
+				95278990F74785C6D810019F /* ContactsSync.swift */,
 				B412B4A9827E4B34557BD938 /* CreateEventView.swift */,
 				D5A59FF80237E9527F6F5A8C /* EventDetailView.swift */,
 				2A7AD834C6E37902F4F3B648 /* ExploreView.swift */,
@@ -91,13 +99,16 @@
 				B89441E8F88A0035D462DD56 /* InboxView.swift */,
 				B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */,
 				00E5BBB4C422D43516DAEF30 /* Models.swift */,
+				FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */,
 				66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */,
 				04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */,
 				860BFBFD23F04849EEA1F554 /* ProfileView.swift */,
 				D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */,
+				1CBCF2620798234F1E3409C7 /* PushManager.swift */,
 				04D9E62AB2AB22AE7340BBA6 /* Repo.swift */,
 				851E350FF5328B1F89E36E7E /* ReportSheet.swift */,
 				F0190D2F5AF90DD2E6C999CF /* RootView.swift */,
+				CF1DEC213CE339BA63235EE1 /* ShareCard.swift */,
 				CC77262853F694A1411308C0 /* Supa.swift */,
 				692EB899F48256B64FE0623E /* Theme.swift */,
 			);
@@ -192,6 +203,7 @@
 				163FAF344151C70D2B84B2F4 /* AppModel.swift in Sources */,
 				D8123C29CD082E94B153CD45 /* AuthView.swift in Sources */,
 				0483657981B9452861119F31 /* ChatThreadView.swift in Sources */,
+				4BB4DD68C853B55B4AFDDA7F /* ContactsSync.swift in Sources */,
 				0D6534D001C3A32A9C99F182 /* CreateEventView.swift in Sources */,
 				F4AA197BCD5581F97375B5DC /* EventDetailView.swift in Sources */,
 				CC95418DF39739CFC28D1ABF /* ExploreView.swift in Sources */,
@@ -203,9 +215,11 @@
 				CFE04CFDA9E9C80A0C058B6E /* ProfileSetupView.swift in Sources */,
 				71153423D043F83F069961F9 /* ProfileView.swift in Sources */,
 				A9C50F6E819D03EE5942646B /* PublicProfileView.swift in Sources */,
+				EDCA524AE89B1C1C46CA1988 /* PushManager.swift in Sources */,
 				1E3A90252771265195E2CFEE /* Repo.swift in Sources */,
 				29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */,
 				4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */,
+				FB0DE8C3A33ACB88E33D7506 /* ShareCard.swift in Sources */,
 				8906199ABFC94A709643D516 /* Supa.swift in Sources */,
 				6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */,
 			);
@@ -281,6 +295,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -288,6 +303,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSContactsUsageDescription = "plus1 uses your contacts to find friends who are already on the app.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -362,6 +378,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -369,6 +386,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSContactsUsageDescription = "plus1 uses your contacts to find friends who are already on the app.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (

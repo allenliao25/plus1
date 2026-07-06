@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Explore (mockups §05): search-first tab. Default view is friend
 /// suggestions + campus-open events; searching filters BOTH people
@@ -19,6 +20,15 @@ struct ExploreView: View {
     @State private var optimisticResolved: Set<UUID> = []
     /// Search threw (vs. genuinely empty) — drives the inline retry state.
     @State private var searchFailed = false
+
+    // MARK: Contact sync
+    /// Cached matches for the current app session so the flow doesn't re-prompt
+    /// or re-fetch on every appearance — only pull-to-refresh re-syncs.
+    private static var cachedMatches: [ContactMatch]?
+    @State private var contactMatches: [ContactMatch] = ExploreView.cachedMatches ?? []
+    @State private var didSyncContacts = ExploreView.cachedMatches != nil
+    @State private var syncingContacts = false
+    @State private var contactsDenied = false
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespaces)
@@ -72,7 +82,23 @@ struct ExploreView: View {
         }
     }
 
+    /// Contact matches minus self, existing friends, pending either direction,
+    /// and blocked ids — the same exclusion rule as `filteredSuggestions`.
+    private var filteredContactMatches: [ProfileRow] {
+        let me = Repo.currentUserId
+        return contactMatches
+            .filter { $0.id != me && !app.blockedIds.contains($0.id) }
+            .filter { match in
+                switch friendshipState(for: match.id) {
+                case .none, .declined: return true
+                default: return false
+                }
+            }
+            .map(\.asProfileRow)
+    }
+
     @ViewBuilder private var defaultSections: some View {
+        contactsSection
         if !filteredSuggestions.isEmpty {
             SectionHeader(title: "Find friends", caption: "\(filteredSuggestions.count) suggested")
             peopleGroup(filteredSuggestions)
@@ -88,12 +114,121 @@ struct ExploreView: View {
                 .buttonStyle(.plain)
             }
         }
-        if loaded && filteredSuggestions.isEmpty && campusQuests.isEmpty {
+        if loaded && filteredSuggestions.isEmpty && campusQuests.isEmpty && didSyncContacts {
             EmptyStateCard(
                 emoji: "🔍",
                 title: "Nothing to explore yet",
                 message: "People and campus-open events show up here as they join plus1."
             )
+        }
+    }
+
+    // MARK: Contacts
+
+    private static let inviteMessage =
+        "join me on plus1 — never do stuff alone. https://plus1-livid.vercel.app"
+
+    @ViewBuilder private var contactsSection: some View {
+        if contactsDenied {
+            contactsPermissionCard
+        } else if !didSyncContacts {
+            contactsIntroCard
+        } else {
+            let matches = filteredContactMatches
+            SectionHeader(title: "From your contacts", caption: matches.isEmpty ? "" : "\(matches.count)")
+            if matches.isEmpty {
+                contactsEmptyCard
+            } else {
+                peopleGroup(matches)
+            }
+        }
+    }
+
+    private var contactsIntroCard: some View {
+        VStack(spacing: 8) {
+            Text("👋").font(.system(size: 30))
+            Text("Find friends from contacts")
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundStyle(Theme.foreground)
+            Text("We only use numbers to find matches — contacts stay on your device.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.sub)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 260)
+            Button(syncingContacts ? "Syncing…" : "Sync contacts") { syncContacts() }
+                .buttonStyle(MintButtonStyle(fullWidth: false))
+                .disabled(syncingContacts)
+                .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .card()
+    }
+
+    private var contactsEmptyCard: some View {
+        VStack(spacing: 8) {
+            Text("No matches yet")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Theme.foreground)
+            ShareLink(item: ExploreView.inviteMessage) {
+                Text("Invite friends")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Theme.accentInk)
+                    .padding(.vertical, 13)
+                    .padding(.horizontal, 18)
+                    .background(Theme.accent)
+                    .clipShape(Capsule())
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .card()
+    }
+
+    private var contactsPermissionCard: some View {
+        VStack(spacing: 8) {
+            Text("🔒").font(.system(size: 30))
+            Text("Contacts access is off")
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundStyle(Theme.foreground)
+            Text("Turn it on in Settings to find friends from your contacts.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.sub)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 260)
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .buttonStyle(MintButtonStyle(fullWidth: false))
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .card()
+    }
+
+    private func syncContacts() {
+        guard !syncingContacts else { return }
+        syncingContacts = true
+        Task {
+            let result = await ContactsSync.requestAndFetchPhones()
+            switch result {
+            case .denied:
+                contactsDenied = true
+            case .authorized(let phones):
+                contactsDenied = false
+                do {
+                    let matches = try await Repo.matchContacts(phones: phones)
+                    contactMatches = matches
+                    ExploreView.cachedMatches = matches
+                    didSyncContacts = true
+                } catch {
+                    errorMessage = "Couldn't sync your contacts. Try again."
+                }
+            }
+            syncingContacts = false
         }
     }
 
@@ -253,6 +388,27 @@ struct ExploreView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+        // Keep the contacts state honest across loads (initial + pull-to-refresh):
+        // reflect a revoked permission, and re-sync matches only if already
+        // granted so refresh updates the list without re-prompting.
+        if ContactsSync.isDenied {
+            contactsDenied = true
+        } else if didSyncContacts {
+            contactsDenied = false
+            if let phones = await syncedPhones() {
+                let matches = (try? await Repo.matchContacts(phones: phones)) ?? contactMatches
+                contactMatches = matches
+                ExploreView.cachedMatches = matches
+            }
+        }
+    }
+
+    /// Re-fetch device numbers without prompting (permission already granted).
+    private func syncedPhones() async -> [String]? {
+        if case .authorized(let phones) = await ContactsSync.requestAndFetchPhones() {
+            return phones
+        }
+        return nil
     }
 
     private func searchPeople() async {

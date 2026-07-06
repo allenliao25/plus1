@@ -1378,5 +1378,190 @@ revoke all on function public.delete_account() from public;
 revoke all on function public.delete_account() from anon;
 grant execute on function public.delete_account() to authenticated;
 
+-- Server-side push pipeline: DB triggers that fan activity + message inserts
+-- out to the `push` edge function via pg_net (async, non-blocking). The webhook
+-- secret lives in Supabase Vault under 'push_webhook_secret'; absent it, the
+-- trigger is dormant (returns NEW without posting). pg_net only enqueues the
+-- HTTP post (delivery happens out-of-band) and the body is exception-guarded so
+-- a Vault/enqueue error never rolls back the originating insert.
+
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.notify_push()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  webhook_secret text;
+begin
+  begin
+    select decrypted_secret
+    into webhook_secret
+    from vault.decrypted_secrets
+    where name = 'push_webhook_secret'
+    limit 1;
+
+    if webhook_secret is null then
+      return new;
+    end if;
+
+    perform net.http_post(
+      url := 'https://qjuiqeclnrvkyjnqltxq.supabase.co/functions/v1/push',
+      headers := jsonb_build_object(
+        'content-type', 'application/json',
+        'x-push-secret', webhook_secret
+      ),
+      body := jsonb_build_object(
+        'kind', TG_ARGV[0],
+        'record', to_jsonb(new)
+      )
+    );
+  exception
+    when others then
+      return new;
+  end;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.notify_push() from public;
+
+drop trigger if exists activity_events_notify_push on public.activity_events;
+create trigger activity_events_notify_push
+  after insert on public.activity_events
+  for each row
+  execute function public.notify_push('activity');
+
+drop trigger if exists messages_notify_push on public.messages;
+create trigger messages_notify_push
+  after insert on public.messages
+  for each row
+  execute function public.notify_push('message');
+
+
+-- Contact sync: privacy-preserving server-side phone matching.
+-- The client uploads normalized E.164 phone numbers from the device address
+-- book; the server returns only the profiles that match, excluding the caller.
+-- Numbers are never stored and names never leave the device.
+
+drop function if exists public.match_contacts(text[]);
+
+create or replace function public.match_contacts(phones text[])
+returns table (
+  id uuid,
+  display_name text,
+  handle text,
+  avatar_url text,
+  avatar_initials text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if phones is null or array_length(phones, 1) is null then
+    return;
+  end if;
+
+  -- Cap input so a caller can't probe the whole user base in one call.
+  if array_length(phones, 1) > 2000 then
+    raise exception 'too_many_phones';
+  end if;
+
+  return query
+  select
+    p.id,
+    p.display_name,
+    p.handle,
+    p.avatar_url,
+    p.avatar_initials
+  from profiles p
+  where p.phone = any(phones)
+    and p.id <> auth.uid();
+end;
+$$;
+
+-- Supabase's project-level default privileges auto-grant execute to anon on
+-- every new function, so revoking from public alone leaves anon able to call
+-- it. Revoke from both, then grant only to authenticated.
+revoke all on function public.match_contacts(text[]) from public;
+revoke all on function public.match_contacts(text[]) from anon;
+grant execute on function public.match_contacts(text[]) to authenticated;
+
+-- Push token registration via SECURITY DEFINER RPC.
+-- `push_tokens.token` has a standalone UNIQUE constraint, so a client-side
+-- upsert with a composite (user_id, token) conflict target doesn't fire when a
+-- second user signs in on a device whose token row still belongs to the first
+-- user, and RLS blocks the second user from updating/deleting the first user's
+-- row. This RPC deletes any existing row for the token (as the definer, past
+-- RLS) then inserts a fresh row owned by the caller.
+
+create or replace function public.register_push_token(target_token text, target_platform text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if target_platform not in ('ios', 'android', 'web') then
+    raise exception 'invalid_platform';
+  end if;
+
+  delete from push_tokens where token = target_token;
+
+  insert into push_tokens (user_id, token, platform, updated_at)
+  values (auth.uid(), target_token, target_platform, now());
+end;
+$$;
+
+create or replace function public.unregister_push_token(target_token text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  delete from push_tokens
+  where token = target_token
+    and user_id = auth.uid();
+end;
+$$;
+
+revoke all on function public.register_push_token(text, text) from public;
+revoke all on function public.register_push_token(text, text) from anon;
+grant execute on function public.register_push_token(text, text) to authenticated;
+
+revoke all on function public.unregister_push_token(text) from public;
+revoke all on function public.unregister_push_token(text) from anon;
+grant execute on function public.unregister_push_token(text) to authenticated;
+
+-- Revoke anon EXECUTE from authenticated-only RPCs.
+-- Supabase's default privileges grant EXECUTE to anon on new functions;
+-- these four all require auth.uid() and should never be callable with
+-- just the anon key. get_public_quest_share intentionally keeps its anon
+-- grant (the signed-out web share page /e/[token] depends on it), and
+-- RLS helper predicates keep theirs (they run during anon policy checks).
+
+revoke execute on function public.join_quest_atomic(uuid) from anon;
+revoke execute on function public.get_or_create_direct_thread(uuid) from anon;
+revoke execute on function public.get_or_create_event_thread(uuid) from anon;
+revoke execute on function public.create_quest_share_link(uuid) from anon;
+
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.

@@ -28,6 +28,8 @@ struct EventDetailView: View {
     @State private var reporting = false
     @State private var addingToCalendar = false
     @State private var toastMessage: String?
+    @State private var sharing = false
+    @State private var shareItems: [Any]?
 
     /// Deployed web app (capacitor.config.ts) — share links resolve there.
     private static let webBaseURL = "https://plus1-livid.vercel.app"
@@ -81,6 +83,13 @@ struct EventDetailView: View {
                 ChatThreadView(threadId: chatThreadId, title: chatTitle)
             }
         }
+        .sheet(isPresented: .init(
+            get: { shareItems != nil }, set: { if !$0 { shareItems = nil } }
+        )) {
+            if let shareItems {
+                ShareSheet(items: shareItems)
+            }
+        }
     }
 
     // MARK: - Skeleton (initial load)
@@ -129,9 +138,19 @@ struct EventDetailView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if let shareURL {
+        if shareURL != nil {
             ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: shareURL)
+                Button {
+                    share()
+                } label: {
+                    if sharing {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+                .disabled(sharing)
+                .accessibilityLabel("Share event")
             }
         }
         if let quest, quest.createdByCurrentUser {
@@ -518,6 +537,25 @@ struct EventDetailView: View {
         }
     }
 
+    /// Renders the story card (fetching the cover photo first) and opens the
+    /// system share sheet with both the image and the link. The URL is always
+    /// present in the sheet's items, so the plain link stays shareable.
+    private func share() {
+        guard let quest, let shareURL, !sharing else { return }
+        Haptics.tap()
+        sharing = true
+        Task {
+            defer { sharing = false }
+            let cover = await loadCoverImage(quest.cardImageURL)
+            if let card = await renderShareCard(quest: quest, coverImage: cover, shareURL: shareURL) {
+                shareItems = [card, shareURL]
+            } else {
+                // Card render failed — still let the user share the link.
+                shareItems = [shareURL]
+            }
+        }
+    }
+
     private func join() {
         guard let me = Repo.currentUserId, let snapshot = quest else { return }
         joining = true
@@ -628,6 +666,21 @@ struct EventDetailView: View {
             }
         }
     }
+}
+
+// MARK: - Share sheet
+
+/// Wraps `UIActivityViewController` so the share sheet carries the rendered
+/// card image AND the link — the image gives Instagram/Messages a real preview
+/// while the URL stays available for link-only targets.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Add to calendar
