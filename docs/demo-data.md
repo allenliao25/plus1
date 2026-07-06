@@ -27,7 +27,7 @@ Reserved / do not use for seeding:
 - **Profiles**: Maya Chen (@maya, "Stanford", food/social/outdoors), Jordan Rivers
   (@jordan, "Stanford", fitness/study). Avatars null (initials render fine).
 - **Friendships** (all `accepted`): Maya↔Allen, Jordan↔Allen, Maya↔Jordan.
-- **5 open events** (`visibility = campus`, `area = Stanford`), times computed in SQL
+- **5 open events** (`visibility = local`, `area = Stanford`), times computed in SQL
   relative to `now()` (America/Los_Angeles) so they stay fresh:
   1. Maya · food · "Late night ramen run 🍜" — today 21:00, 4 spots, Ramen Nagi
   2. Jordan · fitness · "Pickup basketball at the courts" — **live now** (`start_time = null`), 8 spots
@@ -41,9 +41,11 @@ Reserved / do not use for seeding:
   - Event thread on the ramen run (Maya + Jordan), 4 casual messages.
   - Direct thread Maya→Allen, 2 messages, left unread for Allen (his inbox shows a badge).
 
-Events use `visibility = 'campus'` — the live DB's discoverable tier (the checked-in
-`supabase/schema.sql` still says `'local'`; the live project migrated the enum to
-`invite_only / friends / campus`).
+Events use `visibility = 'local'` — the discoverable tier.
+
+> **Resolved (July 6, 2026):** the earlier `'campus'` vs `'local'` drift between the
+> live DB and `supabase/schema.sql` is gone. The live project now uses `'local'`
+> everywhere, matching the checked-in schema (`invite_only / friends / local`).
 
 ## Re-running
 
