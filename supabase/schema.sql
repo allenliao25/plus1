@@ -1642,5 +1642,68 @@ revoke all on function public.profile_stats(uuid) from public;
 revoke all on function public.profile_stats(uuid) from anon;
 grant execute on function public.profile_stats(uuid) to authenticated;
 
+-- "Starting soon" reminders: inserts one 'reminder' activity_event per attendee
+-- and the host for open quests starting within ~65 minutes. The activity_events
+-- insert trigger fans these out to push. SECURITY DEFINER to write system-wide;
+-- dedup via NOT EXISTS on an existing reminder for (user_id, quest_id).
+create or replace function public.send_event_reminders()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_count integer;
+begin
+  with due_quests as (
+    select id, creator_id, title, location
+    from quests
+    where status = 'open'
+      and start_time is not null
+      and start_time between now() and now() + interval '65 minutes'
+  ),
+  recipients as (
+    select q.id as quest_id, q.creator_id, q.title, q.location, j.user_id
+    from due_quests q
+    join quest_joins j on j.quest_id = q.id
+    where j.user_id is not null
+    union
+    select q.id as quest_id, q.creator_id, q.title, q.location, q.creator_id as user_id
+    from due_quests q
+    where q.creator_id is not null
+  ),
+  new_reminders as (
+    insert into activity_events (user_id, actor_id, quest_id, type, title, body)
+    select
+      r.user_id,
+      r.creator_id,
+      r.quest_id,
+      'reminder',
+      'Starting soon',
+      r.title || ' starts in about an hour — ' || r.location
+    from recipients r
+    where not exists (
+      select 1
+      from activity_events a
+      where a.user_id = r.user_id
+        and a.quest_id = r.quest_id
+        and a.type = 'reminder'
+    )
+    returning 1
+  )
+  select count(*) into inserted_count from new_reminders;
+
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.send_event_reminders() from public;
+revoke all on function public.send_event_reminders() from anon;
+revoke all on function public.send_event_reminders() from authenticated;
+
+-- Scheduled every 5 minutes via pg_cron. On hosted Supabase, enable pg_cron via
+-- Dashboard → Database → Extensions, then run:
+--   cron.schedule('send-event-reminders', '*/5 * * * *', 'select public.send_event_reminders();');
+
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.
