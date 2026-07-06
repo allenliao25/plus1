@@ -290,6 +290,7 @@ struct ProfileSetupView: View {
                 if let uploadedAvatarUrl {
                     try? await Repo.updateProfile(["avatar_url": .string(uploadedAvatarUrl)], userId: userId)
                 }
+                Analytics.track("profile_setup_completed")
                 await session.refreshProfile()
                 session.completeSetup()
             } catch {

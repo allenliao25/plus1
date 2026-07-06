@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { CheckCircle2, PartyPopper } from "lucide-react";
 import {
   guestCancelViaToken,
   guestJoinViaShare,
 } from "@/lib/questShareService";
+import { getAuthenticatedUser } from "@/lib/authService";
+import { track } from "@/lib/analytics";
 
 const APP_STORE_URL = "https://apps.apple.com/app/plus1";
 
@@ -74,6 +76,26 @@ export default function GuestRsvp({
 
   const readStored = useCallback(() => readStoredRsvp(token), [token]);
 
+  // Fire once per share-page view, tagged with whether the viewer is already
+  // signed in (funnel: does the guest already have an account?).
+  useEffect(() => {
+    let cancelled = false;
+    getAuthenticatedUser()
+      .then((user) => {
+        if (!cancelled) {
+          track("share_page_viewed", { token, signed_in: user !== null });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          track("share_page_viewed", { token, signed_in: false });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   // Local override (from this session's submit/cancel) wins; otherwise fall
   // back to whatever is persisted in localStorage once hydrated.
   const stored =
@@ -98,9 +120,11 @@ export default function GuestRsvp({
 
     setSubmitting(true);
     setError(null);
+    track("guest_rsvp_submitted", { token });
 
     try {
       const result = await guestJoinViaShare(token, trimmed);
+      track("guest_rsvp_succeeded", { token });
       const record: StoredRsvp = {
         claimToken: result.claimToken,
         displayName: trimmed,
@@ -135,6 +159,7 @@ export default function GuestRsvp({
 
     try {
       await guestCancelViaToken(stored.claimToken);
+      track("guest_rsvp_cancelled", { token });
       try {
         window.localStorage.removeItem(storageKey(token));
       } catch {
@@ -183,6 +208,7 @@ export default function GuestRsvp({
           </p>
           <a
             href={APP_STORE_URL}
+            onClick={() => track("app_store_cta_tapped", { token })}
             className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-extrabold text-white transition hover:bg-zinc-800"
           >
             Download the app

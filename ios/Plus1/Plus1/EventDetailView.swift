@@ -548,6 +548,10 @@ struct EventDetailView: View {
                     .map(\.phone)
                 guard !phones.isEmpty else { return }
                 Haptics.tap()
+                Analytics.track("sms_invite_sent", [
+                    "quest_id": questId.uuidString,
+                    "recipient_count": phones.count,
+                ])
                 smsRecipients = phones
             } label: {
                 Text(sendInviteLabel)
@@ -683,6 +687,9 @@ struct EventDetailView: View {
                 .rpc("create_quest_share_link", params: ["target_quest_id": questId])
                 .single().execute().value
             shareURL = URL(string: "\(Self.webBaseURL)/e/\(result.token)")
+            if result.created {
+                Analytics.track("share_link_created", ["quest_id": questId.uuidString])
+            }
         } catch {
             // Sharing stays hidden if the link can't be minted; not fatal.
         }
@@ -719,6 +726,7 @@ struct EventDetailView: View {
             defer { joining = false }
             do {
                 try await Repo.joinQuest(id: questId)
+                Analytics.track("quest_joined", ["quest_id": questId.uuidString])
                 await load()
                 app.bumpData()
                 await app.refreshBadges()

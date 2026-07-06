@@ -7,6 +7,12 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: 2.5.0
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    from: 3.0.0
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 8.0.0
 schemes:
   Plus1:
     build:
@@ -25,6 +31,13 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
+      - package: PostHog
+        product: PostHog
+      - package: Sentry
+        product: Sentry
+    configFiles:
+      Debug: Config/Analytics.xcconfig
+      Release: Config/Analytics.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.allenliao.Plus1
@@ -42,6 +55,11 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.9"
+        # Analytics keys flow xcconfig -> Info.plist -> Config.swift. Empty
+        # defaults (in Config/Analytics.xcconfig) mean "no key, no SDK init".
+        INFOPLIST_KEY_POSTHOG_API_KEY: $(POSTHOG_API_KEY)
+        INFOPLIST_KEY_POSTHOG_HOST: $(POSTHOG_HOST)
+        INFOPLIST_KEY_SENTRY_DSN: $(SENTRY_DSN)
   Plus1UITests:
     type: bundle.ui-testing
     platform: iOS
