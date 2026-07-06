@@ -2,16 +2,21 @@ import SwiftUI
 import UIKit
 
 /// plus1's mint design system, mirroring the approved v3 mockups.
-/// Light: iOS grouped-light bones with mint #12B076 and dark ink on mint.
-/// Dark: near-black with brighter mint #4ADE9E, still dark ink on mint.
+/// Light: iOS grouped-light bones with mint #4ADE9E and dark ink on mint.
+/// Dark: near-black with brighter mint #6EF0BC, still dark ink on mint.
 enum Theme {
     static let background = dynamic(light: 0xF4F5F4, dark: 0x0E100F)
     static let card = dynamic(light: 0xFFFFFF, dark: 0x1A1D1B)
     static let foreground = dynamic(light: 0x101312, dark: 0xF3F5F4)
     static let sub = dynamic(light: 0x8A908C, dark: 0x8F968F)
-    static let accent = dynamic(light: 0x12B076, dark: 0x4ADE9E)
+    static let accent = dynamic(light: 0x4ADE9E, dark: 0x6EF0BC)
     /// Dark ink on mint in BOTH modes — passes contrast where white-on-mint fails.
     static let accentInk = dynamic(light: 0x05291B, dark: 0x06281A)
+    /// Mint FOREGROUND (text / small icons) on `background`/`card` surfaces.
+    /// Rule: filled controls use `accent` + `accentInk` label; mint text or icons
+    /// sitting on light/dark surfaces use `accentText` — the lighter `accent`
+    /// would fail contrast on white in light mode.
+    static let accentText = dynamic(light: 0x0E9F6E, dark: 0x4ADE9E)
     static let chip = dynamic(light: 0xE8EAE8, dark: 0x232725)
     static let hair = Color(UIColor { trait in
         trait.userInterfaceStyle == .dark
@@ -280,6 +285,68 @@ struct EmptyStateCard: View {
     }
 }
 
+// MARK: - Loading + feedback primitives
+
+/// Card-shaped placeholder with a subtle pulse — shown by feed screens
+/// while their first load is in flight.
+struct SkeletonCard: View {
+    var height: CGFloat = 72
+    @State private var pulsing = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Theme.chip)
+            .frame(height: height)
+            .opacity(pulsing ? 0.5 : 1)
+            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: pulsing)
+            .onAppear { pulsing = true }
+    }
+}
+
+/// Transient capsule notice overlaid at the top of a screen.
+struct ToastView: View {
+    let message: String
+    var body: some View {
+        Text(message)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(Theme.foreground)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 16)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Theme.hair, lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
+    }
+}
+
+extension View {
+    /// Overlay a top toast bound to `message`; auto-dismisses after 2s.
+    func toast(_ message: Binding<String?>) -> some View {
+        overlay(alignment: .top) {
+            if let text = message.wrappedValue {
+                ToastView(message: text)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        withAnimation { message.wrappedValue = nil }
+                    }
+            }
+        }
+        .animation(.spring(duration: 0.3), value: message.wrappedValue)
+    }
+}
+
+/// Haptic feedback shortcuts for taps and successful mutations.
+enum Haptics {
+    static func tap() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
+
 /// Relative/absolute display helpers for Postgres `timestamp` strings.
 enum Fmt {
     static let pg: DateFormatter = {
@@ -290,11 +357,31 @@ enum Fmt {
         return formatter
     }()
 
+    private static let isoFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let iso: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     static func parse(_ raw: String?) -> Date? {
-        guard var raw else { return nil }
-        if let dot = raw.firstIndex(of: ".") { raw = String(raw[..<dot]) }
-        raw = raw.replacingOccurrences(of: "+00:00", with: "")
-        return pg.date(from: raw)
+        guard let raw else { return nil }
+        // Honor any explicit offset (ISO8601 preserves non-UTC zones);
+        // fall back to UTC-naive strings like "2026-07-06T18:00:00".
+        // The DB stores these columns as Postgres `timestamp` (no tz), and the
+        // dominant shape carries microseconds ("2026-07-06T18:00:00.123456").
+        // ISO8601DateFormatter rejects offset-less strings and `pg` has no
+        // fractional pattern, so for the naive fallback we strip the fractional
+        // suffix (everything from the first ".") before formatting. Do not
+        // "clean this up" — naive microsecond timestamps are what the DB emits.
+        return isoFractional.date(from: raw)
+            ?? iso.date(from: raw)
+            ?? pg.date(from: String(raw.prefix(while: { $0 != "." })))
     }
 
     static func eventTime(_ raw: String?) -> String {

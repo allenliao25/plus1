@@ -1287,5 +1287,96 @@ exception
   when undefined_object then null;
 end $$;
 
+-- App Store compliance: user reports, user blocks, and full account deletion.
+-- Supports Apple UGC guideline 1.2 (report/block) and guideline 5.1.1(v) (deletion).
+
+create table if not exists reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references auth.users(id) on delete cascade,
+  target_kind text not null check (target_kind in ('quest', 'message', 'profile')),
+  target_id uuid not null,
+  reason text not null,
+  details text,
+  created_at timestamptz not null default now(),
+  constraint reports_details_length check (char_length(details) <= 2000)
+);
+
+create index if not exists reports_created_at_idx
+  on reports (created_at desc);
+
+create table if not exists user_blocks (
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+create index if not exists user_blocks_blocked_id_idx
+  on user_blocks (blocked_id);
+
+alter table reports enable row level security;
+alter table user_blocks enable row level security;
+
+drop policy if exists "users create own reports" on reports;
+create policy "users create own reports"
+  on reports for insert
+  to authenticated
+  with check (reporter_id = auth.uid());
+
+drop policy if exists "users read own blocks" on user_blocks;
+create policy "users read own blocks"
+  on user_blocks for select
+  to authenticated
+  using (blocker_id = auth.uid());
+
+drop policy if exists "users create own blocks" on user_blocks;
+create policy "users create own blocks"
+  on user_blocks for insert
+  to authenticated
+  with check (blocker_id = auth.uid());
+
+drop policy if exists "users remove own blocks" on user_blocks;
+create policy "users remove own blocks"
+  on user_blocks for delete
+  to authenticated
+  using (blocker_id = auth.uid());
+
+-- Full account deletion. Deleting auth.users cascades to profiles, which cascades
+-- to quest_joins, friendships, quest_invites, quest_share_links, push_tokens,
+-- activity_events (user_id), message_thread_participants, and messages. The two
+-- profile references without a cascade action (quests.creator_id and
+-- activity_events.actor_id) are cleared first so the delete is not blocked.
+-- message_threads.created_by is on delete set null and needs no handling.
+-- The user's storage objects (profile photos, quest card covers) are purged
+-- explicitly since auth.users does not cascade into storage.objects.
+create or replace function public.delete_account()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth, storage
+as $$
+declare
+  target_user uuid := auth.uid();
+begin
+  if target_user is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  delete from storage.objects
+  where bucket_id in ('profile-photos', 'quest-card-images')
+    and (storage.foldername(name))[1] = target_user::text;
+
+  delete from quests where creator_id = target_user;
+  delete from activity_events where actor_id = target_user;
+
+  delete from auth.users where id = target_user;
+end;
+$$;
+
+revoke all on function public.delete_account() from public;
+revoke all on function public.delete_account() from anon;
+grant execute on function public.delete_account() to authenticated;
+
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.

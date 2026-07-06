@@ -252,6 +252,8 @@ struct Quest: Identifiable, Hashable {
         guard let startDate else { return true }
         return startDate <= Date()
     }
+    /// Host counts toward max_people (attendees[0] is the host) — intentional
+    /// web parity; do not "fix" this to exclude the host.
     var goingCount: Int { attendees.count }
     var spotsLeft: Int? { row.maxPeople.map { max(0, $0 - goingCount) } }
     var isFull: Bool { (spotsLeft ?? 1) == 0 }

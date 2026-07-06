@@ -4,6 +4,8 @@ import SwiftUI
 /// suggestions + campus-open events; searching filters BOTH people
 /// (server-side) and the loaded event feed (title/location).
 struct ExploreView: View {
+    @Environment(AppModel.self) private var app
+
     @State private var quests: [Quest] = []
     @State private var suggestions: [ProfileRow] = []
     @State private var friendships: [FriendshipRow] = []
@@ -11,6 +13,12 @@ struct ExploreView: View {
     @State private var query = ""
     @State private var loaded = false
     @State private var errorMessage: String?
+    /// Ids optimistically flipped to "Requested" (add sent, awaiting confirm).
+    @State private var optimisticRequested: Set<UUID> = []
+    /// Ids whose incoming request was optimistically accepted/declined.
+    @State private var optimisticResolved: Set<UUID> = []
+    /// Search threw (vs. genuinely empty) — drives the inline retry state.
+    @State private var searchFailed = false
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespaces)
@@ -30,7 +38,9 @@ struct ExploreView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                if trimmedQuery.isEmpty {
+                if !loaded {
+                    ForEach(0..<4, id: \.self) { _ in SkeletonCard(height: 56) }
+                } else if trimmedQuery.isEmpty {
                     defaultSections
                 } else {
                     searchSections
@@ -41,7 +51,7 @@ struct ExploreView: View {
         .background(Theme.background)
         .compactNavTitle("Explore")
         .searchable(text: $query, prompt: "Events, people, places")
-        .task { await load() }
+        .task(id: app.dataVersion) { await load() }
         .task(id: trimmedQuery) { await searchPeople() }
         .refreshable { await load() }
         .alert("Something went wrong", isPresented: .init(
@@ -51,10 +61,21 @@ struct ExploreView: View {
 
     // MARK: Default content
 
+    /// Suggestions minus anyone already a friend or with a pending request
+    /// either direction (they don't belong in "Find friends").
+    private var filteredSuggestions: [ProfileRow] {
+        suggestions.filter { person in
+            switch friendshipState(for: person.id) {
+            case .none, .declined: return true
+            default: return false
+            }
+        }
+    }
+
     @ViewBuilder private var defaultSections: some View {
-        if !suggestions.isEmpty {
-            SectionHeader(title: "Find friends", caption: "\(suggestions.count) suggested")
-            peopleGroup(suggestions)
+        if !filteredSuggestions.isEmpty {
+            SectionHeader(title: "Find friends", caption: "\(filteredSuggestions.count) suggested")
+            peopleGroup(filteredSuggestions)
         }
         if !campusQuests.isEmpty {
             SectionHeader(title: "Around campus", caption: "open to all")
@@ -67,7 +88,7 @@ struct ExploreView: View {
                 .buttonStyle(.plain)
             }
         }
-        if loaded && suggestions.isEmpty && campusQuests.isEmpty {
+        if loaded && filteredSuggestions.isEmpty && campusQuests.isEmpty {
             EmptyStateCard(
                 emoji: "🔍",
                 title: "Nothing to explore yet",
@@ -79,28 +100,50 @@ struct ExploreView: View {
     // MARK: Search results
 
     @ViewBuilder private var searchSections: some View {
-        if !peopleResults.isEmpty {
-            SectionHeader(title: "People", caption: "\(peopleResults.count)")
-            peopleGroup(peopleResults)
-        }
-        if !questResults.isEmpty {
-            SectionHeader(title: "Events", caption: "\(questResults.count)")
-            ForEach(questResults) { quest in
-                NavigationLink {
-                    EventDetailView(questId: quest.id)
-                } label: {
-                    ExploreQuestRow(quest: quest)
+        if searchFailed && peopleResults.isEmpty {
+            searchErrorState
+        } else {
+            if !peopleResults.isEmpty {
+                SectionHeader(title: "People", caption: "\(peopleResults.count)")
+                peopleGroup(peopleResults)
+            }
+            if !questResults.isEmpty {
+                SectionHeader(title: "Events", caption: "\(questResults.count)")
+                ForEach(questResults) { quest in
+                    NavigationLink {
+                        EventDetailView(questId: quest.id)
+                    } label: {
+                        ExploreQuestRow(quest: quest)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+            if peopleResults.isEmpty && questResults.isEmpty {
+                EmptyStateCard(
+                    emoji: "🔍",
+                    title: "No matches",
+                    message: "Try a different name, event, or place."
+                )
             }
         }
-        if loaded && peopleResults.isEmpty && questResults.isEmpty {
-            EmptyStateCard(
-                emoji: "🔍",
-                title: "No matches",
-                message: "Try a different name, event, or place."
-            )
+    }
+
+    private var searchErrorState: some View {
+        VStack(spacing: 10) {
+            Text("😕").font(.system(size: 30))
+            Text("Couldn't search")
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundStyle(Theme.foreground)
+            Text("Check your connection and try again.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.sub)
+            Button("Retry") { Task { await searchPeople() } }
+                .buttonStyle(MintButtonStyle(fullWidth: false))
+                .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .card()
     }
 
     private func peopleGroup(_ people: [ProfileRow]) -> some View {
@@ -110,7 +153,8 @@ struct ExploreView: View {
                     profile: person,
                     state: friendshipState(for: person.id),
                     onAdd: { addFriend(person.id) },
-                    onAccept: { acceptFriend(person.id) }
+                    onAccept: { acceptFriend(person.id) },
+                    onDecline: { declineFriend(person.id) }
                 )
                 if person.id != people.last?.id {
                     Rectangle().fill(Theme.hair).frame(height: 0.5)
@@ -122,7 +166,11 @@ struct ExploreView: View {
 
     // MARK: Friendship state + actions
 
+    /// Server state with optimistic overrides folded in so a tapped row
+    /// updates instantly without a full refetch.
     private func friendshipState(for profileId: UUID) -> FriendshipState {
+        if optimisticResolved.contains(profileId) { return .friends }
+        if optimisticRequested.contains(profileId) { return .outgoing }
         guard let me = Repo.currentUserId else { return .none }
         guard let friendship = friendships.first(where: { $0.otherId(for: me) == profileId }) else {
             return .none
@@ -131,13 +179,20 @@ struct ExploreView: View {
     }
 
     private func addFriend(_ profileId: UUID) {
+        // Optimistic: flip to "Requested" immediately, revert on failure.
+        optimisticRequested.insert(profileId)
+        Haptics.tap()
         Task {
             do {
                 try await Repo.requestFriend(addresseeId: profileId)
                 friendships = try await Repo.friendships()
+                app.bumpData()
+                await app.refreshBadges()
             } catch {
-                errorMessage = error.localizedDescription
+                optimisticRequested.remove(profileId)
+                errorMessage = "Couldn't send that friend request. Try again."
             }
+            optimisticRequested.remove(profileId)
         }
     }
 
@@ -147,12 +202,37 @@ struct ExploreView: View {
                   $0.requesterId == profileId && $0.addresseeId == me
               })
         else { return }
+        optimisticResolved.insert(profileId)
+        Haptics.tap()
         Task {
             do {
                 try await Repo.respondFriend(friendshipId: friendship.id, accept: true)
                 friendships = try await Repo.friendships()
+                app.bumpData()
+                await app.refreshBadges()
             } catch {
-                errorMessage = error.localizedDescription
+                optimisticResolved.remove(profileId)
+                errorMessage = "Couldn't accept that request. Try again."
+            }
+            optimisticResolved.remove(profileId)
+        }
+    }
+
+    private func declineFriend(_ profileId: UUID) {
+        guard let me = Repo.currentUserId,
+              let friendship = friendships.first(where: {
+                  $0.requesterId == profileId && $0.addresseeId == me
+              })
+        else { return }
+        Haptics.tap()
+        Task {
+            do {
+                try await Repo.respondFriend(friendshipId: friendship.id, accept: false)
+                friendships = try await Repo.friendships()
+                app.bumpData()
+                await app.refreshBadges()
+            } catch {
+                errorMessage = "Couldn't decline that request. Try again."
             }
         }
     }
@@ -178,11 +258,21 @@ struct ExploreView: View {
     private func searchPeople() async {
         guard !trimmedQuery.isEmpty else {
             peopleResults = []
+            searchFailed = false
             return
         }
+        // Debounce: coalesce keystrokes; task cancellation handles the rest.
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        guard !Task.isCancelled else { return }
         let me = Repo.currentUserId
-        let found = (try? await Repo.searchPeople(query: trimmedQuery)) ?? []
-        peopleResults = found.filter { $0.id != me }
+        do {
+            let found = try await Repo.searchPeople(query: trimmedQuery)
+            peopleResults = found.filter { $0.id != me }
+            searchFailed = false
+        } catch {
+            peopleResults = []
+            searchFailed = true
+        }
     }
 }
 
@@ -193,6 +283,7 @@ private struct PersonRow: View {
     let state: FriendshipState
     let onAdd: () -> Void
     let onAccept: () -> Void
+    let onDecline: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -232,12 +323,16 @@ private struct PersonRow: View {
                 .buttonStyle(GhostButtonStyle(fullWidth: false))
                 .disabled(true)
         case .outgoing:
-            Button("Pending") {}
+            Button("Requested") {}
                 .buttonStyle(GhostButtonStyle(fullWidth: false))
                 .disabled(true)
         case .incoming:
-            Button("Accept", action: onAccept)
-                .buttonStyle(MintButtonStyle(fullWidth: false))
+            HStack(spacing: 6) {
+                Button("Decline", action: onDecline)
+                    .buttonStyle(GhostButtonStyle(fullWidth: false))
+                Button("Accept", action: onAccept)
+                    .buttonStyle(MintButtonStyle(fullWidth: false))
+            }
         default:
             Button("Add", action: onAdd)
                 .buttonStyle(MintButtonStyle(fullWidth: false))

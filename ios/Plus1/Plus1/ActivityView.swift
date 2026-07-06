@@ -3,6 +3,8 @@ import SwiftUI
 /// Activity (mockups §05): pushed from the Home bell. "New" (unread)
 /// and "Earlier" groups; friend requests get an inline Accept button.
 struct ActivityView: View {
+    @Environment(AppModel.self) private var app
+
     @State private var rows: [ActivityRow] = []
     @State private var actors: [UUID: ProfileRow] = [:]
     @State private var friendships: [FriendshipRow] = []
@@ -15,20 +17,24 @@ struct ActivityView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                if !unread.isEmpty {
-                    SectionHeader(title: "New", caption: "\(unread.count) unread")
-                    group(unread)
-                }
-                if !earlier.isEmpty {
-                    SectionHeader(title: "Earlier")
-                    group(earlier)
-                }
-                if loaded && rows.isEmpty {
-                    EmptyStateCard(
-                        emoji: "🔔",
-                        title: "No activity yet",
-                        message: "Joins, invites, and friend requests show up here."
-                    )
+                if !loaded {
+                    ForEach(0..<5, id: \.self) { _ in SkeletonCard(height: 60) }
+                } else {
+                    if !unread.isEmpty {
+                        SectionHeader(title: "New", caption: "\(unread.count) unread")
+                        group(unread)
+                    }
+                    if !earlier.isEmpty {
+                        SectionHeader(title: "Earlier")
+                        group(earlier)
+                    }
+                    if rows.isEmpty {
+                        EmptyStateCard(
+                            emoji: "🔔",
+                            title: "No activity yet",
+                            message: "Joins, invites, and friend requests show up here."
+                        )
+                    }
                 }
             }
             .padding(16)
@@ -46,7 +52,7 @@ struct ActivityView: View {
                 .disabled(unread.isEmpty)
             }
         }
-        .task { await load() }
+        .task(id: app.dataVersion) { await load() }
         .refreshable { await load() }
         .alert("Something went wrong", isPresented: .init(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
@@ -67,7 +73,34 @@ struct ActivityView: View {
         .card()
     }
 
+    @ViewBuilder
     private func activityRow(_ row: ActivityRow) -> some View {
+        HStack(spacing: 10) {
+            rowLink(row) { rowContent(row) }
+            Spacer(minLength: 8)
+            trailing(row)
+        }
+        .padding(.vertical, 8)
+    }
+
+    /// Wraps the leading content in the right navigation target: a quest-linked
+    /// row opens the event; otherwise an actor row opens their profile.
+    @ViewBuilder
+    private func rowLink<Content: View>(
+        _ row: ActivityRow, @ViewBuilder _ content: () -> Content
+    ) -> some View {
+        if let questId = row.questId {
+            NavigationLink { EventDetailView(questId: questId) } label: { content() }
+                .buttonStyle(.plain)
+        } else if let actorId = row.actorId {
+            NavigationLink { PublicProfileView(profileId: actorId) } label: { content() }
+                .buttonStyle(.plain)
+        } else {
+            content()
+        }
+    }
+
+    private func rowContent(_ row: ActivityRow) -> some View {
         let actor = row.actorId.flatMap { actors[$0] }
         return HStack(spacing: 10) {
             AvatarView(
@@ -92,7 +125,25 @@ struct ActivityView: View {
                     .foregroundStyle(Theme.sub)
             }
             Spacer(minLength: 8)
-            if row.type == "friend_request", let friendship = pendingFriendship(for: row) {
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func trailing(_ row: ActivityRow) -> some View {
+        if row.type == "friend_request", let friendship = pendingFriendship(for: row) {
+            HStack(spacing: 6) {
+                Button {
+                    Task { await decline(friendship) }
+                } label: {
+                    Text("Decline")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.foreground)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Theme.chip, in: Capsule())
+                }
+                .buttonStyle(.plain)
                 Button {
                     Task { await accept(friendship) }
                 } label: {
@@ -105,11 +156,14 @@ struct ActivityView: View {
                 }
                 .buttonStyle(.plain)
             }
-            if !row.isRead {
-                Circle().fill(Theme.accent).frame(width: 8, height: 8)
-            }
+        } else if row.type == "invite", row.questId != nil {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.sub)
         }
-        .padding(.vertical, 8)
+        if !row.isRead {
+            Circle().fill(Theme.accent).frame(width: 8, height: 8)
+        }
     }
 
     private func pendingFriendship(for row: ActivityRow) -> FriendshipRow? {
@@ -122,9 +176,24 @@ struct ActivityView: View {
     // MARK: Actions
 
     private func accept(_ friendship: FriendshipRow) async {
+        Haptics.tap()
         do {
             try await Repo.respondFriend(friendshipId: friendship.id, accept: true)
             await load()
+            app.bumpData()
+            await app.refreshBadges()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func decline(_ friendship: FriendshipRow) async {
+        Haptics.tap()
+        do {
+            try await Repo.respondFriend(friendshipId: friendship.id, accept: false)
+            await load()
+            app.bumpData()
+            await app.refreshBadges()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -134,6 +203,7 @@ struct ActivityView: View {
         do {
             try await Repo.markAllActivityRead()
             await load()
+            await app.refreshBadges()
         } catch {
             errorMessage = error.localizedDescription
         }

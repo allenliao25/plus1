@@ -9,9 +9,12 @@
 /* Begin PBXBuildFile section */
 		0483657981B9452861119F31 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */; };
 		0D6534D001C3A32A9C99F182 /* CreateEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B412B4A9827E4B34557BD938 /* CreateEventView.swift */; };
+		163FAF344151C70D2B84B2F4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 835BAF872C14E34E312EA089 /* AppModel.swift */; };
 		1C5AE6B494ED5EBE47CCDDA7 /* InvitePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */; };
 		1E3A90252771265195E2CFEE /* Repo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D9E62AB2AB22AE7340BBA6 /* Repo.swift */; };
 		29A911A581C77E2782E4D969 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B4433103A5E383BA256079 /* HomeView.swift */; };
+		29AA2BC634B6CB36D34C0606 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 152AA2C461A025618217FBC6 /* Assets.xcassets */; };
+		29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 851E350FF5328B1F89E36E7E /* ReportSheet.swift */; };
 		4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0190D2F5AF90DD2E6C999CF /* RootView.swift */; };
 		6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692EB899F48256B64FE0623E /* Theme.swift */; };
 		71153423D043F83F069961F9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860BFBFD23F04849EEA1F554 /* ProfileView.swift */; };
@@ -33,12 +36,15 @@
 		04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
 		04D9E62AB2AB22AE7340BBA6 /* Repo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repo.swift; sourceTree = "<group>"; };
 		08B4433103A5E383BA256079 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		152AA2C461A025618217FBC6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		2A402D5B343C467BFAC17C7D /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 		2A7AD834C6E37902F4F3B648 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
 		66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Plus1App.swift; sourceTree = "<group>"; };
 		692EB899F48256B64FE0623E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		79B9C7B51BF7A07B9BBB6047 /* Plus1.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Plus1.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		835BAF872C14E34E312EA089 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		851E350FF5328B1F89E36E7E /* ReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSheet.swift; sourceTree = "<group>"; };
 		860BFBFD23F04849EEA1F554 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvitePickerView.swift; sourceTree = "<group>"; };
 		B412B4A9827E4B34557BD938 /* CreateEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateEventView.swift; sourceTree = "<group>"; };
@@ -74,6 +80,8 @@
 			isa = PBXGroup;
 			children = (
 				2A402D5B343C467BFAC17C7D /* ActivityView.swift */,
+				835BAF872C14E34E312EA089 /* AppModel.swift */,
+				152AA2C461A025618217FBC6 /* Assets.xcassets */,
 				166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */,
 				D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */,
 				B412B4A9827E4B34557BD938 /* CreateEventView.swift */,
@@ -88,6 +96,7 @@
 				860BFBFD23F04849EEA1F554 /* ProfileView.swift */,
 				D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */,
 				04D9E62AB2AB22AE7340BBA6 /* Repo.swift */,
+				851E350FF5328B1F89E36E7E /* ReportSheet.swift */,
 				F0190D2F5AF90DD2E6C999CF /* RootView.swift */,
 				CC77262853F694A1411308C0 /* Supa.swift */,
 				692EB899F48256B64FE0623E /* Theme.swift */,
@@ -111,6 +120,7 @@
 			buildConfigurationList = 7AE8404BB6AA3934078B72F6 /* Build configuration list for PBXNativeTarget "Plus1" */;
 			buildPhases = (
 				886B6F5322DE7CD8CD84A496 /* Sources */,
+				5A157A88B2356DF46F913EAE /* Resources */,
 				7A6FD311811E40BE7C71AE80 /* Frameworks */,
 			);
 			buildRules = (
@@ -162,12 +172,24 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		5A157A88B2356DF46F913EAE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				29AA2BC634B6CB36D34C0606 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		886B6F5322DE7CD8CD84A496 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				8BA283D7F3862B45A4846AD8 /* ActivityView.swift in Sources */,
+				163FAF344151C70D2B84B2F4 /* AppModel.swift in Sources */,
 				D8123C29CD082E94B153CD45 /* AuthView.swift in Sources */,
 				0483657981B9452861119F31 /* ChatThreadView.swift in Sources */,
 				0D6534D001C3A32A9C99F182 /* CreateEventView.swift in Sources */,
@@ -182,6 +204,7 @@
 				71153423D043F83F069961F9 /* ProfileView.swift in Sources */,
 				A9C50F6E819D03EE5942646B /* PublicProfileView.swift in Sources */,
 				1E3A90252771265195E2CFEE /* Repo.swift in Sources */,
+				29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */,
 				4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */,
 				8906199ABFC94A709643D516 /* Supa.swift in Sources */,
 				6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */,
@@ -264,6 +287,7 @@
 				DEVELOPMENT_TEAM = PNQXU683AK;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -344,6 +368,7 @@
 				DEVELOPMENT_TEAM = PNQXU683AK;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (

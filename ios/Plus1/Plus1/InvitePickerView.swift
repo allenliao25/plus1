@@ -18,11 +18,16 @@ struct InvitePickerView: View {
 
     private var filtered: [ProfileRow] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !needle.isEmpty else { return friends }
-        return friends.filter {
+        let base = needle.isEmpty ? friends : friends.filter {
             $0.displayName.lowercased().contains(needle)
                 || $0.handle.lowercased().contains(needle)
         }
+        // Hoist already-selected friends to the top, preserving the underlying
+        // name sort within each group (explicit partition — stable by design).
+        let selectedIds = Set(selection.map(\.id))
+        let selected = base.filter { selectedIds.contains($0.id) }
+        let rest = base.filter { !selectedIds.contains($0.id) }
+        return selected + rest
     }
 
     var body: some View {
