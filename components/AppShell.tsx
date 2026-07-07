@@ -108,6 +108,7 @@ import {
 } from "@/lib/notifications";
 import { getQuestIdFromSearch } from "@/lib/questLinks";
 import { getSupabaseClient } from "@/lib/supabaseClient";
+import { identify, resetAnalytics, track } from "@/lib/analytics";
 import type {
   ActivityEvent,
   ChatMessage,
@@ -458,6 +459,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       }
 
       setCurrentProfile(profile);
+      identify(profile.id);
       setNeedsProfileSetup(shouldCompleteProfileSetup);
       setProfileSetupError("");
       setIsLoadingQuests(true);
@@ -1411,6 +1413,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       setAuthMessage("");
       const normalizedPhone = normalizePhoneNumber(phone);
       await sendPhoneOtp(normalizedPhone);
+      track("signup_otp_sent");
       setAuthMessage(`Code sent to ${normalizedPhone}.`);
       return true;
     } catch (signInError) {
@@ -1427,6 +1430,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       setAuthError("");
       setAuthMessage("");
       await verifyPhoneOtp(phone, token);
+      track("signup_otp_verified");
       setAuthMessage("Code verified. Signing you in...");
       return true;
     } catch (verifyError) {
@@ -1441,6 +1445,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
     try {
       setActionError("");
       await signOutCurrentUser();
+      resetAnalytics();
     } catch (signOutError) {
       setActionError(readErrorMessage(signOutError));
     }
@@ -1612,6 +1617,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       setIsCompletingProfileSetup(true);
       setProfileSetupError("");
       const updated = await completeProfileSetup(currentProfile.id, changes);
+      track("profile_setup_completed");
       setCurrentProfile(updated);
       setNeedsProfileSetup(false);
       await refreshSocialData(updated);
@@ -1664,6 +1670,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
       }
 
       await joinQuest(questId, currentProfile.id);
+      track("quest_joined", { quest_id: questId });
       await Promise.all([refreshData(currentProfile), refreshMessages(currentProfile)]);
     } catch (joinError) {
       setActionError(readErrorMessage(joinError));
@@ -1740,6 +1747,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         currentProfile.id,
         currentProfile.area,
       );
+      track("quest_created", { quest_id: newQuest.id });
       await refreshData(currentProfile);
       setCreateInitialValues(null);
       setCreateInitialInvitees([]);

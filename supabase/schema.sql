@@ -44,6 +44,15 @@ create table if not exists quest_joins (
   unique (quest_id, user_id)
 );
 
+-- Guest RSVPs from the public share page (no profile / auth user). RPC-only.
+create table if not exists quest_guest_joins (
+  id uuid primary key default gen_random_uuid(),
+  quest_id uuid not null references quests(id) on delete cascade,
+  display_name text not null check (char_length(btrim(display_name)) between 1 and 40),
+  claim_token text not null unique default encode(gen_random_bytes(24), 'hex'),
+  created_at timestamp default now()
+);
+
 create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references profiles(id) on delete cascade,
@@ -166,6 +175,9 @@ create unique index if not exists quest_joins_quest_id_user_id_unique
 create index if not exists quest_joins_user_id_idx
   on quest_joins (user_id);
 
+create index if not exists quest_guest_joins_quest_id_idx
+  on quest_guest_joins (quest_id);
+
 create unique index if not exists friendships_user_pair_unique
   on friendships (
     least(requester_id, addressee_id),
@@ -242,6 +254,7 @@ set public = excluded.public;
 alter table profiles enable row level security;
 alter table quests enable row level security;
 alter table quest_joins enable row level security;
+alter table quest_guest_joins enable row level security;
 alter table friendships enable row level security;
 alter table quest_invites enable row level security;
 alter table quest_share_links enable row level security;
@@ -365,6 +378,40 @@ $$;
 revoke all on function public.are_friends(uuid, uuid) from public;
 grant execute on function public.are_friends(uuid, uuid) to authenticated;
 
+-- user_blocks is defined here (ahead of the reports section) because are_blocked
+-- below depends on it and schema.sql applies top-to-bottom; RLS + policies for
+-- the table live in the reports/blocks section further down.
+create table if not exists user_blocks (
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+create index if not exists user_blocks_blocked_id_idx
+  on user_blocks (blocked_id);
+
+-- Symmetric block check: true if either user has blocked the other. Used by the
+-- view/message/activity predicates so a block hides content in BOTH directions.
+create or replace function public.are_blocked(left_user_id uuid, right_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from user_blocks
+    where (user_blocks.blocker_id = left_user_id and user_blocks.blocked_id = right_user_id)
+       or (user_blocks.blocker_id = right_user_id and user_blocks.blocked_id = left_user_id)
+  );
+$$;
+
+revoke all on function public.are_blocked(uuid, uuid) from public;
+grant execute on function public.are_blocked(uuid, uuid) to authenticated;
+
 create or replace function public.can_send_activity_to(recipient_id uuid, target_quest_id uuid)
 returns boolean
 language sql
@@ -373,22 +420,25 @@ security definer
 set search_path = public
 as $$
   select
-    recipient_id = auth.uid()
-    or exists (
-      select 1
-      from quest_invites
-      where quest_invites.quest_id = target_quest_id
-        and quest_invites.inviter_id = auth.uid()
-        and quest_invites.invitee_id = recipient_id
-    )
-    or exists (
-      select 1
-      from friendships
-      where friendships.status in ('pending', 'accepted')
-        and (
-          (friendships.requester_id = auth.uid() and friendships.addressee_id = recipient_id)
-          or (friendships.requester_id = recipient_id and friendships.addressee_id = auth.uid())
-        )
+    not public.are_blocked(auth.uid(), recipient_id)
+    and (
+      recipient_id = auth.uid()
+      or exists (
+        select 1
+        from quest_invites
+        where quest_invites.quest_id = target_quest_id
+          and quest_invites.inviter_id = auth.uid()
+          and quest_invites.invitee_id = recipient_id
+      )
+      or exists (
+        select 1
+        from friendships
+        where friendships.status in ('pending', 'accepted')
+          and (
+            (friendships.requester_id = auth.uid() and friendships.addressee_id = recipient_id)
+            or (friendships.requester_id = recipient_id and friendships.addressee_id = auth.uid())
+          )
+      )
     );
 $$;
 
@@ -444,6 +494,13 @@ as $$
             from message_thread_participants
             where message_thread_participants.thread_id = message_threads.id
               and message_thread_participants.user_id = target_user_id
+          )
+          and not exists (
+            select 1
+            from message_thread_participants other
+            where other.thread_id = message_threads.id
+              and other.user_id <> target_user_id
+              and public.are_blocked(target_user_id, other.user_id)
           )
         )
         or (
@@ -516,8 +573,8 @@ begin
     raise exception 'cannot_message_self';
   end if;
 
-  if public.is_blocked_pair(auth.uid(), target_user_id) then
-    raise exception 'Could not start conversation.';
+  if public.are_blocked(auth.uid(), target_user_id) then
+    raise exception 'cannot_message_blocked_user';
   end if;
 
   if not public.are_friends(auth.uid(), target_user_id) then
@@ -609,33 +666,6 @@ $$;
 revoke all on function public.get_or_create_event_thread(uuid) from public;
 grant execute on function public.get_or_create_event_thread(uuid) to authenticated;
 
--- Symmetric block test. SECURITY DEFINER because user_blocks RLS only exposes
--- the caller's own rows (blocker_id = auth.uid()); the check must see BOTH
--- directions without leaking which side placed the block.
-create or replace function public.is_blocked_pair(a uuid, b uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from user_blocks
-    where (blocker_id = a and blocked_id = b)
-       or (blocker_id = b and blocked_id = a)
-  );
-$$;
-
-revoke all on function public.is_blocked_pair(uuid, uuid) from public;
-revoke all on function public.is_blocked_pair(uuid, uuid) from anon;
-grant execute on function public.is_blocked_pair(uuid, uuid) to authenticated;
-
--- The creator branch is untouched (a host always sees their own event). Every
--- OTHER visibility branch is gated on the caller and creator not being a blocked
--- pair, so a block in either direction hides the blocker's discoverable events
--- from the blocked user across the quests / quest_joins / quest_share_links
--- select paths (all of which funnel through this function).
 create or replace function public.can_view_quest(target_quest_id uuid)
 returns boolean
 language sql
@@ -647,33 +677,29 @@ as $$
     select 1
     from quests
     where quests.id = target_quest_id
+      and not public.are_blocked(auth.uid(), quests.creator_id)
       and (
         quests.creator_id = auth.uid()
         or (
-          not public.is_blocked_pair(auth.uid(), quests.creator_id)
-          and (
-            (
-              quests.visibility = 'local'
-              and quests.area = public.current_user_area()
-            )
-            or (
-              quests.visibility = 'friends'
-              and public.are_friends(auth.uid(), quests.creator_id)
-            )
-            or exists (
-              select 1
-              from quest_joins
-              where quest_joins.quest_id = quests.id
-                and quest_joins.user_id = auth.uid()
-            )
-            or exists (
-              select 1
-              from quest_invites
-              where quest_invites.quest_id = quests.id
-                and quest_invites.invitee_id = auth.uid()
-                and quest_invites.status <> 'declined'
-            )
-          )
+          quests.visibility = 'local'
+          and quests.area = public.current_user_area()
+        )
+        or (
+          quests.visibility = 'friends'
+          and public.are_friends(auth.uid(), quests.creator_id)
+        )
+        or exists (
+          select 1
+          from quest_joins
+          where quest_joins.quest_id = quests.id
+            and quest_joins.user_id = auth.uid()
+        )
+        or exists (
+          select 1
+          from quest_invites
+          where quest_invites.quest_id = quests.id
+            and quest_invites.invitee_id = auth.uid()
+            and quest_invites.status <> 'declined'
         )
       )
   );
@@ -745,6 +771,30 @@ create policy "users delete their joins"
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "visible read guest joins" on quest_guest_joins;
+create policy "visible read guest joins"
+  on quest_guest_joins for select
+  to authenticated
+  using (public.can_view_quest(quest_id));
+
+drop policy if exists "guest joins created through rpc" on quest_guest_joins;
+create policy "guest joins created through rpc"
+  on quest_guest_joins for insert
+  to authenticated, anon
+  with check (false);
+
+drop policy if exists "guest joins updated through rpc" on quest_guest_joins;
+create policy "guest joins updated through rpc"
+  on quest_guest_joins for update
+  to authenticated, anon
+  using (false);
+
+drop policy if exists "guest joins deleted through rpc" on quest_guest_joins;
+create policy "guest joins deleted through rpc"
+  on quest_guest_joins for delete
+  to authenticated, anon
+  using (false);
+
 drop policy if exists "users read their friendships" on friendships;
 create policy "users read their friendships"
   on friendships for select
@@ -759,7 +809,7 @@ create policy "users create friend requests"
     auth.uid() = requester_id
     and requester_id <> addressee_id
     and status = 'pending'
-    and not public.is_blocked_pair(auth.uid(), addressee_id)
+    and not public.are_blocked(auth.uid(), addressee_id)
   );
 
 drop policy if exists "addressees update friend requests" on friendships;
@@ -883,6 +933,7 @@ as $$
 declare
   target_quest quests%rowtype;
   join_count integer;
+  guest_count integer;
   actor_name text;
 begin
   select *
@@ -896,8 +947,7 @@ begin
     raise exception 'event_not_found';
   end if;
 
-  if target_quest.status <> 'open'
-    or public.is_blocked_pair(auth.uid(), target_quest.creator_id) then
+  if target_quest.status <> 'open' then
     raise exception 'event_closed';
   end if;
 
@@ -919,8 +969,13 @@ begin
   from quest_joins
   where quest_id = target_quest_id;
 
+  select count(*)::integer
+  into guest_count
+  from quest_guest_joins
+  where quest_id = target_quest_id;
+
   if target_quest.max_people is not null
-    and 1 + join_count >= target_quest.max_people then
+    and 1 + join_count + guest_count >= target_quest.max_people then
     raise exception 'event_full';
   end if;
 
@@ -955,7 +1010,6 @@ end;
 $$;
 
 revoke all on function public.join_quest_atomic(uuid) from public;
-revoke all on function public.join_quest_atomic(uuid) from anon;
 grant execute on function public.join_quest_atomic(uuid) to authenticated;
 
 create or replace function public.create_quest_share_link(target_quest_id uuid)
@@ -1051,9 +1105,9 @@ as $$
     profiles.display_name as host_display_name,
     profiles.handle as host_handle,
     (
-      select count(*)
-      from quest_joins
-      where quest_joins.quest_id = quests.id
+      1
+      + (select count(*) from quest_joins where quest_joins.quest_id = quests.id)
+      + (select count(*) from quest_guest_joins where quest_guest_joins.quest_id = quests.id)
     ) as going_count,
     quests.max_people,
     quest_share_links.created_at
@@ -1068,6 +1122,125 @@ $$;
 revoke all on function public.get_public_quest_share(text) from public;
 grant execute on function public.get_public_quest_share(text) to anon, authenticated;
 
+-- Per-quest guest cap: abuse valve independent of max_people.
+create or replace function public.quest_guest_cap()
+returns integer
+language sql
+immutable
+as $$ select 20 $$;
+
+-- Anon-callable guest RSVP from the public share page. Returns the guest's
+-- claim_token (for self-cancel) and the updated going count.
+create or replace function public.guest_join_via_share(share_token text, guest_name text)
+returns table(claim_token text, going_count integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_quest quests%rowtype;
+  clean_name text;
+  join_count integer;
+  guest_count integer;
+  total_going integer;
+  new_claim_token text;
+begin
+  clean_name := btrim(coalesce(guest_name, ''));
+
+  if char_length(clean_name) < 1 then
+    raise exception 'guest_name_required';
+  end if;
+
+  if char_length(clean_name) > 40 then
+    clean_name := left(clean_name, 40);
+  end if;
+
+  select quests.*
+  into target_quest
+  from quest_share_links
+  join quests on quests.id = quest_share_links.quest_id
+  where quest_share_links.token = btrim(share_token)
+    and quest_share_links.revoked_at is null
+  limit 1
+  for update of quests;
+
+  if not found then
+    raise exception 'share_unavailable';
+  end if;
+
+  if target_quest.status <> 'open' then
+    raise exception 'event_closed';
+  end if;
+
+  if target_quest.start_time is not null
+     and target_quest.start_time < now() then
+    raise exception 'event_started';
+  end if;
+
+  select count(*)::integer into join_count
+  from quest_joins
+  where quest_id = target_quest.id;
+
+  select count(*)::integer into guest_count
+  from quest_guest_joins
+  where quest_id = target_quest.id;
+
+  if guest_count >= public.quest_guest_cap() then
+    raise exception 'guest_cap_reached';
+  end if;
+
+  total_going := 1 + join_count + guest_count;
+
+  if target_quest.max_people is not null
+     and total_going >= target_quest.max_people then
+    raise exception 'event_full';
+  end if;
+
+  insert into quest_guest_joins (quest_id, display_name)
+  values (target_quest.id, clean_name)
+  returning quest_guest_joins.claim_token into new_claim_token;
+
+  begin
+    insert into activity_events (user_id, actor_id, quest_id, type, title)
+    values (
+      target_quest.creator_id,
+      null,
+      target_quest.id,
+      'join',
+      clean_name || ' (guest) is in for ' || coalesce(target_quest.title, 'your event')
+    );
+  exception
+    when others then null;
+  end;
+
+  return query select new_claim_token, (total_going + 1);
+end;
+$$;
+
+revoke all on function public.guest_join_via_share(text, text) from public;
+grant execute on function public.guest_join_via_share(text, text) to anon, authenticated;
+
+-- Anon-callable cancel: a guest undoes their own RSVP via their claim_token.
+create or replace function public.guest_cancel_via_token(claim_token text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from quest_guest_joins
+  where quest_guest_joins.claim_token = btrim(guest_cancel_via_token.claim_token);
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
+end;
+$$;
+
+revoke all on function public.guest_cancel_via_token(text) from public;
+grant execute on function public.guest_cancel_via_token(text) to anon, authenticated;
+
 create or replace function public.prevent_quest_capacity_underflow()
 returns trigger
 language plpgsql
@@ -1077,14 +1250,16 @@ as $$
 declare
   attendee_count integer;
 begin
-  select (1 + count(*))::integer
-  into attendee_count
-  from quest_joins
-  where quest_id = new.id;
-
   if new.max_people is null then
     return new;
   end if;
+
+  select (
+    1
+    + (select count(*) from quest_joins where quest_id = new.id)
+    + (select count(*) from quest_guest_joins where quest_id = new.id)
+  )::integer
+  into attendee_count;
 
   if new.max_people < attendee_count then
     raise exception 'quest_capacity_below_attendance';
@@ -1109,6 +1284,7 @@ as $$
 declare
   target_max_people integer;
   join_count integer;
+  guest_count integer;
 begin
   select max_people
   into target_max_people
@@ -1125,7 +1301,12 @@ begin
   from quest_joins
   where quest_id = new.quest_id;
 
-  if 1 + join_count >= target_max_people then
+  select count(*)::integer
+  into guest_count
+  from quest_guest_joins
+  where quest_id = new.quest_id;
+
+  if 1 + join_count + guest_count >= target_max_people then
     raise exception 'event_full';
   end if;
 
@@ -1277,34 +1458,6 @@ create policy "users read accessible messages"
   to authenticated
   using (public.can_access_message_thread(thread_id, auth.uid()));
 
--- Direct-thread messages: block the send path too, so that even if a direct
--- thread already exists (created before a block), neither party can post to the
--- other once a block is in place. The guard fires only for 2-person direct
--- threads (checks the OTHER participant against the sender). Event/group threads
--- are exempt by design — a block should not silently mute a shared event chat.
-create or replace function public.direct_thread_send_allowed(target_thread_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select not exists (
-    select 1
-    from message_threads t
-    join message_thread_participants other
-      on other.thread_id = t.id
-     and other.user_id <> auth.uid()
-    where t.id = target_thread_id
-      and t.kind = 'direct'
-      and public.is_blocked_pair(auth.uid(), other.user_id)
-  );
-$$;
-
-revoke all on function public.direct_thread_send_allowed(uuid) from public;
-revoke all on function public.direct_thread_send_allowed(uuid) from anon;
-grant execute on function public.direct_thread_send_allowed(uuid) to authenticated;
-
 drop policy if exists "users send accessible messages" on messages;
 create policy "users send accessible messages"
   on messages for insert
@@ -1312,7 +1465,6 @@ create policy "users send accessible messages"
   with check (
     sender_id = auth.uid()
     and public.can_access_message_thread(thread_id, auth.uid())
-    and public.direct_thread_send_allowed(thread_id)
     and char_length(trim(body)) between 1 and 1000
   );
 
@@ -1378,17 +1530,8 @@ create table if not exists reports (
 create index if not exists reports_created_at_idx
   on reports (created_at desc);
 
-create table if not exists user_blocks (
-  blocker_id uuid not null references auth.users(id) on delete cascade,
-  blocked_id uuid not null references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (blocker_id, blocked_id),
-  check (blocker_id <> blocked_id)
-);
-
-create index if not exists user_blocks_blocked_id_idx
-  on user_blocks (blocked_id);
-
+-- user_blocks table is defined earlier (before the are_blocked predicate that
+-- depends on it); RLS + policies for it stay here alongside reports.
 alter table reports enable row level security;
 alter table user_blocks enable row level security;
 
@@ -1514,6 +1657,12 @@ create trigger messages_notify_push
   after insert on public.messages
   for each row
   execute function public.notify_push('message');
+
+drop trigger if exists reports_notify_push on public.reports;
+create trigger reports_notify_push
+  after insert on public.reports
+  for each row
+  execute function public.notify_push('report');
 
 
 -- Contact sync: privacy-preserving server-side phone matching.
@@ -1663,6 +1812,69 @@ $$;
 revoke all on function public.profile_stats(uuid) from public;
 revoke all on function public.profile_stats(uuid) from anon;
 grant execute on function public.profile_stats(uuid) to authenticated;
+
+-- "Starting soon" reminders: inserts one 'reminder' activity_event per attendee
+-- and the host for open quests starting within ~65 minutes. The activity_events
+-- insert trigger fans these out to push. SECURITY DEFINER to write system-wide;
+-- dedup via NOT EXISTS on an existing reminder for (user_id, quest_id).
+create or replace function public.send_event_reminders()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_count integer;
+begin
+  with due_quests as (
+    select id, creator_id, title, location
+    from quests
+    where status = 'open'
+      and start_time is not null
+      and start_time between now() and now() + interval '65 minutes'
+  ),
+  recipients as (
+    select q.id as quest_id, q.creator_id, q.title, q.location, j.user_id
+    from due_quests q
+    join quest_joins j on j.quest_id = q.id
+    where j.user_id is not null
+    union
+    select q.id as quest_id, q.creator_id, q.title, q.location, q.creator_id as user_id
+    from due_quests q
+    where q.creator_id is not null
+  ),
+  new_reminders as (
+    insert into activity_events (user_id, actor_id, quest_id, type, title, body)
+    select
+      r.user_id,
+      r.creator_id,
+      r.quest_id,
+      'reminder',
+      'Starting soon',
+      r.title || ' starts in about an hour — ' || r.location
+    from recipients r
+    where not exists (
+      select 1
+      from activity_events a
+      where a.user_id = r.user_id
+        and a.quest_id = r.quest_id
+        and a.type = 'reminder'
+    )
+    returning 1
+  )
+  select count(*) into inserted_count from new_reminders;
+
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.send_event_reminders() from public;
+revoke all on function public.send_event_reminders() from anon;
+revoke all on function public.send_event_reminders() from authenticated;
+
+-- Scheduled every 5 minutes via pg_cron. On hosted Supabase, enable pg_cron via
+-- Dashboard → Database → Extensions, then run:
+--   cron.schedule('send-event-reminders', '*/5 * * * *', 'select public.send_event_reminders();');
 
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.

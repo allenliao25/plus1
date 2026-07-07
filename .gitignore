@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# ios analytics keys — local override with real PostHog/Sentry values
+ios/Plus1/Config/Analytics.local.xcconfig
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

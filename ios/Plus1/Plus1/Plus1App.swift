@@ -7,6 +7,10 @@ struct Plus1App: App {
     @StateObject private var session = SessionStore()
     @State private var app = AppModel()
 
+    init() {
+        Analytics.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -107,6 +111,7 @@ final class SessionStore: ObservableObject {
         do {
             let profile = try await Repo.ensureProfile()
             self.profile = profile
+            Analytics.identify(profile.id.uuidString)
             phase = Repo.isAutoDisplayName(profile.displayName) ? .needsSetup : .ready
         } catch RepoError.notSignedIn {
             phase = .signedOut
@@ -149,5 +154,6 @@ final class SessionStore: ObservableObject {
             group.cancelAll()
         }
         try? await Supa.client.auth.signOut()
+        Analytics.reset()
     }
 }

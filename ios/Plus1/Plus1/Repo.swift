@@ -198,7 +198,9 @@ enum Repo {
             .select().in("quest_id", values: questIds).execute().value
         async let invitesTask: [QuestInviteRow] = db.from("quest_invites")
             .select().in("quest_id", values: questIds).execute().value
-        let (joins, invites) = try await (joinsTask, invitesTask)
+        async let guestsTask: [QuestGuestJoinRow] = db.from("quest_guest_joins")
+            .select().in("quest_id", values: questIds).execute().value
+        let (joins, invites, guests) = try await (joinsTask, invitesTask, guestsTask)
 
         var profileIds = Set(rows.compactMap(\.creatorId))
         profileIds.formUnion(joins.map(\.userId))
@@ -222,6 +224,16 @@ enum Repo {
                 attendees.append(QuestAttendee(
                     id: profile.id, displayName: profile.displayName,
                     avatarInitials: profile.initials, avatarUrl: profile.avatarUrl, isHost: false
+                ))
+            }
+            // Guest RSVPs from the public share page (no profile / not tappable).
+            for guest in guests where guest.questId == row.id {
+                let parts = guest.displayName.split(separator: " ").prefix(2).compactMap(\.first)
+                let guestInitials = parts.isEmpty ? "?" : String(parts).uppercased()
+                attendees.append(QuestAttendee(
+                    id: guest.id, displayName: guest.displayName,
+                    avatarInitials: guestInitials, avatarUrl: nil,
+                    isHost: false, isGuest: true
                 ))
             }
             let questInvites = invites.filter { $0.questId == row.id }

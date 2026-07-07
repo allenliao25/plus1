@@ -121,32 +121,49 @@ export default function QuestDetail({
           <div className="glass-chip col-span-2 rounded-2xl border p-3">
             <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">Who is going</dt>
             <dd className="mt-2 flex flex-wrap gap-2">
-              {quest.attendees.map((attendee) => (
-                <button
-                  key={attendee.id}
-                  type="button"
-                  onClick={() => onOpenProfile?.(attendee.id)}
-                  className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
-                >
-                  {attendee.avatarUrl ? (
-                    <SafeImage
-                      src={attendee.avatarUrl}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="size-5 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="grid size-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
-                      {attendee.avatarInitials}
+              {quest.attendees.map((attendee) => {
+                const avatar = attendee.avatarUrl ? (
+                  <SafeImage
+                    src={attendee.avatarUrl}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="size-5 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="grid size-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
+                    {attendee.avatarInitials}
+                  </span>
+                );
+
+                if (attendee.isGuest) {
+                  return (
+                    <span
+                      key={attendee.id}
+                      className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
+                    >
+                      {avatar}
+                      <span>{attendee.displayName}</span>
+                      <span className="text-zinc-500">(guest)</span>
                     </span>
-                  )}
-                  <span>{attendee.displayName}</span>
-                  {attendee.isHost ? (
-                    <span className="text-zinc-500">(host)</span>
-                  ) : null}
-                </button>
-              ))}
+                  );
+                }
+
+                return (
+                  <button
+                    key={attendee.id}
+                    type="button"
+                    onClick={() => onOpenProfile?.(attendee.id)}
+                    className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
+                  >
+                    {avatar}
+                    <span>{attendee.displayName}</span>
+                    {attendee.isHost ? (
+                      <span className="text-zinc-500">(host)</span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </dd>
           </div>
         </dl>

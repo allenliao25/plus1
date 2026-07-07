@@ -75,6 +75,79 @@ export async function fetchPublicQuestShare(token: string) {
   return data ? mapPublicQuestShareRow(data as PublicQuestShareRow) : null;
 }
 
+export type GuestJoinResult = {
+  claimToken: string;
+  goingCount: number;
+};
+
+export async function guestJoinViaShare(
+  shareToken: string,
+  guestName: string,
+): Promise<GuestJoinResult> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .rpc("guest_join_via_share", {
+      share_token: shareToken,
+      guest_name: guestName,
+    })
+    .single();
+
+  if (error) {
+    throw new Error(mapGuestJoinError(error.message));
+  }
+
+  if (!data || typeof data !== "object" || !("claim_token" in data)) {
+    throw new Error("Could not save your RSVP. Try again.");
+  }
+
+  const row = data as { claim_token: string; going_count: number };
+  return {
+    claimToken: row.claim_token,
+    goingCount: Number(row.going_count ?? 0),
+  };
+}
+
+export async function guestCancelViaToken(claimToken: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc("guest_cancel_via_token", {
+    claim_token: claimToken,
+  });
+
+  if (error) {
+    throw new Error("Could not cancel your RSVP. Try again.");
+  }
+
+  return Boolean(data);
+}
+
+export function mapGuestJoinError(message: string): string {
+  if (message.includes("guest_name_required")) {
+    return "Add your first name to RSVP.";
+  }
+
+  if (message.includes("event_full")) {
+    return "This event is full.";
+  }
+
+  if (message.includes("event_closed")) {
+    return "The host closed this event.";
+  }
+
+  if (message.includes("event_started")) {
+    return "This event has already started.";
+  }
+
+  if (message.includes("guest_cap_reached")) {
+    return "This event has reached its guest limit. Ask the host for an app invite.";
+  }
+
+  if (message.includes("share_unavailable")) {
+    return "This event link is no longer active.";
+  }
+
+  return "Could not save your RSVP. Try again.";
+}
+
 export function canCreatePublicSharePreview(
   quest: Pick<Quest, "visibility" | "createdByCurrentUser">,
 ) {

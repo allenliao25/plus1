@@ -3,6 +3,8 @@ import Supabase
 import UIKit
 import EventKit
 import EventKitUI
+import MessageUI
+import Contacts
 
 /// Event detail — full-bleed artwork hero with the title on the image,
 /// grouped info card, host row, Going stack, and a liquid-glass join dock
@@ -30,6 +32,12 @@ struct EventDetailView: View {
     @State private var toastMessage: String?
     @State private var sharing = false
     @State private var shareItems: [Any]?
+
+    // Invite-by-text (native, host/attendee only): device contacts who are NOT
+    // Plus1 users yet. Names/numbers stay on-device — used only to pre-fill SMS.
+    @State private var inviteContacts: [ContactsSync.NamedContact] = []
+    @State private var selectedInvites: Set<UUID> = []
+    @State private var smsRecipients: [String]?
 
     /// Deployed web app (capacitor.config.ts) — share links resolve there.
     private static let webBaseURL = "https://plus1-livid.vercel.app"
@@ -90,6 +98,16 @@ struct EventDetailView: View {
                 ShareSheet(items: shareItems)
             }
         }
+        .sheet(isPresented: .init(
+            get: { smsRecipients != nil }, set: { if !$0 { smsRecipients = nil } }
+        )) {
+            if let smsRecipients, let quest, let shareURL {
+                MessageComposer(
+                    recipients: smsRecipients,
+                    body: smsBody(title: quest.title, url: shareURL)
+                ) { selectedInvites.removeAll() }
+            }
+        }
     }
 
     // MARK: - Skeleton (initial load)
@@ -126,6 +144,9 @@ struct EventDetailView: View {
                 goingSection(quest)
                 if quest.createdByCurrentUser && !quest.invitedProfiles.isEmpty {
                     invitedSection(quest)
+                }
+                if canInviteByText(quest) && !inviteContacts.isEmpty {
+                    inviteByTextSection(quest)
                 }
             }
             .padding(.horizontal, 16)
@@ -410,23 +431,38 @@ struct EventDetailView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
                     ForEach(quest.attendees) { person in
-                        NavigationLink {
-                            PublicProfileView(profileId: person.id)
-                        } label: {
-                            AvatarView(
-                                initials: person.avatarInitials,
-                                url: person.avatarUrl.flatMap(URL.init),
-                                size: 32
-                            )
-                            .overlay {
-                                if quest.joinedByCurrentUser && person.id == Repo.currentUserId {
-                                    Circle()
-                                        .stroke(Theme.accent, lineWidth: 2)
-                                        .padding(-2.5)
+                        if person.isGuest {
+                            // Guests have no profile — show a labeled avatar, not a link.
+                            VStack(spacing: 3) {
+                                AvatarView(
+                                    initials: person.avatarInitials,
+                                    url: nil,
+                                    size: 32
+                                )
+                                Text("guest")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(Theme.sub)
+                            }
+                            .accessibilityLabel("\(person.displayName), guest")
+                        } else {
+                            NavigationLink {
+                                PublicProfileView(profileId: person.id)
+                            } label: {
+                                AvatarView(
+                                    initials: person.avatarInitials,
+                                    url: person.avatarUrl.flatMap(URL.init),
+                                    size: 32
+                                )
+                                .overlay {
+                                    if quest.joinedByCurrentUser && person.id == Repo.currentUserId {
+                                        Circle()
+                                            .stroke(Theme.accent, lineWidth: 2)
+                                            .padding(-2.5)
+                                    }
                                 }
                             }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                     ForEach(0..<min(quest.spotsLeft ?? 0, 5), id: \.self) { _ in
                         Circle()
@@ -477,6 +513,120 @@ struct EventDetailView: View {
         }
     }
 
+    // MARK: - Invite by text (host/attendee, non-users only)
+
+    /// Host or attendee — mirrors who gets a share link (the toolbar share is
+    /// minted for all viewers, but texting a personal invite is for people
+    /// actually going).
+    private func canInviteByText(_ quest: Quest) -> Bool {
+        quest.createdByCurrentUser || quest.joinedByCurrentUser
+    }
+
+    private func inviteByTextSection(_ quest: Quest) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(
+                title: "Invite by text",
+                caption: "not on plus1 yet"
+            )
+            VStack(spacing: 0) {
+                ForEach(inviteContacts) { contact in
+                    inviteContactRow(contact)
+                    if contact.id != inviteContacts.last?.id {
+                        Rectangle()
+                            .fill(Theme.hair)
+                            .frame(height: 0.5)
+                            .padding(.leading, 60)
+                    }
+                }
+            }
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            Button {
+                let phones = inviteContacts
+                    .filter { selectedInvites.contains($0.id) }
+                    .map(\.phone)
+                guard !phones.isEmpty else { return }
+                Haptics.tap()
+                Analytics.track("sms_invite_sent", [
+                    "quest_id": questId.uuidString,
+                    "recipient_count": phones.count,
+                ])
+                smsRecipients = phones
+            } label: {
+                Text(sendInviteLabel)
+            }
+            .buttonStyle(MintButtonStyle())
+            .disabled(selectedInvites.isEmpty || shareURL == nil)
+            .opacity(selectedInvites.isEmpty || shareURL == nil ? 0.55 : 1)
+        }
+    }
+
+    private var sendInviteLabel: String {
+        let n = selectedInvites.count
+        if n == 0 { return "Select contacts to text" }
+        return n == 1 ? "Text 1 invite" : "Text \(n) invites"
+    }
+
+    private func inviteContactRow(_ contact: ContactsSync.NamedContact) -> some View {
+        let isSelected = selectedInvites.contains(contact.id)
+        return Button {
+            if isSelected { selectedInvites.remove(contact.id) }
+            else { selectedInvites.insert(contact.id) }
+        } label: {
+            HStack(spacing: 11) {
+                AvatarView(initials: initials(contact.name), url: nil, size: 36)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(contact.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.foreground)
+                    Text(contact.phone)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.sub)
+                }
+                Spacer(minLength: 8)
+                ZStack {
+                    if isSelected {
+                        Circle().fill(Theme.accent)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundStyle(Theme.accentInk)
+                    } else {
+                        Circle().stroke(Theme.hair, lineWidth: 1.5)
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .animation(.snappy(duration: 0.15), value: isSelected)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func initials(_ name: String) -> String {
+        let parts = name.split(separator: " ").prefix(2).compactMap(\.first)
+        return parts.isEmpty ? "?" : String(parts).uppercased()
+    }
+
+    private func smsBody(title: String, url: URL) -> String {
+        "join me — \(title) on plus1: \(url.absoluteString). tap 'I'm in' to RSVP, no app needed"
+    }
+
+    /// Loads device contacts who are NOT Plus1 users, for the SMS-invite list.
+    /// Runs only when the viewer can invite; silent no-op if Contacts access
+    /// isn't granted (we don't prompt from here — the Explore contact-sync flow
+    /// owns the permission prompt).
+    private func loadInviteContacts(_ quest: Quest) async {
+        guard canInviteByText(quest),
+              CNContactStore.authorizationStatus(for: .contacts) == .authorized else { return }
+        let all = await ContactsSync.fetchNamedContacts()
+        guard !all.isEmpty else { return }
+        let userNumbers = await ContactsSync.userPhoneNumbers(among: all.map(\.phone))
+        inviteContacts = all.filter { !userNumbers.contains($0.phone) }
+    }
+
     // MARK: - Join dock
 
     private func dock(_ quest: Quest) -> some View {
@@ -521,6 +671,9 @@ struct EventDetailView: View {
             if shareURL == nil {
                 await loadShareLink()
             }
+            if inviteContacts.isEmpty {
+                await loadInviteContacts(loaded)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -534,6 +687,9 @@ struct EventDetailView: View {
                 .rpc("create_quest_share_link", params: ["target_quest_id": questId])
                 .single().execute().value
             shareURL = URL(string: "\(Self.webBaseURL)/e/\(result.token)")
+            if result.created {
+                Analytics.track("share_link_created", ["quest_id": questId.uuidString])
+            }
         } catch {
             // Sharing stays hidden if the link can't be minted; not fatal.
         }
@@ -570,6 +726,7 @@ struct EventDetailView: View {
             defer { joining = false }
             do {
                 try await Repo.joinQuest(id: questId)
+                Analytics.track("quest_joined", ["quest_id": questId.uuidString])
                 await load()
                 app.bumpData()
                 await app.refreshBadges()
@@ -683,6 +840,45 @@ private struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - SMS composer
+
+/// Wraps `MFMessageComposeViewController` to pre-fill the guest-invite text.
+/// If the device can't send SMS (e.g. iPad without Messages), falls back to a
+/// plain share sheet carrying the same body so the invite still goes out.
+private struct MessageComposer: UIViewControllerRepresentable {
+    let recipients: [String]
+    let body: String
+    var onFinish: () -> Void = {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        guard MFMessageComposeViewController.canSendText() else {
+            return UIActivityViewController(activityItems: [body], applicationActivities: nil)
+        }
+        let vc = MFMessageComposeViewController()
+        vc.recipients = recipients
+        vc.body = body
+        vc.messageComposeDelegate = context.coordinator
+        return vc
+    }
+
+    func updateUIViewController(_ controller: UIViewController, context: Context) {}
+
+    final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
+        let onFinish: () -> Void
+        init(onFinish: @escaping () -> Void) { self.onFinish = onFinish }
+
+        func messageComposeViewController(
+            _ controller: MFMessageComposeViewController,
+            didFinishWith result: MessageComposeResult
+        ) {
+            if result == .sent { onFinish() }
+            controller.dismiss(animated: true)
+        }
+    }
 }
 
 // MARK: - Add to calendar

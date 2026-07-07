@@ -1,0 +1,17 @@
+// Analytics / crash-reporting keys, injected into Info.plist and read by
+// Config.swift. Empty by default → the SDKs stay dormant (no init, no crash),
+// matching the web OPENAI_API_KEY / NEXT_PUBLIC_* pattern.
+//
+// To enable locally, set real values here (this file holds only public client
+// keys — PostHog project API key and Sentry DSN are safe to ship in the app
+// bundle) or override in your own scheme/CI environment.
+
+POSTHOG_API_KEY =
+// Optional. PostHog host, e.g. https://us.i.posthog.com. Analytics.swift
+// defaults to the US cloud host when this is empty but a key is set.
+POSTHOG_HOST =
+SENTRY_DSN =
+
+// Optional local override (gitignored) — put real keys there to keep them out
+// of git. The "?" makes it a no-op when the file is absent.
+#include? "Analytics.local.xcconfig"

@@ -139,6 +139,34 @@ export type Database = {
           },
         ];
       };
+      quest_guest_joins: {
+        Row: {
+          id: string;
+          quest_id: string;
+          display_name: string;
+          claim_token: string;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          quest_id: string;
+          display_name: string;
+          claim_token?: string;
+          created_at?: string | null;
+        };
+        Update: {
+          display_name?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quest_guest_joins_quest_id_fkey";
+            columns: ["quest_id"];
+            isOneToOne: false;
+            referencedRelation: "quests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       friendships: {
         Row: {
           id: string;
@@ -451,6 +479,22 @@ export type Database = {
           },
         ];
       };
+      user_blocks: {
+        Row: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at: string | null;
+        };
+        Insert: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at?: string | null;
+        };
+        Update: {
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -497,6 +541,14 @@ export type Database = {
       join_quest_atomic: {
         Args: { target_quest_id: string };
         Returns: "joined" | "already_joined";
+      };
+      guest_join_via_share: {
+        Args: { share_token: string; guest_name: string };
+        Returns: { claim_token: string; going_count: number }[];
+      };
+      guest_cancel_via_token: {
+        Args: { claim_token: string };
+        Returns: boolean;
       };
       is_event_chat_member: {
         Args: { target_quest_id: string; target_user_id: string };

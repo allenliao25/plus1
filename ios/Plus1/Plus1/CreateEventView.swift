@@ -622,7 +622,8 @@ struct CreateEventView: View {
             if let editing {
                 try await Repo.updateQuest(id: editing.id, input)
             } else {
-                _ = try await Repo.createQuest(input)
+                let created = try await Repo.createQuest(input)
+                Analytics.track("quest_created", ["quest_id": created.id.uuidString])
             }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             app.bumpData()

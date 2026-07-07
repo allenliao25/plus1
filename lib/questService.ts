@@ -18,6 +18,8 @@ import type {
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type QuestRow = Database["public"]["Tables"]["quests"]["Row"];
 type QuestJoinRow = Database["public"]["Tables"]["quest_joins"]["Row"];
+type QuestGuestJoinRow =
+  Database["public"]["Tables"]["quest_guest_joins"]["Row"];
 type QuestInviteRow = Database["public"]["Tables"]["quest_invites"]["Row"];
 type PublicProfileRow = Pick<
   ProfileRow,
@@ -642,16 +644,21 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
     ),
   ];
 
-  const [{ data: joins, error: joinsError }, inviteResult] = await Promise.all([
-    supabase
-      .from("quest_joins")
-      .select("id, quest_id, user_id, created_at")
-      .in("quest_id", questIds),
-    supabase
-      .from("quest_invites")
-      .select("id, quest_id, inviter_id, invitee_id, status, created_at, updated_at")
-      .in("quest_id", questIds),
-  ]);
+  const [{ data: joins, error: joinsError }, inviteResult, guestResult] =
+    await Promise.all([
+      supabase
+        .from("quest_joins")
+        .select("id, quest_id, user_id, created_at")
+        .in("quest_id", questIds),
+      supabase
+        .from("quest_invites")
+        .select("id, quest_id, inviter_id, invitee_id, status, created_at, updated_at")
+        .in("quest_id", questIds),
+      supabase
+        .from("quest_guest_joins")
+        .select("id, quest_id, display_name, created_at")
+        .in("quest_id", questIds),
+    ]);
 
   if (joinsError) {
     throw new Error(`Could not load event joins: ${joinsError.message}`);
@@ -664,7 +671,18 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
     throw new Error(`Could not load event invites: ${inviteResult.error.message}`);
   }
 
+  if (
+    guestResult.error &&
+    !isMissingRelationError(guestResult.error, "quest_guest_joins")
+  ) {
+    throw new Error(
+      `Could not load event guests: ${guestResult.error.message}`,
+    );
+  }
+
   const joinsByQuestId = groupJoinsByQuestId(joins ?? []);
+  const guestJoins = guestResult.error ? [] : (guestResult.data ?? []);
+  const guestJoinsByQuestId = groupGuestJoinsByQuestId(guestJoins);
   const invites = inviteResult.error ? [] : (inviteResult.data ?? []);
   const invitesByQuestId = groupInvitesByQuestId(invites);
   const joinerIds = [
@@ -690,6 +708,7 @@ async function hydrateQuests(rows: QuestRow[], currentUserId: string) {
       currentUserId,
       invites: invitesByQuestId.get(quest.id) ?? [],
       joins: joinsByQuestId.get(quest.id) ?? [],
+      guestJoins: guestJoinsByQuestId.get(quest.id) ?? [],
       profile: quest.creator_id ? profilesById.get(quest.creator_id) : null,
       profilesById,
       quest,
@@ -737,6 +756,28 @@ function groupJoinsByQuestId(joins: QuestJoinRow[]) {
   return grouped;
 }
 
+function groupGuestJoinsByQuestId(
+  guestJoins: Pick<QuestGuestJoinRow, "id" | "quest_id" | "display_name">[],
+) {
+  const grouped = new Map<
+    string,
+    Pick<QuestGuestJoinRow, "id" | "quest_id" | "display_name">[]
+  >();
+
+  for (const guest of guestJoins) {
+    if (!guest.quest_id) {
+      continue;
+    }
+
+    grouped.set(guest.quest_id, [
+      ...(grouped.get(guest.quest_id) ?? []),
+      guest,
+    ]);
+  }
+
+  return grouped;
+}
+
 function groupInvitesByQuestId(invites: QuestInviteRow[]) {
   const grouped = new Map<string, QuestInviteRow[]>();
 
@@ -758,6 +799,7 @@ function mapQuestRow({
   currentUserId,
   invites,
   joins,
+  guestJoins,
   profile,
   profilesById,
   quest,
@@ -765,6 +807,7 @@ function mapQuestRow({
   currentUserId: string;
   invites: QuestInviteRow[];
   joins: QuestJoinRow[];
+  guestJoins: Pick<QuestGuestJoinRow, "id" | "quest_id" | "display_name">[];
   profile: Profile | null | undefined;
   profilesById: Map<string, Profile>;
   quest: QuestRow;
@@ -777,11 +820,11 @@ function mapQuestRow({
     (invite) =>
       invite.invitee_id === currentUserId && invite.status !== "declined",
   );
-  const attendees = buildAttendees(joins, profile, profilesById);
+  const attendees = buildAttendees(joins, guestJoins, profile, profilesById);
   const invitedProfiles = buildInvitedProfiles(invites, profilesById);
   const startTime = formatQuestTime(quest.start_time);
 
-  const goingCount = 1 + joins.length;
+  const goingCount = 1 + joins.length + guestJoins.length;
   const maxPeople =
     quest.max_people === null ? null : Math.max(quest.max_people ?? 4, goingCount);
 
@@ -811,6 +854,7 @@ function mapQuestRow({
 
 function buildAttendees(
   joins: QuestJoinRow[],
+  guestJoins: Pick<QuestGuestJoinRow, "id" | "quest_id" | "display_name">[],
   host: Profile | null | undefined,
   profilesById: Map<string, Profile>,
 ) {
@@ -845,7 +889,21 @@ function buildAttendees(
       isHost: false,
     }));
 
-  return [...hostAttendee, ...joiners];
+  const guests = guestJoins
+    .slice()
+    .sort((left, right) =>
+      left.display_name.localeCompare(right.display_name),
+    )
+    .map((guest) => ({
+      id: guest.id,
+      displayName: guest.display_name,
+      avatarInitials: initials(guest.display_name),
+      avatarUrl: null,
+      isHost: false,
+      isGuest: true,
+    }));
+
+  return [...hostAttendee, ...joiners, ...guests];
 }
 
 function buildInvitedProfiles(

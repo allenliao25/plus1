@@ -244,6 +244,7 @@ struct AuthView: View {
             defer { busy = false }
             do {
                 try await Supa.client.auth.signInWithOTP(phone: normalized)
+                Analytics.track("signup_otp_sent")
                 step = .code
                 startResendCooldown()
                 if resending { toastMessage = "Code sent" }
@@ -277,6 +278,7 @@ struct AuthView: View {
             defer { busy = false }
             do {
                 try await Supa.client.auth.verifyOTP(phone: normalized, token: token, type: .sms)
+                Analytics.track("signup_otp_verified")
                 // Success: SessionStore's auth listener routes to setup/app.
             } catch {
                 self.error = Self.friendlyMessage(error)

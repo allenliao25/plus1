@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0483657981B9452861119F31 /* ChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */; };
+		0873BEB8E0823CD36D7D4B12 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = DB30C77DE53E67E77FB1082A /* PostHog */; };
 		0D6534D001C3A32A9C99F182 /* CreateEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B412B4A9827E4B34557BD938 /* CreateEventView.swift */; };
 		163FAF344151C70D2B84B2F4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 835BAF872C14E34E312EA089 /* AppModel.swift */; };
 		1C5AE6B494ED5EBE47CCDDA7 /* InvitePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */; };
@@ -18,6 +19,8 @@
 		29DB0C5556EEEDFFC0D3E050 /* ReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 851E350FF5328B1F89E36E7E /* ReportSheet.swift */; };
 		4BB4DD68C853B55B4AFDDA7F /* ContactsSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95278990F74785C6D810019F /* ContactsSync.swift */; };
 		4CBB8E1AE28BAFD8FACBC178 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0190D2F5AF90DD2E6C999CF /* RootView.swift */; };
+		4F4DD7B49BE6B4E48F4EC874 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */; };
+		51DBB311E4B5A0A5C9B8979C /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = E89001FB8F4F09BA1F135570 /* Sentry */; };
 		6B80B47A74B5009E659FFEFC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 692EB899F48256B64FE0623E /* Theme.swift */; };
 		71153423D043F83F069961F9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860BFBFD23F04849EEA1F554 /* ProfileView.swift */; };
 		8906199ABFC94A709643D516 /* Supa.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC77262853F694A1411308C0 /* Supa.swift */; };
@@ -25,6 +28,7 @@
 		A550A5F398D8E5430C154E04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = DD88810AF7318AD43A680E43 /* Supabase */; };
 		A9C50F6E819D03EE5942646B /* PublicProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */; };
 		BF60725742C623EDBE478A55 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E5BBB4C422D43516DAEF30 /* Models.swift */; };
+		BFCE835D2A9BC340581E8286 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA62DA3280C9D1D7E8A0D86 /* Analytics.swift */; };
 		CC95418DF39739CFC28D1ABF /* ExploreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7AD834C6E37902F4F3B648 /* ExploreView.swift */; };
 		CFE04CFDA9E9C80A0C058B6E /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */; };
 		D8123C29CD082E94B153CD45 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */; };
@@ -51,12 +55,15 @@
 		04D9E62AB2AB22AE7340BBA6 /* Repo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repo.swift; sourceTree = "<group>"; };
 		08B4433103A5E383BA256079 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		0B8809AF0EE6ECA08F43A59A /* Plus1UITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = Plus1UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0DA62DA3280C9D1D7E8A0D86 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		1179F83CBF5605DE80500150 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
 		152AA2C461A025618217FBC6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		183939407C68712AE9528152 /* Plus1.Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Plus1.Release.entitlements; sourceTree = "<group>"; };
 		1CBCF2620798234F1E3409C7 /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		2A402D5B343C467BFAC17C7D /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 		2A7AD834C6E37902F4F3B648 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
+		57E45FE168CCD73FE609B489 /* Analytics.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Analytics.xcconfig; sourceTree = "<group>"; };
 		66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Plus1App.swift; sourceTree = "<group>"; };
 		692EB899F48256B64FE0623E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		79B9C7B51BF7A07B9BBB6047 /* Plus1.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Plus1.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,6 +79,7 @@
 		D35B72CFEE6E1AD63E26FD92 /* ChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatThreadView.swift; sourceTree = "<group>"; };
 		D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileView.swift; sourceTree = "<group>"; };
 		D5A59FF80237E9527F6F5A8C /* EventDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailView.swift; sourceTree = "<group>"; };
+		DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F0190D2F5AF90DD2E6C999CF /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Plus1.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -82,6 +90,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A550A5F398D8E5430C154E04 /* Supabase in Frameworks */,
+				0873BEB8E0823CD36D7D4B12 /* PostHog in Frameworks */,
+				51DBB311E4B5A0A5C9B8979C /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -109,6 +119,7 @@
 			isa = PBXGroup;
 			children = (
 				2A402D5B343C467BFAC17C7D /* ActivityView.swift */,
+				0DA62DA3280C9D1D7E8A0D86 /* Analytics.swift */,
 				835BAF872C14E34E312EA089 /* AppModel.swift */,
 				152AA2C461A025618217FBC6 /* Assets.xcassets */,
 				166490F3C2A7BE3EFDD3ED03 /* AuthView.swift */,
@@ -122,7 +133,9 @@
 				B0F9B2138CD10D3439F5834F /* InvitePickerView.swift */,
 				00E5BBB4C422D43516DAEF30 /* Models.swift */,
 				FD356D0C29E2561BDD7E63EB /* Plus1.entitlements */,
+				183939407C68712AE9528152 /* Plus1.Release.entitlements */,
 				66B4669CE4E56AFDA031DAD5 /* Plus1App.swift */,
+				DA75CD1DFDE80115821CB421 /* PrivacyInfo.xcprivacy */,
 				04B84681759A8A477EE6FE06 /* ProfileSetupView.swift */,
 				860BFBFD23F04849EEA1F554 /* ProfileView.swift */,
 				D3DF07C9DBE5E6EACFB3053E /* PublicProfileView.swift */,
@@ -137,9 +150,18 @@
 			path = Plus1;
 			sourceTree = "<group>";
 		};
+		EDF29D13B9F27D4D2E0F2CB3 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				57E45FE168CCD73FE609B489 /* Analytics.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		F5BC1F002BD2D1A2AB51051E = {
 			isa = PBXGroup;
 			children = (
+				EDF29D13B9F27D4D2E0F2CB3 /* Config */,
 				8EC99927D433907C5A420B33 /* Plus1 */,
 				55FD750633059E1E092093D4 /* Plus1UITests */,
 				11D20D0322FEC9F25011EA48 /* Products */,
@@ -182,6 +204,8 @@
 			name = Plus1;
 			packageProductDependencies = (
 				DD88810AF7318AD43A680E43 /* Supabase */,
+				DB30C77DE53E67E77FB1082A /* PostHog */,
+				E89001FB8F4F09BA1F135570 /* Sentry */,
 			);
 			productName = Plus1;
 			productReference = 79B9C7B51BF7A07B9BBB6047 /* Plus1.app */;
@@ -217,6 +241,8 @@
 			mainGroup = F5BC1F002BD2D1A2AB51051E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				61FBB467509C4188BD1D7E04 /* XCRemoteSwiftPackageReference "posthog-ios" */,
+				EFDEC3B3DDC4F2701EF213C4 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 				FA37EF53925F75239F291CAF /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -236,6 +262,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				29AA2BC634B6CB36D34C0606 /* Assets.xcassets in Resources */,
+				4F4DD7B49BE6B4E48F4EC874 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -247,6 +274,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8BA283D7F3862B45A4846AD8 /* ActivityView.swift in Sources */,
+				BFCE835D2A9BC340581E8286 /* Analytics.swift in Sources */,
 				163FAF344151C70D2B84B2F4 /* AppModel.swift in Sources */,
 				D8123C29CD082E94B153CD45 /* AuthView.swift in Sources */,
 				0483657981B9452861119F31 /* ChatThreadView.swift in Sources */,
@@ -376,9 +404,10 @@
 		};
 		49C37C95F1CB35F57C9D1178 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57E45FE168CCD73FE609B489 /* Analytics.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.Release.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -387,6 +416,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSContactsUsageDescription = "plus1 uses your contacts to find friends who are already on the app.";
+				INFOPLIST_KEY_POSTHOG_API_KEY = "$(POSTHOG_API_KEY)";
+				INFOPLIST_KEY_POSTHOG_HOST = "$(POSTHOG_HOST)";
+				INFOPLIST_KEY_SENTRY_DSN = "$(SENTRY_DSN)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -459,6 +491,7 @@
 		};
 		BC23FEE040A46AD42BEF6206 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57E45FE168CCD73FE609B489 /* Analytics.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Plus1/Plus1.entitlements;
@@ -470,6 +503,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = plus1;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSContactsUsageDescription = "plus1 uses your contacts to find friends who are already on the app.";
+				INFOPLIST_KEY_POSTHOG_API_KEY = "$(POSTHOG_API_KEY)";
+				INFOPLIST_KEY_POSTHOG_HOST = "$(POSTHOG_HOST)";
+				INFOPLIST_KEY_SENTRY_DSN = "$(SENTRY_DSN)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -537,6 +573,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		61FBB467509C4188BD1D7E04 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+		EFDEC3B3DDC4F2701EF213C4 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 		FA37EF53925F75239F291CAF /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -548,10 +600,20 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		DB30C77DE53E67E77FB1082A /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 61FBB467509C4188BD1D7E04 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
 		DD88810AF7318AD43A680E43 /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = FA37EF53925F75239F291CAF /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		E89001FB8F4F09BA1F135570 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EFDEC3B3DDC4F2701EF213C4 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

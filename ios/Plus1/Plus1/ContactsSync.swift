@@ -73,6 +73,85 @@ enum ContactsSync {
         return .authorized(Array(normalized))
     }
 
+    /// A device contact with a display name and one normalized number, for the
+    /// SMS-invite flow. Unlike `requestAndFetchPhones`, this keeps names — but
+    /// they stay on-device (used only to pre-fill Messages), never sent to the
+    /// server.
+    struct NamedContact: Identifiable, Hashable {
+        let id = UUID()
+        let name: String
+        let phone: String   // normalized E.164
+    }
+
+    /// Read device contacts as name + first normalized number, one entry per
+    /// contact. Assumes access is already authorized (callers run this after
+    /// `requestAndFetchPhones`); returns `[]` otherwise.
+    static func fetchNamedContacts() async -> [NamedContact] {
+        guard CNContactStore.authorizationStatus(for: .contacts) == .authorized else { return [] }
+        let store = CNContactStore()
+        let keys = [
+            CNContactGivenNameKey as CNKeyDescriptor,
+            CNContactFamilyNameKey as CNKeyDescriptor,
+            CNContactPhoneNumbersKey as CNKeyDescriptor,
+        ]
+        let request = CNContactFetchRequest(keysToFetch: keys)
+
+        var result: [NamedContact] = []
+        var seen = Set<String>()
+        do {
+            try store.enumerateContacts(with: request) { contact, _ in
+                guard let raw = contact.phoneNumbers.first?.value.stringValue else { return }
+                let phone = PhoneNormalizer.normalize(raw)
+                guard !phone.isEmpty, !seen.contains(phone) else { return }
+                seen.insert(phone)
+                let name = "\(contact.givenName) \(contact.familyName)"
+                    .trimmingCharacters(in: .whitespaces)
+                result.append(NamedContact(name: name.isEmpty ? phone : name, phone: phone))
+            }
+        } catch {
+            return []
+        }
+        return result.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    /// Which of `phones` belong to existing Plus1 users. `match_contacts`
+    /// returns matched *profiles*, not the numbers that matched, so we can only
+    /// learn a group's user *count*, not which numbers. We recover the exact
+    /// members by subdividing (binary search) any group that contains a hit;
+    /// groups with zero users are skipped. At launch almost no contact is a
+    /// user, so this collapses to ~one RPC call in the common case.
+    static func userPhoneNumbers(among phones: [String]) async -> Set<String> {
+        let unique = Array(Set(phones))
+        guard !unique.isEmpty else { return [] }
+        var users = Set<String>()
+
+        func countUsers(_ group: [String]) async -> Int {
+            guard !group.isEmpty else { return 0 }
+            return ((try? await Repo.matchContacts(phones: group)) ?? []).count
+        }
+
+        // Iterative subdivision to avoid deep recursion on large address books.
+        var stack: [[String]] = [unique]
+        while let group = stack.popLast() {
+            let hits = await countUsers(group)
+            if hits == 0 { continue }
+            if group.count == 1 {
+                users.insert(group[0])
+                continue
+            }
+            if hits >= group.count {
+                users.formUnion(group)
+                continue
+            }
+            let mid = group.count / 2
+            stack.append(Array(group[..<mid]))
+            stack.append(Array(group[mid...]))
+        }
+        return users
+    }
+
     /// Current Contacts authorization without prompting — drives the
     /// "access is off" empty state.
     static var isDenied: Bool {
