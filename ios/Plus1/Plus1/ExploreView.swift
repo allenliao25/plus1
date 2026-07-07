@@ -45,6 +45,16 @@ struct ExploreView: View {
         quests.filter { $0.visibility == .local }
     }
 
+    /// Accepted-friend ids, for friends-first social proof on event rows.
+    private var friendIds: Set<UUID> {
+        guard let me = Repo.currentUserId else { return [] }
+        return Set(
+            friendships
+                .filter { $0.status == "accepted" }
+                .map { $0.otherId(for: me) }
+        )
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
@@ -109,7 +119,7 @@ struct ExploreView: View {
                 NavigationLink {
                     EventDetailView(questId: quest.id)
                 } label: {
-                    ExploreQuestRow(quest: quest)
+                    ExploreQuestRow(quest: quest, friendIds: friendIds)
                 }
                 .buttonStyle(.plain)
             }
@@ -248,7 +258,7 @@ struct ExploreView: View {
                     NavigationLink {
                         EventDetailView(questId: quest.id)
                     } label: {
-                        ExploreQuestRow(quest: quest)
+                        ExploreQuestRow(quest: quest, friendIds: friendIds)
                     }
                     .buttonStyle(.plain)
                 }
@@ -500,6 +510,7 @@ private struct PersonRow: View {
 
 private struct ExploreQuestRow: View {
     let quest: Quest
+    var friendIds: Set<UUID> = []
 
     private var meta: Text {
         let time = Text(quest.timeLabel).foregroundStyle(Theme.sub)
@@ -523,6 +534,10 @@ private struct ExploreQuestRow: View {
                 meta
                     .font(.system(size: 12))
                     .lineLimit(1)
+                if let proof = quest.socialProof(friendIds: friendIds) {
+                    SocialProofLine(proof: proof)
+                        .padding(.top, 1)
+                }
             }
             Spacer(minLength: 8)
             Image(systemName: "chevron.right")

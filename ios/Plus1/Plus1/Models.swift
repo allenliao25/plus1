@@ -287,6 +287,47 @@ struct Quest: Identifiable, Hashable {
     var goingCount: Int { attendees.count }
     var spotsLeft: Int? { row.maxPeople.map { max(0, $0 - goingCount) } }
     var isFull: Bool { (spotsLeft ?? 1) == 0 }
+
+    /// "Who's going" social proof for feed cards. Friends rank first in both the
+    /// avatar row and the name. Guests count as attendees but are never named
+    /// (they have no profile). Returns nil when nobody but the host is going —
+    /// callers fall back to their bare meta line (no fake proof).
+    func socialProof(friendIds: Set<UUID>) -> SocialProof? {
+        // Everyone going besides the host; the host isn't proof of anything.
+        let others = attendees.filter { !$0.isHost }
+        guard !others.isEmpty else { return nil }
+        // Friends (named-eligible) first, then everyone else, preserving order.
+        let friends = others.filter { !$0.isGuest && friendIds.contains($0.id) }
+        let rest = others.filter { !($0.isGuest == false && friendIds.contains($0.id)) }
+        let ordered = friends + rest
+        let count = ordered.count
+        let text: String
+        if let first = friends.first {
+            text = count == 1
+                ? first.displayName
+                : "\(first.displayName) + \(count - 1) \(count - 1 == 1 ? "other" : "others")"
+        } else {
+            text = "\(count) going"
+        }
+        return SocialProof(avatars: Array(ordered.prefix(3)), text: text)
+    }
+
+    /// Attendees with friends pulled to the front (host stays first). Used by the
+    /// live-card avatar cluster so a friend's face leads the stack.
+    func orderedAttendees(friendIds: Set<UUID>) -> [QuestAttendee] {
+        guard !friendIds.isEmpty else { return attendees }
+        let host = attendees.filter(\.isHost)
+        let rest = attendees.filter { !$0.isHost }
+        let friends = rest.filter { !$0.isGuest && friendIds.contains($0.id) }
+        let others = rest.filter { !($0.isGuest == false && friendIds.contains($0.id)) }
+        return host + friends + others
+    }
+}
+
+/// Rendered "who's going" line: up to 3 friends-first avatars + a summary.
+struct SocialProof: Hashable {
+    let avatars: [QuestAttendee]
+    let text: String
 }
 
 /// A friend who is currently marked free tonight (availability joined to profile).

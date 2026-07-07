@@ -414,7 +414,7 @@ struct HomeView: View {
                 NavigationLink {
                     EventDetailView(questId: quest.id)
                 } label: {
-                    HomeQuestRow(quest: quest)
+                    HomeQuestRow(quest: quest, friendIds: friendIds)
                 }
                 .buttonStyle(.plain)
             }
@@ -438,7 +438,7 @@ struct HomeView: View {
                         NavigationLink {
                             EventDetailView(questId: quest.id)
                         } label: {
-                            LiveQuestCard(quest: quest)
+                            LiveQuestCard(quest: quest, friendIds: friendIds)
                         }
                         .buttonStyle(.plain)
                     }
@@ -454,7 +454,7 @@ struct HomeView: View {
                 NavigationLink {
                     EventDetailView(questId: quest.id)
                 } label: {
-                    HomeQuestRow(quest: quest)
+                    HomeQuestRow(quest: quest, friendIds: friendIds)
                 }
                 .buttonStyle(.plain)
             }
@@ -480,7 +480,7 @@ struct HomeView: View {
                 NavigationLink {
                     EventDetailView(questId: quest.id)
                 } label: {
-                    HomeQuestRow(quest: quest)
+                    HomeQuestRow(quest: quest, friendIds: friendIds)
                 }
                 .buttonStyle(.plain)
             }
@@ -514,6 +514,7 @@ struct HomeView: View {
 
 private struct LiveQuestCard: View {
     let quest: Quest
+    var friendIds: Set<UUID> = []
 
     private var goingLabel: String {
         if let max = quest.row.maxPeople {
@@ -543,7 +544,7 @@ private struct LiveQuestCard: View {
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    AvatarStack(attendees: quest.attendees, size: 22)
+                    AvatarStack(attendees: quest.orderedAttendees(friendIds: friendIds), size: 22)
                     Text(goingLabel)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.white)
@@ -628,6 +629,7 @@ private struct TonightCard: View {
 
 private struct HomeQuestRow: View {
     let quest: Quest
+    var friendIds: Set<UUID> = []
 
     private var meta: Text {
         let time = Text(quest.timeLabel).foregroundStyle(Theme.sub)
@@ -652,6 +654,10 @@ private struct HomeQuestRow: View {
                 meta
                     .font(.system(size: 12))
                     .lineLimit(1)
+                if let proof = quest.socialProof(friendIds: friendIds) {
+                    SocialProofLine(proof: proof)
+                        .padding(.top, 1)
+                }
             }
             Spacer(minLength: 8)
             Image(systemName: "chevron.right")

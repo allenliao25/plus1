@@ -255,6 +255,31 @@ struct AvatarStack: View {
     }
 }
 
+/// "Who's going" proof line for feed row cards: friends-first mini avatars
+/// overlapping a `Theme.card` background, followed by the summary text.
+struct SocialProofLine: View {
+    let proof: SocialProof
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: -6) {
+                ForEach(proof.avatars) { person in
+                    AvatarView(
+                        initials: person.avatarInitials,
+                        url: person.avatarUrl.flatMap(URL.init),
+                        size: 18
+                    )
+                    .overlay(Circle().stroke(Theme.card, lineWidth: 1.5))
+                }
+            }
+            Text(proof.text)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.sub)
+                .lineLimit(1)
+        }
+    }
+}
+
 /// Centered icon + line + CTA empty-state block (the shared pattern
 /// from the first-run designs).
 struct EmptyStateCard: View {
