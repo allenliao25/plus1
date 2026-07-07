@@ -119,6 +119,17 @@ test("shouldShowChatAffordance false when the user has not joined", () => {
   assert.equal(shouldShowChatAffordance(buildQuest(), true), false);
 });
 
+test("shouldShowChatAffordance false while the join is still in flight", () => {
+  assert.equal(
+    shouldShowChatAffordance(
+      buildQuest({ joinedByCurrentUser: true }),
+      true,
+      true,
+    ),
+    false,
+  );
+});
+
 test("shouldShowChatAffordance false for local demo quests (no real thread)", () => {
   assert.equal(
     shouldShowChatAffordance(

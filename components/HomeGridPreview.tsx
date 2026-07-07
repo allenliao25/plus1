@@ -54,7 +54,11 @@ function HomeGridTile({
   onOpen: (questId: string) => void;
   onOpenChat?: (questId: string) => void;
 }) {
-  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const showChat = shouldShowChatAffordance(
+    quest,
+    Boolean(onOpenChat),
+    isJoining,
+  );
   const actionState = showChat
     ? { label: "Chat", isDisabled: false, isPrimary: true }
     : getQuestActionState(quest, isJoining);

@@ -45,10 +45,13 @@ export function getQuestActionState(
 
 // A joined/hosted attendee sees a "Chat" shortcut only when the event is still
 // open and a chat handler is wired through; otherwise it stays "You're in".
-// Local demo quests have no real chat thread, so they never get the shortcut.
+// Local demo quests have no real chat thread, so they never get the shortcut,
+// and an in-flight join keeps "Joining..." until the server commit resolves
+// (the optimistic flip would otherwise offer chat before membership exists).
 export function shouldShowChatAffordance(
   quest: Quest,
   hasOnOpenChat: boolean,
+  isJoining = false,
 ): boolean {
   const isJoined = Boolean(
     quest.joinedByCurrentUser || quest.createdByCurrentUser,
@@ -57,6 +60,7 @@ export function shouldShowChatAffordance(
   return (
     isJoined &&
     hasOnOpenChat &&
+    !isJoining &&
     quest.status === "open" &&
     !isLocalDemoQuestId(quest.id)
   );
@@ -81,7 +85,11 @@ export default function JoinButton({
   size = "compact",
   className = "",
 }: JoinButtonProps) {
-  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const showChat = shouldShowChatAffordance(
+    quest,
+    Boolean(onOpenChat),
+    isJoining,
+  );
   const { label, isDisabled, isPrimary } = showChat
     ? { label: "Chat", isDisabled: false, isPrimary: true }
     : getQuestActionState(quest, isJoining);

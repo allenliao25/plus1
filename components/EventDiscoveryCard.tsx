@@ -40,7 +40,11 @@ export default function EventDiscoveryCard({
   const host = findHost(quest);
   const hasImage = Boolean(quest.cardImageUrl && !didImageFail);
   const when = quest.startTimeRelative ?? quest.startTime;
-  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const showChat = shouldShowChatAffordance(
+    quest,
+    Boolean(onOpenChat),
+    isJoining,
+  );
   const actionState = showChat
     ? { label: "Chat", isDisabled: false, isPrimary: true }
     : getQuestActionState(quest, isJoining);
