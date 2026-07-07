@@ -69,12 +69,12 @@ export default function ProfileScreen({
           <ProfileAvatar key={profile.avatarUrl ?? profile.avatarInitials} profile={profile} />
 
           <div className="min-w-0 space-y-2.5">
-            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[17px] leading-6 text-zinc-950">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-base leading-6 text-ink">
               <span className="min-w-0 max-w-full truncate font-extrabold">
                 {profile.displayName}
               </span>
               {profile.pronouns ? (
-                <span className="shrink-0 font-semibold text-zinc-500">
+                <span className="shrink-0 font-semibold text-muted">
                   {profile.pronouns}
                 </span>
               ) : null}
@@ -99,10 +99,10 @@ export default function ProfileScreen({
 
         <div className="space-y-1">
           {profile.area ? (
-            <p className="text-sm text-zinc-500">{profile.area}</p>
+            <p className="text-sm text-muted">{profile.area}</p>
           ) : null}
           {profile.bio ? (
-            <p className="whitespace-pre-line text-sm leading-6 text-zinc-700">
+            <p className="whitespace-pre-line text-sm leading-6 text-ink-soft">
               {profile.bio}
             </p>
           ) : null}
@@ -112,21 +112,21 @@ export default function ProfileScreen({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-200 px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-zinc-300 active:scale-[0.98]"
+            className="pressable inline-flex min-h-9 items-center justify-center rounded-lg bg-line px-3 text-sm font-extrabold text-ink hover:bg-faint"
           >
             Edit profile
           </button>
           <button
             type="button"
             onClick={handleCopyProfile}
-            className="inline-flex min-h-9 items-center justify-center rounded-lg bg-zinc-200 px-3 text-sm font-extrabold text-zinc-950 transition hover:bg-zinc-300 active:scale-[0.98]"
+            className="pressable inline-flex min-h-9 items-center justify-center rounded-lg bg-line px-3 text-sm font-extrabold text-ink hover:bg-faint"
           >
             Share profile
           </button>
         </div>
 
         {shareMessage ? (
-          <p className="text-center text-xs font-semibold text-zinc-400">
+          <p className="text-center text-xs font-semibold text-faint">
             {shareMessage}
           </p>
         ) : null}

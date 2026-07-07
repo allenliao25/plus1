@@ -1,4 +1,5 @@
 import type { Quest } from "@/types/quest";
+import { getQuestActionState } from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
 import QuestShareCard from "@/components/QuestShareCard";
@@ -38,13 +39,14 @@ export default function QuestDetail({
   const canClose = isJoinable && Boolean(quest.createdByCurrentUser);
   const canEdit = isJoinable && Boolean(quest.createdByCurrentUser);
   const canChat = isJoinable && isJoined && Boolean(onOpenChat);
+  const joinLabel = getQuestActionState(quest, isJoining).label;
 
   return (
     <div className="space-y-5">
       <section className="glass-panel rounded-3xl border p-5">
         <div
           data-category={quest.category}
-          className="holo-thumb relative mb-5 aspect-[16/10] overflow-hidden rounded-[1.5rem] bg-zinc-100"
+          className="holo-thumb relative mb-5 aspect-[16/10] overflow-hidden rounded-card bg-surface-2"
         >
           {quest.cardImageUrl ? (
             <SafeImage
@@ -60,51 +62,51 @@ export default function QuestDetail({
               className="absolute inset-0 h-full w-full"
             />
           )}
-          <div className="absolute inset-0 bg-black/14" />
+          <div className="absolute inset-0 bg-black/10" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.04),transparent_30%,rgba(0,0,0,0.78))]" />
-          <span className="glass-overlay absolute bottom-3 left-3 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.7)]">
+          <span className="glass-overlay absolute bottom-3 left-3 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-caps text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.7)]">
             {quest.category}
           </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="glass-chip rounded-full border px-3 py-1 text-xs font-bold text-zinc-700">
+          <span className="glass-chip rounded-full border px-3 py-1 text-xs font-bold text-ink-soft">
             {quest.category}
           </span>
           <QuestStatusBadge quest={quest} />
-          <span className="glass-chip rounded-full border px-3 py-1 text-xs font-bold text-zinc-700">
+          <span className="glass-chip rounded-full border px-3 py-1 text-xs font-bold text-ink-soft">
             {visibilityLabel(quest.visibility)}
           </span>
-          <span className="text-sm font-semibold text-zinc-500">
+          <span className="text-sm font-semibold text-muted">
             {quest.startTime}
           </span>
           {quest.startTimeRelative ? (
-            <span className="text-sm font-semibold text-zinc-500">
+            <span className="text-sm font-semibold text-muted">
               {quest.startTimeRelative}
             </span>
           ) : null}
         </div>
 
-        <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-zinc-950">
+        <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-ink">
           {quest.title}
         </h2>
 
         <dl className="mt-5 grid grid-cols-2 gap-3">
           <div className="glass-chip rounded-2xl border p-3">
-            <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">Location</dt>
-            <dd className="mt-1 text-sm font-bold text-zinc-900">
+            <dt className="text-xs font-bold uppercase tracking-caps text-faint">Location</dt>
+            <dd className="mt-1 text-sm font-bold text-ink">
               {quest.location}
             </dd>
           </div>
           <div className="glass-chip rounded-2xl border p-3">
-            <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">People</dt>
-            <dd className="mt-1 text-sm font-bold text-zinc-900">
+            <dt className="text-xs font-bold uppercase tracking-caps text-faint">People</dt>
+            <dd className="mt-1 text-sm font-bold text-ink">
               {quest.maxPeople === null ? formatGoingLabel(quest) : `${quest.goingCount} of ${quest.maxPeople}`}
             </dd>
           </div>
           <div className="glass-chip col-span-2 rounded-2xl border p-3">
-            <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">Host</dt>
-            <dd className="mt-1 text-sm font-bold text-zinc-900">
+            <dt className="text-xs font-bold uppercase tracking-caps text-faint">Host</dt>
+            <dd className="mt-1 text-sm font-bold text-ink">
               {quest.creatorId && onOpenProfile ? (
                 <button
                   type="button"
@@ -119,7 +121,7 @@ export default function QuestDetail({
             </dd>
           </div>
           <div className="glass-chip col-span-2 rounded-2xl border p-3">
-            <dt className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">Who is going</dt>
+            <dt className="text-xs font-bold uppercase tracking-caps text-faint">Who is going</dt>
             <dd className="mt-2 flex flex-wrap gap-2">
               {quest.attendees.map((attendee) => {
                 const avatar = attendee.avatarUrl ? (
@@ -131,7 +133,7 @@ export default function QuestDetail({
                     className="size-5 rounded-full object-cover"
                   />
                 ) : (
-                  <span className="grid size-5 place-items-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600">
+                  <span className="grid size-5 place-items-center rounded-full bg-surface-2 text-2xs font-semibold text-muted">
                     {attendee.avatarInitials}
                   </span>
                 );
@@ -140,11 +142,11 @@ export default function QuestDetail({
                   return (
                     <span
                       key={attendee.id}
-                      className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
+                      className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-ink-soft"
                     >
                       {avatar}
                       <span>{attendee.displayName}</span>
-                      <span className="text-zinc-500">(guest)</span>
+                      <span className="text-muted">(guest)</span>
                     </span>
                   );
                 }
@@ -154,12 +156,12 @@ export default function QuestDetail({
                     key={attendee.id}
                     type="button"
                     onClick={() => onOpenProfile?.(attendee.id)}
-                    className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-zinc-700"
+                    className="glass-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-left text-xs font-bold text-ink-soft"
                   >
                     {avatar}
                     <span>{attendee.displayName}</span>
                     {attendee.isHost ? (
-                      <span className="text-zinc-500">(host)</span>
+                      <span className="text-muted">(host)</span>
                     ) : null}
                   </button>
                 );
@@ -170,14 +172,14 @@ export default function QuestDetail({
 
         {quest.createdByCurrentUser && quest.invitedProfiles?.length ? (
           <div className="glass-chip mt-3 rounded-2xl border p-3">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-zinc-400">
+            <p className="text-xs font-bold uppercase tracking-caps text-faint">
               Invited
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {quest.invitedProfiles.map((profile) => (
                 <span
                   key={profile.id}
-                  className="glass-chip rounded-full border px-2.5 py-1 text-xs font-bold text-zinc-700"
+                  className="glass-chip rounded-full border px-2.5 py-1 text-xs font-bold text-ink-soft"
                 >
                   @{profile.handle}
                 </span>
@@ -186,45 +188,35 @@ export default function QuestDetail({
           </div>
         ) : null}
 
-        <p className="mt-5 text-sm leading-6 text-zinc-600">
+        <p className="mt-5 text-sm leading-6 text-muted">
           {quest.description}
         </p>
 
-        <div className="glass-action mt-6 space-y-2 rounded-[1.35rem] border p-2">
+        <div className="glass-action mt-6 space-y-2 rounded-card border p-2">
           <button
             type="button"
             onClick={() => onJoin(quest.id)}
             disabled={!isJoinable || isFull || isJoined || isJoining}
             className={`min-h-12 w-full rounded-full px-5 py-3 text-sm font-bold transition ${
               isJoined
-                ? "bg-zinc-950 text-white"
+                ? "bg-ink text-white"
                 : !isJoinable
-                  ? "bg-white/64 text-zinc-500"
+                  ? "bg-white/60 text-muted"
                 : isJoining
-                  ? "bg-white/74 text-zinc-500"
+                  ? "bg-white/70 text-muted"
                 : isFull
-                  ? "bg-white/64 text-zinc-400"
-                  : "bg-zinc-950 text-white hover:bg-zinc-800"
+                  ? "bg-white/60 text-faint"
+                  : "bg-ink text-white hover:bg-ink-hover"
             }`}
           >
-            {isJoined
-              ? "You're in"
-              : !isJoinable
-                ? quest.status === "closed"
-                  ? "Closed"
-                  : "Past"
-              : isJoining
-                ? "Joining..."
-              : isFull
-                  ? "Full"
-                  : "Join"}
+            {joinLabel}
           </button>
 
           {canChat ? (
             <button
               type="button"
               onClick={() => onOpenChat?.(quest.id)}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-zinc-300/80 bg-white/72 px-5 py-2.5 text-sm font-bold text-zinc-900 transition hover:bg-white"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-line/80 bg-white/70 px-5 py-2.5 text-sm font-bold text-ink transition hover:bg-white"
             >
               <MessageCircle size={17} strokeWidth={2.2} aria-hidden="true" />
               Chat
@@ -237,7 +229,7 @@ export default function QuestDetail({
                 <button
                   type="button"
                   onClick={() => onEdit(quest)}
-                  className="min-h-11 w-full rounded-full border border-zinc-300/80 bg-white/68 px-5 py-2.5 text-sm font-bold text-zinc-800 transition hover:bg-white"
+                  className="min-h-11 w-full rounded-full border border-line/80 bg-white/70 px-5 py-2.5 text-sm font-bold text-ink-soft transition hover:bg-white"
                 >
                   Edit event
                 </button>
@@ -248,7 +240,7 @@ export default function QuestDetail({
                   type="button"
                   onClick={() => onLeave(quest.id)}
                   disabled={isLeaving}
-                  className="min-h-11 w-full rounded-full border border-zinc-300/80 bg-white/68 px-5 py-2.5 text-sm font-bold text-zinc-800 transition hover:bg-white disabled:opacity-50"
+                  className="min-h-11 w-full rounded-full border border-line/80 bg-white/70 px-5 py-2.5 text-sm font-bold text-ink-soft transition hover:bg-white disabled:opacity-50"
                 >
                   {isLeaving ? "Leaving..." : "Leave event"}
                 </button>

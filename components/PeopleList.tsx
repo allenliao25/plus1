@@ -29,7 +29,7 @@ export default function PeopleList({
   }
 
   return (
-    <div className="glass-panel divide-y divide-zinc-100 overflow-hidden rounded-[1.35rem] border">
+    <div className="glass-panel divide-y divide-surface-2 overflow-hidden rounded-card border">
       {people.map((person) => (
         <div key={person.id} className="flex items-center gap-3 p-3">
           <button
@@ -39,10 +39,10 @@ export default function PeopleList({
           >
             <PersonAvatar person={person} />
             <span className="min-w-0">
-              <span className="block truncate text-sm font-extrabold text-zinc-950">
+              <span className="block truncate text-sm font-extrabold text-ink">
                 {person.displayName}
               </span>
-              <span className="block truncate text-xs font-bold text-zinc-400">
+              <span className="block truncate text-xs font-bold text-faint">
                 @{person.handle} · {person.area}
               </span>
             </span>
@@ -75,13 +75,13 @@ function PersonAvatar({ person }: { person: PeopleSearchResult }) {
         width={48}
         height={48}
         onError={() => setDidImageFail(true)}
-        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-line"
       />
     );
   }
 
   return (
-    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-ink text-sm font-extrabold text-white">
       {person.avatarInitials}
     </span>
   );

@@ -55,13 +55,13 @@ export default function ActivityScreen({
 
   return (
     <div className="space-y-6 pb-2">
-      <p className="text-sm leading-6 text-zinc-500">
+      <p className="text-sm leading-6 text-muted">
         Updates from people and events you care about.
       </p>
 
       {incomingFriendRequests.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-xl font-extrabold tracking-normal text-zinc-950">
+          <h2 className="text-xl font-extrabold tracking-normal text-ink">
             Friend requests
           </h2>
           <ul className="space-y-1">
@@ -77,8 +77,8 @@ export default function ActivityScreen({
                 >
                   <FriendAvatar request={request} />
                   <span className="min-w-0 self-center">
-                    <span className="block text-[15px] leading-5 text-zinc-900">
-                      <span className="font-extrabold text-zinc-950">
+                    <span className="block text-md leading-5 text-ink">
+                      <span className="font-extrabold text-ink">
                         @{request.profile.handle}
                       </span>{" "}
                       sent you a friend request
@@ -90,7 +90,7 @@ export default function ActivityScreen({
                     type="button"
                     disabled={actionProfileId === request.profile.id}
                     onClick={() => onAcceptFriend(request.id)}
-                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-zinc-950 px-3 text-sm font-extrabold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-ink px-3 text-sm font-extrabold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Check size={16} strokeWidth={2.4} aria-hidden="true" />
                     Accept
@@ -99,7 +99,7 @@ export default function ActivityScreen({
                     type="button"
                     disabled={actionProfileId === request.profile.id}
                     onClick={() => onDeclineFriend(request.id)}
-                    className="glass-chip inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-extrabold text-zinc-800 transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="glass-chip inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-extrabold text-ink-soft transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <X size={16} strokeWidth={2.4} aria-hidden="true" />
                     Ignore
@@ -122,7 +122,7 @@ export default function ActivityScreen({
         <div className="space-y-7">
           {sections.map((section) => (
             <section key={section.title} className="space-y-3">
-              <h2 className="text-xl font-extrabold tracking-normal text-zinc-950">
+              <h2 className="text-xl font-extrabold tracking-normal text-ink">
                 {section.title}
               </h2>
               <ul className="space-y-1">
@@ -180,22 +180,22 @@ function ActivityRow({
       </div>
 
       <div className="min-w-0 flex-1 self-center">
-        <p className="text-[15px] leading-5 text-zinc-900">
+        <p className="text-md leading-5 text-ink">
           {line.actorHandle ? (
-            <span className="font-extrabold text-zinc-950">
+            <span className="font-extrabold text-ink">
               {line.actorHandle}
             </span>
           ) : null}
           {line.actorHandle ? " " : null}
           <span>{line.action}</span>
           {event.createdAtRelative ? (
-            <span className="ml-1 font-semibold text-zinc-400">
+            <span className="ml-1 font-semibold text-faint">
               {event.createdAtRelative}
             </span>
           ) : null}
         </p>
         {line.detail ? (
-          <p className="mt-1 line-clamp-2 text-sm leading-5 text-zinc-500">
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted">
             {line.detail}
           </p>
         ) : null}
@@ -217,7 +217,7 @@ function ActivityRow({
                 "accepted",
               )
             }
-            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-zinc-950 px-3 text-sm font-extrabold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-ink px-3 text-sm font-extrabold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Check size={16} strokeWidth={2.4} aria-hidden="true" />
             Accept
@@ -231,7 +231,7 @@ function ActivityRow({
                 "declined",
               )
             }
-            className="glass-chip inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-extrabold text-zinc-800 transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+            className="glass-chip inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-sm font-extrabold text-ink-soft transition hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={16} strokeWidth={2.4} aria-hidden="true" />
             Ignore
@@ -270,7 +270,7 @@ function ActivityAvatar({ event }: { event: ActivityEvent }) {
 
   if (actor?.avatarUrl && !didImageFail) {
     return (
-      <span className="glass-chip block size-12 overflow-hidden rounded-full border bg-zinc-100">
+      <span className="glass-chip block size-12 overflow-hidden rounded-full border bg-surface-2">
         <SafeImage
           src={actor.avatarUrl}
           alt=""
@@ -284,7 +284,7 @@ function ActivityAvatar({ event }: { event: ActivityEvent }) {
   }
 
   return (
-    <span className="grid size-12 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white shadow-sm">
+    <span className="grid size-12 place-items-center rounded-full bg-ink text-sm font-extrabold text-white shadow-sm">
       {initials}
     </span>
   );
@@ -298,13 +298,13 @@ function FriendAvatar({ request }: { request: FriendConnection }) {
         alt=""
         width={48}
         height={48}
-        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-12 shrink-0 rounded-full object-cover ring-1 ring-line"
       />
     );
   }
 
   return (
-    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-ink text-sm font-extrabold text-white">
       {request.profile.avatarInitials}
     </span>
   );
@@ -315,7 +315,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
   if (event.quest?.cardImageUrl && !didImageFail) {
     return (
-      <span className="relative block size-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+      <span className="relative block size-16 overflow-hidden rounded-2xl bg-surface-2 shadow-sm ring-1 ring-line">
         <SafeImage
           src={event.quest.cardImageUrl}
           alt=""
@@ -331,7 +331,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
   if (event.quest) {
     return (
-      <span className="relative block size-16 overflow-hidden rounded-2xl bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+      <span className="relative block size-16 overflow-hidden rounded-2xl bg-surface-2 shadow-sm ring-1 ring-line">
         <QuestCategoryArtwork
           category={event.quest.category}
           className="h-full w-full"
@@ -342,7 +342,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
   }
 
   return (
-    <span className="glass-chip inline-flex h-10 items-center justify-center gap-1 rounded-full border px-2 text-xs font-extrabold text-zinc-800">
+    <span className="glass-chip inline-flex h-10 items-center justify-center gap-1 rounded-full border px-2 text-xs font-extrabold text-ink-soft">
       View
       <ArrowUpRight size={13} strokeWidth={2.4} aria-hidden="true" />
     </span>
@@ -351,7 +351,7 @@ function EventPreview({ event }: { event: ActivityEvent }) {
 
 function PreviewBadge() {
   return (
-    <span className="absolute bottom-1 right-1 grid size-5 place-items-center rounded-full bg-white/92 text-zinc-950 shadow-sm">
+    <span className="absolute bottom-1 right-1 grid size-5 place-items-center rounded-full bg-white/90 text-ink shadow-sm">
       <ArrowUpRight size={12} strokeWidth={2.5} aria-hidden="true" />
     </span>
   );

@@ -99,38 +99,38 @@ export default function PeopleScreen({
 
   return (
     <section className="space-y-3 pt-2">
-      <label className="glass-panel flex min-h-12 items-center gap-2 rounded-full border px-4 text-zinc-500 transition focus-within:border-zinc-300 focus-within:bg-white/92">
+      <label className="glass-panel flex min-h-12 items-center gap-2 rounded-full border px-4 text-muted transition focus-within:border-faint focus-within:bg-white/90">
         <Search size={17} strokeWidth={2} aria-hidden="true" />
         <input
           type="search"
           value={peopleSearch}
           onChange={(event) => setPeopleSearch(event.target.value)}
           placeholder="Search name or @handle"
-          className="min-w-0 flex-1 bg-transparent py-3 text-[15px] font-medium text-zinc-950 outline-none placeholder:text-zinc-500"
+          className="min-w-0 flex-1 bg-transparent py-3 text-md font-medium text-ink outline-none placeholder:text-muted"
         />
       </label>
 
       {normalizedPeopleSearch.length < 2 ? (
         <div>
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-zinc-400">
+          <p className="mb-2 text-xs font-extrabold uppercase tracking-caps text-faint">
             Suggested nearby
           </p>
           {peopleToShow.length === 0 ? (
-            <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">
+            <p className="glass-panel rounded-card border p-4 text-sm font-semibold text-muted">
               No suggestions yet.
             </p>
           ) : null}
         </div>
       ) : peopleSearchState.isSearching ? (
-        <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">
+        <p className="glass-panel rounded-card border p-4 text-sm font-semibold text-muted">
           Searching…
         </p>
       ) : peopleSearchState.error ? (
-        <p className="rounded-[1.35rem] border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">
+        <p className="rounded-card border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">
           {peopleSearchState.error}
         </p>
       ) : peopleToShow.length === 0 ? (
-        <p className="glass-panel rounded-[1.35rem] border p-4 text-sm font-semibold text-zinc-500">
+        <p className="glass-panel rounded-card border p-4 text-sm font-semibold text-muted">
           No matching people.
         </p>
       ) : null}

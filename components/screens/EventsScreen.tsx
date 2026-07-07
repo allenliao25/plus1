@@ -42,17 +42,17 @@ export default function EventsScreen({
 
   return (
     <div className="-mx-5 space-y-2">
-      <div className="snap-start border-b border-zinc-100 bg-white px-5 pb-3 pt-2">
+      <div className="snap-start border-b border-line bg-white px-5 pb-3 pt-2">
         <div className="mb-2 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-400">
+            <p className="text-xs font-black uppercase tracking-caps text-faint">
               Discover
             </p>
-            <h2 className="text-lg font-black leading-6 tracking-normal text-zinc-950">
+            <h2 className="text-lg font-black leading-6 tracking-normal text-ink">
               Events for you
             </h2>
           </div>
-          <span className="rounded-full bg-zinc-950 px-3 py-1.5 text-xs font-black text-white">
+          <span className="rounded-full bg-ink px-3 py-1.5 text-xs font-black text-white">
             {feedModel.totalCount}
           </span>
         </div>
@@ -67,10 +67,10 @@ export default function EventsScreen({
                 type="button"
                 onClick={() => setSelectedFilter(filter)}
                 aria-pressed={isActive}
-                className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[0.82rem] font-black transition active:scale-[0.98] ${
+                className={`pressable min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-black ${
                   isActive
-                    ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
-                    : "glass-chip border text-zinc-700 hover:bg-white/80"
+                    ? "border-ink bg-ink text-white shadow-sm"
+                    : "glass-chip border text-ink-soft hover:bg-white/80"
                 }`}
               >
                 {filter}

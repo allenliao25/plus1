@@ -1,6 +1,7 @@
+import JoinButton from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
-import { formatCapacitySummary, isQuestFull } from "@/lib/questCapacity";
+import { formatCapacitySummary } from "@/lib/questCapacity";
 import type { Quest } from "@/types/quest";
 
 type HomeQuestRowProps = {
@@ -16,7 +17,6 @@ export default function HomeQuestRow({
   onJoin,
   onOpen,
 }: HomeQuestRowProps) {
-  const actionState = getActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
   const socialProof = formatCapacitySummary(quest);
@@ -24,7 +24,7 @@ export default function HomeQuestRow({
   return (
     <article
       data-category={quest.category}
-      className="event-card relative overflow-hidden rounded-[1.15rem] border border-zinc-200 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
+      className="event-card relative overflow-hidden rounded-card-sm border border-line bg-surface p-2.5 shadow-card"
     >
       <button
         type="button"
@@ -34,7 +34,7 @@ export default function HomeQuestRow({
       />
 
       <div className="pointer-events-none relative z-20 grid grid-cols-[4.75rem_1fr_auto] items-center gap-3">
-        <div className="holo-thumb relative aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
+        <div className="holo-thumb relative aspect-square overflow-hidden rounded-2xl bg-ink">
           {quest.cardImageUrl ? (
             <SafeImage
               src={quest.cardImageUrl}
@@ -52,62 +52,27 @@ export default function HomeQuestRow({
         </div>
 
         <div className="min-w-0 py-0.5">
-          <h3 className="line-clamp-2 text-[1.02rem] font-bold leading-[1.08] tracking-normal text-zinc-950">
+          <h3 className="line-clamp-2 text-base font-bold leading-none tracking-normal text-ink">
             {quest.title}
           </h3>
-          <p className="mt-1.5 line-clamp-2 text-[0.72rem] font-semibold leading-4 text-zinc-500">
+          <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-4 text-muted">
             {context}
           </p>
-          <p className="mt-1 truncate text-[0.72rem] font-bold leading-4 text-zinc-700">
+          <p className="mt-1 truncate text-xs font-bold leading-4 text-ink-soft">
             {socialProof}
           </p>
         </div>
 
         <div className="flex h-full flex-col items-end justify-end gap-2 py-0.5">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onJoin(quest.id);
-            }}
-            disabled={actionState.isDisabled}
-            className={`pointer-events-auto min-h-9 min-w-[5.7rem] rounded-full px-3 py-1.5 text-xs font-bold transition active:scale-95 ${
-              actionState.isPrimary
-                ? "bg-zinc-950 text-white hover:bg-zinc-800"
-                : "glass-chip border text-zinc-500"
-            }`}
-          >
-            {actionState.label}
-          </button>
+          <JoinButton
+            quest={quest}
+            isJoining={isJoining}
+            onJoin={onJoin}
+            variant="solid"
+            size="compact"
+          />
         </div>
       </div>
     </article>
   );
-}
-
-function getActionState(quest: Quest, isJoining: boolean) {
-  const isFull = isQuestFull(quest);
-  const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
-
-  if (isJoined) {
-    return { isDisabled: true, isPrimary: false, label: "You're in" };
-  }
-
-  if (quest.status !== "open") {
-    return {
-      isDisabled: true,
-      isPrimary: false,
-      label: quest.status === "closed" ? "Closed" : "Past",
-    };
-  }
-
-  if (isFull) {
-    return { isDisabled: true, isPrimary: false, label: "Full" };
-  }
-
-  if (isJoining) {
-    return { isDisabled: true, isPrimary: false, label: "Joining..." };
-  }
-
-  return { isDisabled: false, isPrimary: true, label: "Join" };
 }

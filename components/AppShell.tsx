@@ -2099,10 +2099,10 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
 
   return (
     <main
-      className="app-viewport flex flex-col bg-zinc-50 text-zinc-950"
+      className="app-viewport flex flex-col bg-surface-2 text-ink"
       style={STABLE_VIEWPORT_STYLE}
     >
-      <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-white sm:border-x sm:border-zinc-200">
+      <section className="mx-auto flex h-full w-full max-w-[480px] flex-col overflow-hidden bg-surface sm:border-x sm:border-line">
         {isRootTrackActive ? (
           <RootPageCarousel
             ref={rootCarouselRef}
@@ -2110,7 +2110,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
             onActiveIndexChange={handleRootPageIndexChange}
             pages={rootPages}
             renderPanel={(page) => (
-              <section className="flex h-full flex-col overflow-hidden bg-white">
+              <section className="flex h-full flex-col overflow-hidden bg-surface">
                 {rootHeaderForPage(page)}
                 <div
                   className={`app-scroll min-h-0 flex-1 overflow-y-auto px-5 ${BOTTOM_NAV_SCROLL_PADDING} ${
@@ -2233,7 +2233,7 @@ function AppHeader({
 }) {
   if (hideTitle && titleAlign === "large") {
     return (
-      <header className="shrink-0 bg-white pt-[calc(env(safe-area-inset-top,0px)+6px)]">
+      <header className="shrink-0 bg-surface pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         {actions ? (
           <div className="flex items-center justify-end px-5 pb-1">{actions}</div>
         ) : null}
@@ -2243,14 +2243,14 @@ function AppHeader({
 
   if (hideTitle) {
     return (
-      <header className="shrink-0 bg-white px-4 pb-1 pt-[calc(env(safe-area-inset-top,0px)+6px)]">
+      <header className="shrink-0 bg-surface px-4 pb-1 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         <div className="flex min-h-10 items-center gap-2">
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
               aria-label="Back"
-              className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+              className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-ink transition hover:bg-white/80"
             >
               <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
             </button>
@@ -2265,17 +2265,17 @@ function AppHeader({
 
   if (titleAlign === "large") {
     return (
-      <header className="shrink-0 bg-white px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
+      <header className="shrink-0 bg-surface px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+8px)]">
         <div
           className={`flex justify-between gap-3 ${
             compactLargeTitle ? "min-h-[2.75rem]" : "min-h-[3.65rem]"
           } ${compactLargeTitle ? "items-center" : "items-start"}`}
         >
           <h1
-            className={`min-w-0 flex-1 truncate font-bold tracking-tight text-zinc-950 ${
+            className={`min-w-0 flex-1 truncate font-bold tracking-tight text-ink ${
               compactLargeTitle
-                ? "text-[1.35rem] font-extrabold leading-none"
-                : "text-[2.75rem] leading-none"
+                ? "text-xl font-extrabold leading-none"
+                : "text-5xl leading-none"
             }`}
           >
             {title}
@@ -2299,7 +2299,7 @@ function AppHeader({
       <header className="glass-bar flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {leading}
-          <h1 className="min-w-0 truncate text-xl font-bold tracking-tight text-zinc-950">
+          <h1 className="min-w-0 truncate text-xl font-bold tracking-tight text-ink">
             {title}
           </h1>
         </div>
@@ -2320,14 +2320,14 @@ function AppHeader({
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80"
+            className="glass-chip grid size-10 shrink-0 place-items-center rounded-full border text-ink transition hover:bg-white/80"
           >
             <ChevronLeft size={28} strokeWidth={2.2} aria-hidden="true" />
           </button>
         ) : null}
       </div>
       <h1
-        className={`min-w-0 max-w-full truncate text-center font-bold tracking-tight text-zinc-950 ${
+        className={`min-w-0 max-w-full truncate text-center font-bold tracking-tight text-ink ${
           isBrand ? "text-2xl" : "text-xl"
         }`}
       >
@@ -2353,26 +2353,26 @@ function AppNotificationBanner({
   const shouldShowAvatar = banner.kind === "message" && banner.avatarInitials;
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+10px)] z-50 mx-auto max-w-[456px] px-1">
-      <div className="glass-bar pointer-events-auto flex w-full items-center gap-2 rounded-2xl border p-2 shadow-[0_18px_44px_rgba(15,23,42,0.16)]">
+    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+12px)] z-50 mx-auto max-w-[456px] px-1">
+      <div className="glass-bar pointer-events-auto flex w-full items-center gap-2 rounded-2xl border p-2 shadow-overlay">
         <button
           type="button"
           onClick={onOpen}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left transition active:scale-[0.99]"
+          className="pressable flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left"
         >
           {shouldShowAvatar ? (
             <BannerAvatar banner={banner} />
           ) : (
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-white">
               <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-extrabold text-zinc-950">
+            <span className="block truncate text-sm font-extrabold text-ink">
               {banner.title}
             </span>
             {banner.body ? (
-              <span className="mt-0.5 block truncate text-xs font-semibold text-zinc-500">
+              <span className="mt-0.5 block truncate text-xs font-semibold text-muted">
                 {banner.body}
               </span>
             ) : null}
@@ -2382,7 +2382,7 @@ function AppNotificationBanner({
           type="button"
           aria-label="Dismiss notification"
           onClick={onDismiss}
-          className="grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold text-zinc-400 transition hover:bg-white/70 hover:text-zinc-700"
+          className="grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold text-faint transition hover:bg-white/70 hover:text-ink-soft"
         >
           x
         </button>
@@ -2401,7 +2401,7 @@ function BannerAvatar({ banner }: { banner: InAppBanner }) {
         alt={banner.avatarLabel ? `${banner.avatarLabel} profile photo` : ""}
         width={36}
         height={36}
-        className="size-9 shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-9 shrink-0 rounded-full object-cover ring-1 ring-line"
       />
     );
   }
@@ -2409,7 +2409,7 @@ function BannerAvatar({ banner }: { banner: InAppBanner }) {
   return (
     <span
       aria-label={banner.avatarLabel ?? undefined}
-      className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-[0.7rem] font-extrabold text-white ring-1 ring-zinc-200"
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-ink text-xs font-extrabold text-white ring-1 ring-line"
     >
       {initials}
     </span>
@@ -2428,7 +2428,7 @@ export function HomeHeaderActions({
   unreadMessageCount: number;
 }) {
   return (
-    <div className="glass-chip inline-flex h-12 items-center rounded-full border px-1.5 text-zinc-950">
+    <div className="glass-chip inline-flex h-12 items-center rounded-full border px-1.5 text-ink">
       <HeaderIconButton
         count={unreadActivityCount}
         label="Activity"
@@ -2438,7 +2438,7 @@ export function HomeHeaderActions({
       </HeaderIconButton>
       <span
         aria-hidden="true"
-        className="h-6 w-px bg-zinc-200/90"
+        className="h-6 w-px bg-line/90"
       />
       <HeaderIconButton
         count={unreadMessageCount}
@@ -2482,14 +2482,14 @@ export function ProfileHeaderActions({
         aria-expanded={isOpen}
         aria-haspopup="menu"
         onClick={() => setIsOpen((open) => !open)}
-        className="glass-chip grid size-10 place-items-center rounded-full border text-zinc-950 transition hover:bg-white/80 active:scale-95"
+        className="glass-chip pressable grid size-10 place-items-center rounded-full border text-ink hover:bg-white/80"
       >
         <Menu size={21} strokeWidth={2.15} aria-hidden="true" />
       </button>
       {isOpen ? (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-40 overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 min-w-40 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-lg"
         >
           <button
             type="button"
@@ -2498,7 +2498,7 @@ export function ProfileHeaderActions({
               setIsOpen(false);
               void onSignOut();
             }}
-            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-zinc-950 transition hover:bg-zinc-50 active:bg-zinc-100"
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-ink transition hover:bg-surface-2 active:bg-surface-2"
           >
             <LogOut size={16} strokeWidth={2} aria-hidden="true" />
             Sign out
@@ -2525,11 +2525,11 @@ export function HeaderIconButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="relative grid h-10 w-11 place-items-center rounded-full text-zinc-950 transition hover:bg-white/70 active:scale-95"
+      className="pressable relative grid h-10 w-11 place-items-center rounded-full text-ink hover:bg-white/70"
     >
       {children}
       {count > 0 ? (
-        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.6rem] font-extrabold text-white">
+        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-2xs font-extrabold text-white">
           {count > 9 ? "9+" : count}
         </span>
       ) : null}
@@ -2652,11 +2652,11 @@ function useStableKeyboardViewport() {
 export function SplashScreen() {
   return (
     <main
-      className="app-viewport flex flex-col items-center justify-center bg-white text-zinc-950"
+      className="app-viewport flex flex-col items-center justify-center bg-surface text-ink"
       style={STABLE_VIEWPORT_STYLE}
     >
-      <h1 className="text-[2.75rem] font-bold tracking-tight">plus1</h1>
-      <div className="mt-6 size-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-950" />
+      <h1 className="text-5xl font-bold tracking-tight">plus1</h1>
+      <div className="mt-6 size-6 animate-spin rounded-full border-2 border-line border-t-ink" />
     </main>
   );
 }
@@ -2712,16 +2712,16 @@ export function AuthScreen({
 
   return (
     <main
-      className="app-viewport flex flex-col bg-white px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950"
+      className="app-viewport flex flex-col bg-surface px-8 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-ink"
       style={STABLE_VIEWPORT_STYLE}
     >
       <div className="flex flex-1 flex-col justify-center">
         <div className="mx-auto w-full max-w-sm">
           <div className="text-center">
-            <h1 className="text-[2.75rem] font-bold leading-none tracking-tight">
+            <h1 className="text-5xl font-bold leading-none tracking-tight">
               plus1
             </h1>
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="mt-3 text-sm text-muted">
               Hangouts, without the group text.
             </p>
           </div>
@@ -2743,7 +2743,7 @@ export function AuthScreen({
                     autoComplete="tel-area-code"
                     inputMode="numeric"
                     aria-label="Area code"
-                    className="w-24 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-center text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                    className="w-24 rounded-xl border border-line bg-surface-2 px-4 py-3.5 text-center text-base text-ink outline-none transition placeholder:text-faint focus:border-faint focus:bg-surface"
                   />
                   <input
                     type="tel"
@@ -2758,20 +2758,20 @@ export function AuthScreen({
                     autoComplete="tel-local"
                     inputMode="numeric"
                     aria-label="Phone number"
-                    className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                    className="min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-4 py-3.5 text-base text-ink outline-none transition placeholder:text-faint focus:border-faint focus:bg-surface"
                   />
                 </div>
-                <p className="text-center text-xs leading-5 text-zinc-400">
+                <p className="text-center text-xs leading-5 text-faint">
                   US numbers: 3-digit area code, then 7-digit number. Demo:{" "}
-                  <span className="font-semibold text-zinc-500">800</span> +{" "}
-                  <span className="font-semibold text-zinc-500">5550123</span>.
+                  <span className="font-semibold text-muted">800</span> +{" "}
+                  <span className="font-semibold text-muted">5550123</span>.
                 </p>
               </>
             ) : (
               <>
-                <p className="text-center text-sm text-zinc-500">
+                <p className="text-center text-sm text-muted">
                   Enter the 6-digit code sent to{" "}
-                  <span className="font-bold text-zinc-700">{pendingPhone}</span>.
+                  <span className="font-bold text-ink-soft">{pendingPhone}</span>.
                 </p>
                 <input
                   type="text"
@@ -2784,7 +2784,7 @@ export function AuthScreen({
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   aria-label="Verification code"
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-center text-lg tracking-[0.4em] text-zinc-950 outline-none transition placeholder:text-base placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white"
+                  className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3.5 text-center text-lg tracking-widest text-ink outline-none transition placeholder:text-base placeholder:tracking-normal placeholder:text-faint focus:border-faint focus:bg-surface"
                 />
               </>
             )}
@@ -2807,7 +2807,7 @@ export function AuthScreen({
                 (!isVerifying && !phonePartsAreValid) ||
                 (isVerifying && !otpCode.trim())
               }
-              className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+              className="min-h-12 w-full rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:bg-zinc-300"
             >
               {isSubmitting
                 ? isVerifying
@@ -2823,7 +2823,7 @@ export function AuthScreen({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleUseDifferentPhone}
-                className="min-h-11 w-full text-center text-sm font-bold text-zinc-500 transition hover:text-zinc-800 disabled:opacity-50"
+                className="min-h-11 w-full text-center text-sm font-bold text-muted transition hover:text-ink-soft disabled:opacity-50"
               >
                 Use a different number
               </button>
@@ -2832,7 +2832,7 @@ export function AuthScreen({
         </div>
       </div>
 
-      <p className="mx-auto max-w-xs text-center text-xs leading-5 text-zinc-400">
+      <p className="mx-auto max-w-xs text-center text-xs leading-5 text-faint">
         {isVerifying
           ? "Didn't get a code? Double-check your number and try again."
           : "We'll text you a one-time code. New here? Your account is created automatically."}
@@ -2901,32 +2901,32 @@ export function ProfileSetupScreen({
 
   return (
     <main
-      className="app-viewport flex flex-col bg-white px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-zinc-950"
+      className="app-viewport flex flex-col bg-surface px-6 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-[calc(env(safe-area-inset-top,0px)+20px)] text-ink"
       style={STABLE_VIEWPORT_STYLE}
     >
       <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-center">
         <div className="text-center">
-          <h1 className="text-[2.5rem] font-bold leading-none tracking-tight">
+          <h1 className="text-4xl font-bold leading-none tracking-tight">
             plus1
           </h1>
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-zinc-950">
+          <h2 className="mt-4 text-2xl font-bold tracking-tight text-ink">
             Finish your profile
           </h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
+          <p className="mt-2 text-sm leading-6 text-muted">
             Pick the name people see, the @handle they can recognize, and your local area.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">
+            <span className="text-sm font-bold text-ink-soft">
               Display name
             </span>
-            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3.5 transition focus-within:border-faint focus-within:bg-surface">
               <UserRound
                 size={18}
                 strokeWidth={1.9}
-                className="shrink-0 text-zinc-400"
+                className="shrink-0 text-faint"
                 aria-hidden="true"
               />
               <input
@@ -2936,18 +2936,18 @@ export function ProfileSetupScreen({
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder="Your name"
-                className="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-faint"
               />
             </div>
           </label>
 
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Handle</span>
-            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+            <span className="text-sm font-bold text-ink-soft">Handle</span>
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3.5 transition focus-within:border-faint focus-within:bg-surface">
               <AtSign
                 size={18}
                 strokeWidth={1.9}
-                className="shrink-0 text-zinc-400"
+                className="shrink-0 text-faint"
                 aria-hidden="true"
               />
               <input
@@ -2959,27 +2959,27 @@ export function ProfileSetupScreen({
                 placeholder="your.handle"
                 autoCapitalize="none"
                 autoCorrect="off"
-                className="min-w-0 flex-1 bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-faint"
               />
             </div>
-            <span className="mt-1 block text-xs font-semibold text-zinc-400">
+            <span className="mt-1 block text-xs font-semibold text-faint">
               3-30 characters. Letters, numbers, periods, and underscores.
             </span>
           </label>
 
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Local area</span>
-            <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 transition focus-within:border-zinc-400 focus-within:bg-white">
+            <span className="text-sm font-bold text-ink-soft">Local area</span>
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3.5 transition focus-within:border-faint focus-within:bg-surface">
               <MapPin
                 size={18}
                 strokeWidth={1.9}
-                className="shrink-0 text-zinc-400"
+                className="shrink-0 text-faint"
                 aria-hidden="true"
               />
               <select
                 value={area}
                 onChange={(event) => setArea(event.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-zinc-950 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-ink outline-none"
               >
                 {AREA_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -2991,7 +2991,7 @@ export function ProfileSetupScreen({
           </label>
 
           <div>
-            <p className="text-sm font-bold text-zinc-800">Interests</p>
+            <p className="text-sm font-bold text-ink-soft">Interests</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {questCategories.map((interest) => {
                 const isSelected = selectedInterests.includes(interest);
@@ -3004,8 +3004,8 @@ export function ProfileSetupScreen({
                     onClick={() => toggleInterest(interest)}
                     className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
                       isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white"
-                        : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:bg-white"
+                        ? "border-ink bg-ink text-white"
+                        : "border-line bg-surface-2 text-muted hover:border-faint hover:bg-surface"
                     }`}
                   >
                     {interest}
@@ -3013,7 +3013,7 @@ export function ProfileSetupScreen({
                 );
               })}
             </div>
-            <span className="mt-1 block text-xs font-semibold text-zinc-400">
+            <span className="mt-1 block text-xs font-semibold text-faint">
               Choose a few so plus1 can float matching events first.
             </span>
           </div>
@@ -3027,7 +3027,7 @@ export function ProfileSetupScreen({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="min-h-12 w-full rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             {isSubmitting ? "Saving…" : "Continue"}
           </button>
@@ -3111,8 +3111,8 @@ export function HomeSkeleton() {
     <output aria-label="Loading events" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading events</span>
       <div className="flex items-center gap-2">
-        <div className="h-7 w-24 rounded-full bg-zinc-100" />
-        <div className="h-7 w-16 rounded-full bg-zinc-100" />
+        <div className="h-7 w-24 rounded-full bg-surface-2" />
+        <div className="h-7 w-16 rounded-full bg-surface-2" />
       </div>
       <div className="space-y-5">
         <SkeletonQuestCard variant="immersive" />
@@ -3127,15 +3127,15 @@ export function ExploreSkeleton() {
     <output aria-label="Loading explore" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading explore</span>
       <div className="space-y-2">
-        <div className="h-7 w-24 rounded-full bg-zinc-100" />
-        <div className="h-4 w-64 max-w-full rounded-full bg-zinc-100" />
+        <div className="h-7 w-24 rounded-full bg-surface-2" />
+        <div className="h-4 w-64 max-w-full rounded-full bg-surface-2" />
       </div>
-      <div className="h-12 rounded-full bg-zinc-100" />
+      <div className="h-12 rounded-full bg-surface-2" />
       <div className="flex gap-2 overflow-hidden pb-1">
-        <div className="h-11 w-16 shrink-0 rounded-full bg-zinc-100" />
-        <div className="h-11 w-20 shrink-0 rounded-full bg-zinc-100" />
-        <div className="h-11 w-24 shrink-0 rounded-full bg-zinc-100" />
-        <div className="h-11 w-20 shrink-0 rounded-full bg-zinc-100" />
+        <div className="h-11 w-16 shrink-0 rounded-full bg-surface-2" />
+        <div className="h-11 w-20 shrink-0 rounded-full bg-surface-2" />
+        <div className="h-11 w-24 shrink-0 rounded-full bg-surface-2" />
+        <div className="h-11 w-20 shrink-0 rounded-full bg-surface-2" />
       </div>
       <div className="space-y-3">
         <SkeletonQuestCard variant="compact" />
@@ -3149,16 +3149,16 @@ export function PeopleSkeleton() {
   return (
     <output aria-label="Loading people" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading people</span>
-      <div className="h-12 rounded-full bg-zinc-100" />
+      <div className="h-12 rounded-full bg-surface-2" />
       <div className="space-y-3">
         {[0, 1, 2].map((item) => (
-          <div key={item} className="flex items-center gap-3 rounded-3xl border border-zinc-200 bg-white p-3">
-            <div className="size-12 shrink-0 rounded-full bg-zinc-100" />
+          <div key={item} className="flex items-center gap-3 rounded-3xl border border-line bg-surface p-3">
+            <div className="size-12 shrink-0 rounded-full bg-surface-2" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-32 rounded-full bg-zinc-100" />
-              <div className="h-3 w-24 rounded-full bg-zinc-100" />
+              <div className="h-4 w-32 rounded-full bg-surface-2" />
+              <div className="h-3 w-24 rounded-full bg-surface-2" />
             </div>
-            <div className="h-9 w-20 rounded-full bg-zinc-100" />
+            <div className="h-9 w-20 rounded-full bg-surface-2" />
           </div>
         ))}
       </div>
@@ -3171,18 +3171,18 @@ export function CreateSkeleton() {
     <output aria-label="Loading create" className="space-y-5 animate-pulse">
       <span className="sr-only">Loading create</span>
       <div className="space-y-2">
-        <div className="h-7 w-28 rounded-full bg-zinc-100" />
-        <div className="h-4 w-72 max-w-full rounded-full bg-zinc-100" />
+        <div className="h-7 w-28 rounded-full bg-surface-2" />
+        <div className="h-4 w-72 max-w-full rounded-full bg-surface-2" />
       </div>
-      <div className="rounded-3xl border border-zinc-200 bg-white p-4">
-        <div className="h-5 w-36 rounded-full bg-zinc-100" />
-        <div className="mt-4 h-24 rounded-2xl bg-zinc-100" />
-        <div className="mt-4 h-11 rounded-full bg-zinc-100" />
+      <div className="rounded-3xl border border-line bg-surface p-4">
+        <div className="h-5 w-36 rounded-full bg-surface-2" />
+        <div className="mt-4 h-24 rounded-2xl bg-surface-2" />
+        <div className="mt-4 h-11 rounded-full bg-surface-2" />
       </div>
       <div className="space-y-4">
-        <div className="h-12 rounded-2xl bg-zinc-100" />
-        <div className="h-12 rounded-2xl bg-zinc-100" />
-        <div className="h-24 rounded-2xl bg-zinc-100" />
+        <div className="h-12 rounded-2xl bg-surface-2" />
+        <div className="h-12 rounded-2xl bg-surface-2" />
+        <div className="h-24 rounded-2xl bg-surface-2" />
       </div>
     </output>
   );
@@ -3194,31 +3194,31 @@ export function ProfileSkeleton() {
       <span className="sr-only">Loading profile</span>
       <section className="space-y-4">
         <div className="grid grid-cols-[5rem_1fr] items-center gap-4">
-          <div className="size-20 rounded-full bg-zinc-100" />
+          <div className="size-20 rounded-full bg-surface-2" />
           <div className="grid grid-cols-3 gap-2">
             {[0, 1, 2].map((item) => (
               <div key={item} className="space-y-1.5">
-                <div className="mx-auto h-5 w-6 rounded-full bg-zinc-100" />
-                <div className="mx-auto h-2.5 w-12 rounded-full bg-zinc-100" />
+                <div className="mx-auto h-5 w-6 rounded-full bg-surface-2" />
+                <div className="mx-auto h-2.5 w-12 rounded-full bg-surface-2" />
               </div>
             ))}
           </div>
         </div>
         <div className="space-y-2">
-          <div className="h-5 w-36 rounded-full bg-zinc-100" />
-          <div className="h-4 w-full rounded-full bg-zinc-100" />
-          <div className="h-4 w-2/3 rounded-full bg-zinc-100" />
-          <div className="h-3.5 w-28 rounded-full bg-zinc-100" />
+          <div className="h-5 w-36 rounded-full bg-surface-2" />
+          <div className="h-4 w-full rounded-full bg-surface-2" />
+          <div className="h-4 w-2/3 rounded-full bg-surface-2" />
+          <div className="h-3.5 w-28 rounded-full bg-surface-2" />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="h-9 rounded-lg bg-zinc-100" />
-          <div className="h-9 rounded-lg bg-zinc-100" />
+          <div className="h-9 rounded-lg bg-surface-2" />
+          <div className="h-9 rounded-lg bg-surface-2" />
         </div>
       </section>
       <section className="-mx-5 mt-2">
-        <div className="grid grid-cols-3 gap-[1px] bg-zinc-200">
+        <div className="grid grid-cols-3 gap-[1px] bg-line">
           {[0, 1, 2, 3, 4, 5].map((item) => (
-            <div key={item} className="aspect-square bg-zinc-100" />
+            <div key={item} className="aspect-square bg-surface-2" />
           ))}
         </div>
       </section>
@@ -3231,8 +3231,8 @@ export function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact
 
   return (
     <article
-      className={`relative overflow-hidden border border-zinc-200 bg-zinc-100 shadow-sm ${
-        isImmersive ? "aspect-[4/5] rounded-[1.75rem]" : "aspect-[5/4] rounded-[1.35rem]"
+      className={`relative overflow-hidden border border-line bg-surface-2 shadow-sm ${
+        isImmersive ? "aspect-[4/5] rounded-hero" : "aspect-[5/4] rounded-card"
       }`}
     >
       <div className="absolute inset-0 bg-[linear-gradient(135deg,#e4e4e7,#fafafa_44%,#d4d4d8)]" />
@@ -3240,21 +3240,21 @@ export function SkeletonQuestCard({ variant }: { variant: "immersive" | "compact
         <div className="h-7 w-20 rounded-full bg-white/70" />
         <div className="h-7 w-16 rounded-full bg-white/60" />
       </div>
-      <div className="absolute inset-x-3 bottom-3 rounded-[1.15rem] border border-white/80 bg-white/72 p-3 shadow-sm">
+      <div className="absolute inset-x-3 bottom-3 rounded-card-sm border border-white/80 bg-white/70 p-3 shadow-sm">
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
             <div className="space-y-2">
-              <div className="h-7 w-11/12 rounded-full bg-zinc-200" />
+              <div className="h-7 w-11/12 rounded-full bg-line" />
               {isImmersive ? (
-                <div className="h-7 w-3/5 rounded-full bg-zinc-200" />
+                <div className="h-7 w-3/5 rounded-full bg-line" />
               ) : null}
             </div>
             <div className="mt-3 flex gap-2">
-              <div className="h-4 w-20 rounded-full bg-zinc-200" />
-              <div className="h-4 w-24 rounded-full bg-zinc-200" />
+              <div className="h-4 w-20 rounded-full bg-line" />
+              <div className="h-4 w-24 rounded-full bg-line" />
             </div>
           </div>
-          <div className="h-10 w-24 rounded-full bg-zinc-200" />
+          <div className="h-10 w-24 rounded-full bg-line" />
         </div>
       </div>
     </article>

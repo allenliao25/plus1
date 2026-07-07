@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties, type PointerEvent } from "react";
+import JoinButton from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
 import {
@@ -26,9 +27,7 @@ export default function HolographicQuestCard({
   onJoin,
   onOpen,
 }: HolographicQuestCardProps) {
-  const isJoinable = quest.status === "open";
   const isFull = isQuestFull(quest);
-  const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
   const isImmersive = variant === "immersive";
   const isShare = variant === "share";
   const isCompact = !isImmersive && !isShare;
@@ -39,18 +38,17 @@ export default function HolographicQuestCard({
   const [didImageFail, setDidImageFail] = useState(false);
   const hasImage = Boolean(quest.cardImageUrl && !didImageFail);
   const cardShape = isImmersive || isShare
-    ? "aspect-[4/5] rounded-[1.75rem]"
-    : "aspect-[5/4] rounded-[1.35rem]";
+    ? "aspect-[4/5] rounded-hero"
+    : "aspect-[5/4] rounded-card";
   const overlayInset = isImmersive || isShare ? "inset-x-3.5 bottom-3.5" : "inset-x-3 bottom-3";
   const overlayPadding = isImmersive || isShare ? "p-3.5" : "p-3";
-  const titleSize = isImmersive || isShare ? "text-[1.55rem]" : "text-[1.22rem]";
-  const ctaWidth = isImmersive || isShare ? "min-w-[7rem]" : "min-w-[6.25rem]";
+  const titleSize = isImmersive || isShare ? "text-2xl" : "text-xl";
 
   if (isCompact) {
     return (
       <article
         data-category={quest.category}
-        className="event-card relative overflow-hidden rounded-[1.15rem] border border-zinc-200 bg-white p-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)]"
+        className="event-card relative overflow-hidden rounded-card-sm border border-line bg-surface p-2.5 shadow-card"
       >
         {onOpen ? (
           <button
@@ -62,7 +60,7 @@ export default function HolographicQuestCard({
         ) : null}
 
         <div className="pointer-events-none relative z-20 grid grid-cols-[4.75rem_1fr_auto] items-center gap-3">
-          <div className="holo-thumb relative aspect-square overflow-hidden rounded-[0.95rem] bg-zinc-950">
+          <div className="holo-thumb relative aspect-square overflow-hidden rounded-2xl bg-ink">
             {hasImage ? (
               <SafeImage
                 src={quest.cardImageUrl!}
@@ -83,42 +81,30 @@ export default function HolographicQuestCard({
           <div className="min-w-0 py-0.5">
             <div className="flex items-center gap-1.5">
               {status ? (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.6rem] font-extrabold uppercase tracking-[0.1em] text-zinc-500">
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-extrabold uppercase tracking-caps text-muted">
                   {status}
                 </span>
               ) : null}
             </div>
-            <h3 className="mt-0.5 line-clamp-2 text-[1.02rem] font-bold leading-[1.08] tracking-normal text-zinc-950">
+            <h3 className="mt-0.5 line-clamp-2 text-base font-bold leading-none tracking-normal text-ink">
               {quest.title}
             </h3>
-            <p className="mt-1.5 line-clamp-2 text-[0.72rem] font-semibold leading-4 text-zinc-500">
+            <p className="mt-1.5 line-clamp-2 text-xs font-semibold leading-4 text-muted">
               {context}
             </p>
-            <p className="mt-1 truncate text-[0.72rem] font-bold leading-4 text-zinc-700">
+            <p className="mt-1 truncate text-xs font-bold leading-4 text-ink-soft">
               {socialProof}
             </p>
           </div>
 
           {showActions && onJoin ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onJoin(quest.id);
-              }}
-              disabled={!isJoinable || isFull || isJoined || isJoining}
-              className={`pointer-events-auto min-h-9 min-w-[5.7rem] rounded-full px-3 py-1.5 text-xs font-bold transition active:scale-95 ${
-                isJoined
-                  ? "glass-chip border text-zinc-500"
-                  : !isJoinable || isFull
-                    ? "glass-chip border text-zinc-400"
-                  : isJoining
-                    ? "glass-chip border text-zinc-500"
-                    : "bg-zinc-950 text-white hover:bg-zinc-800"
-              }`}
-            >
-              {joinLabel({ isFull, isJoined, isJoinable, isJoining, quest })}
-            </button>
+            <JoinButton
+              quest={quest}
+              isJoining={isJoining}
+              onJoin={onJoin}
+              variant="solid"
+              size="compact"
+            />
           ) : null}
         </div>
       </article>
@@ -131,7 +117,7 @@ export default function HolographicQuestCard({
       onPointerMove={handleTiltPointerMove}
       onPointerLeave={handleTiltPointerLeave}
       style={tiltStyle}
-      className={`event-card group relative overflow-hidden border border-zinc-200 bg-zinc-950 text-white shadow-[0_16px_44px_rgba(15,23,42,0.14)] ${cardShape}`}
+      className={`event-card group relative overflow-hidden border border-line bg-ink text-white shadow-overlay ${cardShape}`}
     >
       <div className="absolute inset-0">
         {hasImage ? (
@@ -170,50 +156,38 @@ export default function HolographicQuestCard({
 
       <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1.5">
         {status ? (
-          <span className="glass-overlay rounded-full border px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.12em] text-white">
+          <span className="glass-overlay rounded-full border px-2.5 py-1 text-2xs font-bold uppercase tracking-caps text-white">
             {status}
           </span>
         ) : null}
       </div>
 
       <div
-        className={`glass-overlay event-card-deck pointer-events-none absolute z-20 ${overlayInset} ${overlayPadding} rounded-[1.15rem] border`}
+        className={`glass-overlay event-card-deck pointer-events-none absolute z-20 ${overlayInset} ${overlayPadding} rounded-card-sm border`}
       >
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
             <h3
-              className={`line-clamp-2 min-w-0 font-bold leading-[1.02] tracking-normal text-white [text-shadow:0_3px_16px_rgba(0,0,0,0.80)] ${titleSize}`}
+              className={`line-clamp-2 min-w-0 font-bold leading-none tracking-normal text-white [text-shadow:0_3px_16px_rgba(0,0,0,0.80)] ${titleSize}`}
             >
               {quest.title}
             </h3>
-            <p className="mt-2 line-clamp-2 text-[0.78rem] font-semibold leading-5 text-white/82 [text-shadow:0_2px_9px_rgba(0,0,0,0.72)]">
+            <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-white/80 [text-shadow:0_2px_9px_rgba(0,0,0,0.72)]">
               {context}
             </p>
-            <p className="mt-1 truncate text-[0.78rem] font-bold leading-5 text-white/92 [text-shadow:0_2px_9px_rgba(0,0,0,0.72)]">
+            <p className="mt-1 truncate text-sm font-bold leading-5 text-white/90 [text-shadow:0_2px_9px_rgba(0,0,0,0.72)]">
               {socialProof}
             </p>
           </div>
 
           {showActions && onJoin ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onJoin(quest.id);
-              }}
-              disabled={!isJoinable || isFull || isJoined || isJoining}
-              className={`pointer-events-auto min-h-10 shrink-0 rounded-full px-3.5 py-2 text-sm font-bold transition ${ctaWidth} ${
-                isJoined
-                  ? "glass-action border text-zinc-950"
-                  : !isJoinable || isFull
-                    ? "bg-white/12 text-white/55 ring-1 ring-white/12"
-                  : isJoining
-                    ? "bg-white/24 text-white/72 ring-1 ring-white/12"
-                      : "glass-action border text-zinc-950 hover:bg-white/90"
-              }`}
-            >
-              {joinLabel({ isFull, isJoined, isJoinable, isJoining, quest })}
-            </button>
+            <JoinButton
+              quest={quest}
+              isJoining={isJoining}
+              onJoin={onJoin}
+              variant="glass"
+              size="immersive"
+            />
           ) : null}
         </div>
       </div>
@@ -269,32 +243,4 @@ function statusLabel(quest: Quest, isFull: boolean) {
   }
 
   return isFull ? "Full" : null;
-}
-
-function joinLabel({
-  isFull,
-  isJoined,
-  isJoinable,
-  isJoining,
-  quest,
-}: {
-  isFull: boolean;
-  isJoined: boolean;
-  isJoinable: boolean;
-  isJoining: boolean;
-  quest: Quest;
-}) {
-  if (isJoined) {
-    return "You're in";
-  }
-
-  if (!isJoinable) {
-    return quest.status === "closed" ? "Closed" : "Past";
-  }
-
-  if (isJoining) {
-    return "Joining...";
-  }
-
-  return isFull ? "Full" : "Join";
 }

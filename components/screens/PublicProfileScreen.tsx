@@ -44,12 +44,12 @@ export default function PublicProfileScreen({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-40 animate-pulse rounded-[1.75rem] bg-zinc-100" />
-        <div className="-mx-5 grid grid-cols-3 gap-[1px] bg-zinc-200">
+        <div className="h-40 animate-pulse rounded-hero bg-surface-2" />
+        <div className="-mx-5 grid grid-cols-3 gap-[1px] bg-line">
           {Array.from({ length: 9 }).map((_, index) => (
             <div
               key={index}
-              className="aspect-square animate-pulse bg-zinc-100"
+              className="aspect-square animate-pulse bg-surface-2"
             />
           ))}
         </div>
@@ -59,9 +59,9 @@ export default function PublicProfileScreen({
 
   if (!profile) {
     return (
-      <div className="rounded-[1.75rem] border border-zinc-200 bg-white/76 p-5 text-center">
-        <p className="text-sm font-bold text-zinc-900">Profile unavailable.</p>
-        <p className="mt-1 text-sm text-zinc-500">
+      <div className="rounded-hero border border-line bg-white/80 p-5 text-center">
+        <p className="text-sm font-bold text-ink">Profile unavailable.</p>
+        <p className="mt-1 text-sm text-muted">
           This person may no longer be visible.
         </p>
       </div>
@@ -75,12 +75,12 @@ export default function PublicProfileScreen({
           <ProfileAvatar profile={profile} />
 
           <div className="min-w-0 space-y-2.5">
-            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[17px] leading-6 text-zinc-950">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-base leading-6 text-ink">
               <span className="min-w-0 max-w-full truncate font-extrabold">
                 {profile.displayName}
               </span>
               {profile.pronouns ? (
-                <span className="shrink-0 font-semibold text-zinc-500">
+                <span className="shrink-0 font-semibold text-muted">
                   {profile.pronouns}
                 </span>
               ) : null}
@@ -104,10 +104,10 @@ export default function PublicProfileScreen({
 
         <div className="space-y-1">
           {profile.area ? (
-            <p className="text-sm text-zinc-500">{profile.area}</p>
+            <p className="text-sm text-muted">{profile.area}</p>
           ) : null}
           {profile.bio ? (
-            <p className="whitespace-pre-line text-sm leading-6 text-zinc-700">
+            <p className="whitespace-pre-line text-sm leading-6 text-ink-soft">
               {profile.bio}
             </p>
           ) : null}
@@ -136,7 +136,7 @@ export default function PublicProfileScreen({
             <button
               type="button"
               onClick={() => onMessageProfile(profile.id)}
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98]"
+              className="pressable inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-surface-2 px-3 text-sm font-bold text-ink"
             >
               <MessageCircle size={16} strokeWidth={2.2} aria-hidden="true" />
               Message
@@ -149,7 +149,7 @@ export default function PublicProfileScreen({
             {profile.interests.map((interest) => (
               <span
                 key={interest}
-                className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-extrabold text-zinc-600"
+                className="rounded-full bg-surface-2 px-3 py-1 text-xs font-extrabold text-muted"
               >
                 {interest}
               </span>

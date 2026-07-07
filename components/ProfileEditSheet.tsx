@@ -319,7 +319,7 @@ function useProfileEditSheetContent({
     : CROP_PREVIEW_SIZE;
 
   const editor = (
-    <div className="fixed inset-0 z-50 bg-white/72 text-zinc-950 backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 bg-white/72 text-ink backdrop-blur-2xl">
       <form
         onSubmit={handleSubmit}
         className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
@@ -330,18 +330,18 @@ function useProfileEditSheetContent({
             disabled={isSaving}
             onClick={onCancel}
             aria-label="Cancel profile edits"
-            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-700 transition hover:text-zinc-950 disabled:opacity-50"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-ink-soft transition hover:text-ink disabled:opacity-50"
           >
             Cancel
           </button>
-          <h3 className="text-base font-bold text-zinc-950">
+          <h3 className="text-base font-bold text-ink">
             Edit profile
           </h3>
           <button
             type="submit"
             disabled={!canSave}
             aria-label="Save profile"
-            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-950 transition hover:text-zinc-700 disabled:text-zinc-300"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-ink transition hover:text-ink-soft disabled:text-faint"
           >
             {isSaving ? "Saving" : "Save"}
           </button>
@@ -360,7 +360,7 @@ function useProfileEditSheetContent({
                   className="aspect-square size-24 rounded-full object-cover"
                 />
               ) : (
-                <span className="grid size-24 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white">
+                <span className="grid size-24 place-items-center rounded-full bg-ink text-2xl font-semibold text-white">
                   {profile.avatarInitials}
                 </span>
               )}
@@ -370,7 +370,7 @@ function useProfileEditSheetContent({
                 type="button"
                 disabled={isSaving}
                 onClick={() => cameraFileInputRef.current?.click()}
-                className="glass-ignite min-h-10 rounded-full px-4 text-sm font-bold text-white shadow-[0_14px_28px_rgba(244,114,182,0.2)] transition hover:brightness-105 disabled:opacity-50"
+                className="glass-ignite min-h-10 rounded-full px-4 text-sm font-bold text-white shadow-glow transition hover:brightness-105 disabled:opacity-50"
               >
                 Take photo
               </button>
@@ -378,7 +378,7 @@ function useProfileEditSheetContent({
                 type="button"
                 disabled={isSaving}
                 onClick={() => libraryFileInputRef.current?.click()}
-                className="glass-chip min-h-10 rounded-full border px-4 text-sm font-bold text-zinc-950 transition hover:bg-white/80 disabled:opacity-50"
+                className="glass-chip min-h-10 rounded-full border px-4 text-sm font-bold text-ink transition hover:bg-white/80 disabled:opacity-50"
               >
                 Choose photo
               </button>
@@ -407,7 +407,7 @@ function useProfileEditSheetContent({
             </p>
           ) : null}
 
-          <div className="glass-panel mt-6 divide-y divide-zinc-100 rounded-2xl border">
+          <div className="glass-panel mt-6 divide-y divide-surface-2 rounded-2xl border">
             <ProfileField label="Name">
               <input
                 aria-label="Name"
@@ -420,7 +420,7 @@ function useProfileEditSheetContent({
                   setDisplayName(event.target.value);
                 }}
                 placeholder="Your name"
-                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-ink outline-none placeholder:text-faint"
               />
             </ProfileField>
 
@@ -438,7 +438,7 @@ function useProfileEditSheetContent({
                 autoCapitalize="none"
                 autoCorrect="off"
                 placeholder="your.handle"
-                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-ink outline-none placeholder:text-faint"
               />
             </ProfileField>
 
@@ -455,7 +455,7 @@ function useProfileEditSheetContent({
                 autoCapitalize="none"
                 autoCorrect="off"
                 placeholder="Optional"
-                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full bg-transparent text-base text-ink outline-none placeholder:text-faint"
               />
             </ProfileField>
 
@@ -467,7 +467,7 @@ function useProfileEditSheetContent({
                   clearLocalErrors();
                   setArea(event.target.value);
                 }}
-                className="min-w-0 w-full bg-transparent text-base text-zinc-950 outline-none"
+                className="min-w-0 w-full bg-transparent text-base text-ink outline-none"
               >
                 {AREA_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -488,12 +488,12 @@ function useProfileEditSheetContent({
                   setBio(event.target.value);
                 }}
                 placeholder="Tell people what you're about."
-                className="min-w-0 w-full resize-none bg-transparent text-base leading-6 text-zinc-950 outline-none placeholder:text-zinc-400"
+                className="min-w-0 w-full resize-none bg-transparent text-base leading-6 text-ink outline-none placeholder:text-faint"
               />
             </ProfileField>
           </div>
 
-          <div className="mt-2 flex items-center justify-between gap-3 text-xs font-medium text-zinc-400">
+          <div className="mt-2 flex items-center justify-between gap-3 text-xs font-medium text-faint">
             <span>Handles use letters, numbers, periods, and underscores.</span>
             <span>{normalizedBio.length}/150</span>
           </div>
@@ -508,7 +508,7 @@ function useProfileEditSheetContent({
           <button
             type="submit"
             disabled={!canSave}
-            className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className="min-h-12 w-full rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-ink-hover disabled:cursor-not-allowed disabled:bg-faint"
           >
             {isSaving ? "Saving profile..." : isDirty ? "Save changes" : "No changes"}
           </button>
@@ -517,18 +517,18 @@ function useProfileEditSheetContent({
 
       {cropSourceUrl ? (
         <div className="absolute inset-0 z-30 grid place-items-center bg-white/62 px-5 backdrop-blur-2xl">
-          <div className="glass-panel w-full max-w-[360px] rounded-[2rem] border p-5">
+          <div className="glass-panel w-full max-w-[360px] rounded-hero border p-5">
             <div className="text-center">
-              <h3 className="text-lg font-bold text-zinc-950">
+              <h3 className="text-lg font-bold text-ink">
                 Adjust profile photo
               </h3>
-              <p className="mt-1 text-sm leading-5 text-zinc-500">
+              <p className="mt-1 text-sm leading-5 text-muted">
                 Drag and zoom so it fits the circle.
               </p>
             </div>
 
             <div
-              className={`relative mx-auto mt-5 aspect-square w-[260px] touch-none overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200 ${
+              className={`relative mx-auto mt-5 aspect-square w-[260px] touch-none overflow-hidden rounded-full bg-surface-2 ring-1 ring-line ${
                 isCropDragging ? "cursor-grabbing" : "cursor-grab"
               }`}
               onPointerDown={handleCropPointerDown}
@@ -563,7 +563,7 @@ function useProfileEditSheetContent({
             </div>
 
             <label className="mt-5 block">
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-zinc-400">
+              <span className="text-xs font-bold uppercase tracking-caps text-faint">
                 Zoom
               </span>
               <input
@@ -573,7 +573,7 @@ function useProfileEditSheetContent({
                 step="0.01"
                 value={cropZoom}
                 onChange={(event) => handleCropZoom(Number(event.target.value))}
-                className="mt-3 w-full accent-zinc-950"
+                className="mt-3 w-full accent-ink"
               />
             </label>
 
@@ -581,14 +581,14 @@ function useProfileEditSheetContent({
               <button
                 type="button"
                 onClick={handleCancelCrop}
-                className="min-h-11 rounded-full bg-zinc-100 px-4 text-sm font-bold text-zinc-950 transition hover:bg-zinc-200"
+                className="min-h-11 rounded-full bg-surface-2 px-4 text-sm font-bold text-ink transition hover:bg-line"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleApplyCrop}
-                className="min-h-11 rounded-full bg-zinc-950 px-4 text-sm font-bold text-white transition hover:bg-zinc-800"
+                className="min-h-11 rounded-full bg-ink px-4 text-sm font-bold text-white transition hover:bg-ink-hover"
               >
                 Use photo
               </button>
@@ -725,7 +725,7 @@ function ProfileField({
 }) {
   return (
     <label className="grid gap-2 px-4 py-3.5">
-      <span className="text-sm font-bold text-zinc-700">{label}</span>
+      <span className="text-sm font-bold text-ink-soft">{label}</span>
       <span className="min-w-0">{children}</span>
     </label>
   );

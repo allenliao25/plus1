@@ -210,7 +210,7 @@ function useEditQuestModalContent({
   }, [cardImagePreviewUrl]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white/72 text-zinc-950 backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 bg-white/72 text-ink backdrop-blur-2xl">
       <form
         onSubmit={handleSubmit}
         className="mx-auto flex h-[var(--plus1-app-height,100vh)] w-full max-w-[480px] flex-col overflow-hidden bg-white"
@@ -220,15 +220,15 @@ function useEditQuestModalContent({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-700 transition hover:text-zinc-950 disabled:opacity-50"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-ink-soft transition hover:text-ink disabled:opacity-50"
           >
             Cancel
           </button>
-          <h3 className="text-base font-bold tracking-tight text-zinc-950">Edit event</h3>
+          <h3 className="text-base font-bold tracking-tight text-ink">Edit event</h3>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="min-h-10 rounded-full px-1 text-sm font-bold text-zinc-950 transition hover:text-zinc-700 disabled:text-zinc-300"
+            className="min-h-10 rounded-full px-1 text-sm font-bold text-ink transition hover:text-ink-soft disabled:text-faint"
           >
             {isSubmitting ? "Saving" : "Save"}
           </button>
@@ -236,16 +236,16 @@ function useEditQuestModalContent({
 
         <div className="app-scroll min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Title</span>
+            <span className="text-sm font-bold text-ink-soft">Title</span>
             <input
               value={form.title}
               onChange={(event) => updateForm("title", event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+              className="mt-2 w-full rounded-2xl border border-line bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
             />
           </label>
 
           <div>
-            <p className="text-sm font-bold text-zinc-800">Category</p>
+            <p className="text-sm font-bold text-ink-soft">Category</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {questCategories.map((category) => {
                 const isSelected = form.category === category;
@@ -257,8 +257,8 @@ function useEditQuestModalContent({
                     onClick={() => updateForm("category", category as QuestCategory)}
                     className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
                       isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
-                        : "glass-chip border text-zinc-700 hover:bg-white/80"
+                        ? "border-ink bg-ink text-white shadow-sm"
+                        : "glass-chip border text-ink-soft hover:bg-white/80"
                     }`}
                   >
                     {category}
@@ -270,7 +270,7 @@ function useEditQuestModalContent({
 
           <div>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold text-zinc-800">Card photo</p>
+              <p className="text-sm font-bold text-ink-soft">Card photo</p>
               {cardImagePreviewUrl ? (
                 <button
                   type="button"
@@ -281,7 +281,7 @@ function useEditQuestModalContent({
                     setRemoveCardImage(true);
                     setCardImageError("");
                   }}
-                  className="glass-chip inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
+                  className="glass-chip inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-ink-soft transition hover:bg-white/80 disabled:opacity-50"
                 >
                   <X size={14} strokeWidth={2} aria-hidden="true" />
                   Remove
@@ -293,7 +293,7 @@ function useEditQuestModalContent({
               disabled={isSubmitting}
               onClick={() => cardImageInputRef.current?.click()}
               data-category={form.category}
-              className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-white text-left transition hover:border-zinc-400 disabled:opacity-50"
+              className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-line bg-white text-left transition hover:border-faint disabled:opacity-50"
             >
               {cardImagePreviewUrl ? (
                 <SafeImage
@@ -309,7 +309,7 @@ function useEditQuestModalContent({
                     category={form.category}
                     className="absolute inset-0 h-full w-full"
                   />
-                  <span className="absolute inset-0 bg-black/16" />
+                  <span className="absolute inset-0 bg-black/20" />
                   <span className="glass-overlay absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border p-3 text-white">
                     <span>
                       <span className="block text-sm font-bold">
@@ -319,7 +319,7 @@ function useEditQuestModalContent({
                         Upload a photo anytime.
                       </span>
                     </span>
-                    <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-zinc-800">
+                    <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-ink-soft">
                       <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
                     </span>
                   </span>
@@ -343,16 +343,16 @@ function useEditQuestModalContent({
           </div>
 
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Location</span>
+            <span className="text-sm font-bold text-ink-soft">Location</span>
             <input
               value={form.location}
               onChange={(event) => updateForm("location", event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+              className="mt-2 w-full rounded-2xl border border-line bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
             />
           </label>
 
           <div>
-            <p className="text-sm font-bold text-zinc-800">Time</p>
+            <p className="text-sm font-bold text-ink-soft">Time</p>
             <div className="glass-panel mt-2 grid grid-cols-2 gap-2 rounded-full border p-1">
               {(["asap", "scheduled"] as TimeMode[]).map((mode) => (
                 <button
@@ -362,8 +362,8 @@ function useEditQuestModalContent({
                   disabled={isSubmitting}
                   className={`min-h-10 rounded-full px-3 py-2 text-sm font-bold transition disabled:opacity-50 ${
                     timeMode === mode
-                      ? "bg-zinc-950 text-white shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800"
+                      ? "bg-ink text-white shadow-sm"
+                      : "text-muted hover:text-ink-soft"
                   }`}
                 >
                   {mode === "asap" ? "ASAP" : "Pick time"}
@@ -376,27 +376,27 @@ function useEditQuestModalContent({
                 type="datetime-local"
                 value={form.startTime}
                 onChange={(event) => updateForm("startTime", event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+                className="mt-2 w-full rounded-2xl border border-line bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
               />
             ) : (
-              <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-600">
+              <p className="mt-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-sm font-semibold text-muted">
                 Shows as ASAP and stays open until you close it.
               </p>
             )}
           </div>
 
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Description</span>
+            <span className="text-sm font-bold text-ink-soft">Description</span>
             <textarea
               value={form.description}
               onChange={(event) => updateForm("description", event.target.value)}
               rows={4}
-              className="mt-2 w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+              className="mt-2 w-full resize-none rounded-2xl border border-line bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-bold text-zinc-800">Max people</span>
+            <span className="text-sm font-bold text-ink-soft">Max people</span>
             <input
               type="number"
               min={quest.goingCount}
@@ -409,12 +409,12 @@ function useEditQuestModalContent({
                   event.target.value ? Number(event.target.value) : null,
                 )
               }
-              className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+              className="mt-2 w-full rounded-2xl border border-line bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
             />
           </label>
 
           <div>
-            <p className="text-sm font-bold text-zinc-800">Who can see this?</p>
+            <p className="text-sm font-bold text-ink-soft">Who can see this?</p>
             <div className="glass-panel mt-2 grid grid-cols-3 gap-1 rounded-full border p-1">
               {visibilityOptions.map((option) => {
                 const isSelected = (form.visibility ?? "local") === option.value;
@@ -427,8 +427,8 @@ function useEditQuestModalContent({
                     onClick={() => updateForm("visibility", option.value)}
                     className={`min-h-10 rounded-full px-2 py-2 text-sm font-bold transition disabled:opacity-50 ${
                       isSelected
-                        ? "bg-zinc-950 text-white shadow-sm"
-                        : "text-zinc-500 hover:text-zinc-800"
+                        ? "bg-ink text-white shadow-sm"
+                        : "text-muted hover:text-ink-soft"
                     }`}
                   >
                     {option.label}
@@ -436,7 +436,7 @@ function useEditQuestModalContent({
                 );
               })}
             </div>
-            <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold leading-6 text-zinc-600">
+            <p className="mt-2 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-sm font-semibold leading-6 text-muted">
               {
                 visibilityOptions.find(
                   (option) => option.value === (form.visibility ?? "local"),
@@ -466,14 +466,14 @@ function useEditQuestModalContent({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="glass-chip min-h-12 flex-1 rounded-full border px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
+              className="glass-chip min-h-12 flex-1 rounded-full border px-4 py-3 text-sm font-bold text-ink-soft transition hover:bg-white/80 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="min-h-12 flex-1 rounded-full bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:bg-zinc-300"
+              className="min-h-12 flex-1 rounded-full bg-ink px-4 py-3 text-sm font-bold text-white transition hover:bg-ink-hover disabled:bg-faint"
             >
               {isSubmitting ? "Saving…" : "Save changes"}
             </button>

@@ -56,9 +56,9 @@ export default function ChatThreadScreen({
 
   if (!thread) {
     return (
-      <div className="glass-panel rounded-[1.35rem] border p-5 text-center">
-        <p className="text-sm font-extrabold text-zinc-950">Chat unavailable.</p>
-        <p className="mt-1 text-sm font-semibold text-zinc-500">
+      <div className="glass-panel rounded-card border p-5 text-center">
+        <p className="text-sm font-extrabold text-ink">Chat unavailable.</p>
+        <p className="mt-1 text-sm font-semibold text-muted">
           This conversation may no longer be visible.
         </p>
       </div>
@@ -69,9 +69,9 @@ export default function ChatThreadScreen({
     <div className="flex h-full min-h-0 flex-col">
       <section className="app-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
         <div className="mx-auto max-w-[16rem] pb-2 text-center">
-          <p className="text-sm font-extrabold text-zinc-950">{thread.title}</p>
+          <p className="text-sm font-extrabold text-ink">{thread.title}</p>
           {thread.subtitle ? (
-            <p className="mt-0.5 text-xs font-bold text-zinc-400">
+            <p className="mt-0.5 text-xs font-bold text-faint">
               {thread.subtitle}
             </p>
           ) : null}
@@ -79,15 +79,15 @@ export default function ChatThreadScreen({
 
         {isLoading ? (
           <div className="space-y-2">
-            <div className="h-10 w-3/4 animate-pulse rounded-3xl bg-zinc-100" />
+            <div className="h-10 w-3/4 animate-pulse rounded-3xl bg-surface-2" />
             <div className="ml-auto h-10 w-2/3 animate-pulse rounded-3xl bg-zinc-900/10" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="glass-panel rounded-[1.35rem] border p-6 text-center">
-            <p className="text-sm font-extrabold text-zinc-950">
+          <div className="glass-panel rounded-card border p-6 text-center">
+            <p className="text-sm font-extrabold text-ink">
               Start the conversation
             </p>
-            <p className="mt-1 text-sm font-semibold leading-5 text-zinc-500">
+            <p className="mt-1 text-sm font-semibold leading-5 text-muted">
               Keep it simple: plans, timing, and where to meet.
             </p>
           </div>
@@ -119,9 +119,9 @@ export default function ChatThreadScreen({
 
       <form
         onSubmit={handleSubmit}
-        className="-mx-5 shrink-0 border-t border-zinc-200/70 bg-white/94 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-3 backdrop-blur"
+        className="-mx-5 shrink-0 border-t border-line/70 bg-white/90 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur"
       >
-        <div className="glass-panel flex min-h-12 items-end gap-2 rounded-[1.45rem] border p-2 shadow-[0_14px_34px_rgba(24,24,27,0.08)]">
+        <div className="glass-panel flex min-h-12 items-end gap-2 rounded-card border p-2 shadow-raised">
           <textarea
             aria-label="Message"
             ref={inputRef}
@@ -131,13 +131,13 @@ export default function ChatThreadScreen({
             onKeyDown={handleKeyDown}
             enterKeyHint="send"
             placeholder="Message"
-            className="max-h-28 min-h-8 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] font-medium leading-5 text-zinc-950 outline-none placeholder:text-zinc-400"
+            className="max-h-28 min-h-8 flex-1 resize-none bg-transparent px-2 py-1.5 text-md font-medium leading-5 text-ink outline-none placeholder:text-faint"
           />
           <button
             type="submit"
             disabled={!body.trim() || isSending}
             aria-label="Send message"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-zinc-950 text-white transition active:scale-95 disabled:bg-zinc-200 disabled:text-zinc-400"
+            className="pressable grid size-9 shrink-0 place-items-center rounded-full bg-ink text-white disabled:bg-line disabled:text-faint"
           >
             <Send size={17} strokeWidth={2.4} aria-hidden="true" />
           </button>
@@ -187,20 +187,20 @@ function MessageBubble({
       <div
         className={`max-w-[78%] px-4 py-2.5 text-sm leading-5 ${bubbleShape} ${
           message.isMine
-            ? "bg-zinc-950 text-white"
-            : "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-200/60"
+            ? "bg-ink text-white"
+            : "bg-surface-2 text-ink ring-1 ring-line/60"
         }`}
       >
         {senderName ? (
-          <p className="mb-1 text-[0.7rem] font-extrabold text-zinc-400">
+          <p className="mb-1 text-xs font-extrabold text-faint">
             {senderName}
           </p>
         ) : null}
         <p className="whitespace-pre-wrap break-words font-medium">{message.body}</p>
         {isLastInGroup && createdAtRelative ? (
           <p
-            className={`mt-1 text-[0.68rem] font-bold ${
-              message.isMine ? "text-white/58" : "text-zinc-400"
+            className={`mt-1 text-xs font-bold ${
+              message.isMine ? "text-white/60" : "text-faint"
             }`}
           >
             {createdAtRelative}
@@ -222,13 +222,13 @@ function MessageAvatar({ message }: { message: ChatMessage }) {
         alt=""
         width={32}
         height={32}
-        className="size-8 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-8 rounded-full object-cover ring-1 ring-line"
       />
     );
   }
 
   return (
-    <span className="grid size-8 place-items-center rounded-full bg-zinc-950 text-[0.68rem] font-extrabold text-white ring-1 ring-zinc-200">
+    <span className="grid size-8 place-items-center rounded-full bg-ink text-xs font-extrabold text-white ring-1 ring-line">
       {initials}
     </span>
   );
@@ -245,25 +245,25 @@ function getBubbleShape({
 }) {
   if (isMine) {
     if (isFirstInGroup && isLastInGroup) {
-      return "rounded-[1.35rem] rounded-br-md";
+      return "rounded-card rounded-br-md";
     }
     if (isFirstInGroup) {
-      return "rounded-[1.35rem] rounded-br-md rounded-tr-[1.35rem]";
+      return "rounded-card rounded-br-md rounded-tr-card";
     }
     if (isLastInGroup) {
-      return "rounded-[1.35rem] rounded-tr-md rounded-br-md";
+      return "rounded-card rounded-tr-md rounded-br-md";
     }
-    return "rounded-[1.35rem] rounded-r-md";
+    return "rounded-card rounded-r-md";
   }
 
   if (isFirstInGroup && isLastInGroup) {
-    return "rounded-[1.35rem] rounded-bl-md";
+    return "rounded-card rounded-bl-md";
   }
   if (isFirstInGroup) {
-    return "rounded-[1.35rem] rounded-bl-md rounded-tl-[1.35rem]";
+    return "rounded-card rounded-bl-md rounded-tl-card";
   }
   if (isLastInGroup) {
-    return "rounded-[1.35rem] rounded-tl-md rounded-bl-md";
+    return "rounded-card rounded-tl-md rounded-bl-md";
   }
-  return "rounded-[1.35rem] rounded-l-md";
+  return "rounded-card rounded-l-md";
 }

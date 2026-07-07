@@ -78,21 +78,21 @@ export default async function SharePage({ params }: SharePageProps) {
 
   if (!share) {
     return (
-      <main className="min-h-lvh overflow-y-auto bg-zinc-50 px-5 py-8 text-zinc-950">
+      <main className="min-h-lvh overflow-y-auto bg-surface-2 px-5 py-8 text-ink">
         <section className="mx-auto flex min-h-[70vh] max-w-[28rem] flex-col justify-center">
-          <div className="rounded-[2rem] border border-zinc-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-zinc-400">
+          <div className="rounded-hero border border-line bg-white p-6 text-center shadow-sm">
+            <p className="text-xs font-extrabold uppercase tracking-caps text-faint">
               plus1
             </p>
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight">
               Event unavailable
             </h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-500">
+            <p className="mt-3 text-sm leading-6 text-muted">
               This event link may have been revoked, removed, or mistyped.
             </p>
             <Link
               href="/"
-              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-extrabold text-white"
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-extrabold text-white"
             >
               Open plus1
             </Link>
@@ -117,12 +117,12 @@ export default async function SharePage({ params }: SharePageProps) {
           : null;
 
   return (
-    <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] p-5 text-zinc-950">
+    <main className="min-h-lvh overflow-y-auto bg-[#f7f7f5] p-5 text-ink">
       <section className="mx-auto flex min-h-[calc(100lvh-2.5rem)] max-w-[28rem] flex-col justify-center gap-4">
-        <div className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.12)]">
+        <div className="overflow-hidden rounded-hero border border-line bg-white shadow-raised">
           <div
             data-category={share.category}
-            className="holo-thumb relative aspect-[16/10] overflow-hidden bg-zinc-950"
+            className="holo-thumb relative aspect-[16/10] overflow-hidden bg-ink"
           >
             {share.cardImageUrl ? (
               <SafeImage
@@ -138,13 +138,13 @@ export default async function SharePage({ params }: SharePageProps) {
                 className="absolute inset-0 h-full w-full"
               />
             )}
-            <div className="absolute inset-0 bg-black/15" />
-            <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/76 to-transparent" />
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 text-white">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white/76">
+              <p className="text-xs font-extrabold uppercase tracking-caps text-white/80">
                 {share.category}
               </p>
-              <h1 className="mt-1 text-3xl font-extrabold leading-[0.96] tracking-tight [text-shadow:0_3px_18px_rgba(0,0,0,0.5)]">
+              <h1 className="mt-1 text-3xl font-extrabold leading-none tracking-tight [text-shadow:0_3px_18px_rgba(0,0,0,0.5)]">
                 {share.title}
               </h1>
             </div>
@@ -152,7 +152,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
           <div className="space-y-5 p-5">
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-extrabold text-zinc-700">
+              <span className="rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-extrabold text-ink-soft">
                 {visibilityLabel(share.visibility)}
               </span>
               <span
@@ -177,18 +177,18 @@ export default async function SharePage({ params }: SharePageProps) {
               />
             </div>
 
-            <p className="text-sm leading-6 text-zinc-600">
+            <p className="text-sm leading-6 text-muted">
               {share.description}
             </p>
 
-            <div className="rounded-2xl bg-zinc-50 p-4">
-              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-zinc-400">
+            <div className="rounded-2xl bg-surface-2 p-4">
+              <p className="text-xs font-extrabold uppercase tracking-caps text-faint">
                 Hosted by
               </p>
-              <p className="mt-1 text-sm font-extrabold text-zinc-950">
+              <p className="mt-1 text-sm font-extrabold text-ink">
                 {share.hostDisplayName}
                 {share.hostHandle ? (
-                  <span className="font-semibold text-zinc-500">
+                  <span className="font-semibold text-muted">
                     {" "}
                     @{share.hostHandle}
                   </span>
@@ -211,14 +211,14 @@ export default async function SharePage({ params }: SharePageProps) {
 
             <Link
               href={joinHref}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-zinc-200 bg-white px-5 text-sm font-extrabold text-zinc-700 transition hover:bg-zinc-50"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-extrabold text-ink-soft transition hover:bg-surface-2"
             >
               Have the app? Open in plus1
             </Link>
           </div>
         </div>
 
-        <p className="text-center text-xs font-semibold leading-5 text-zinc-500">
+        <p className="text-center text-xs font-semibold leading-5 text-muted">
           Viewing from Android or desktop? plus1 works in your browser too.
         </p>
       </section>
@@ -236,15 +236,15 @@ function Fact({
   value: string;
 }) {
   return (
-    <div className="grid grid-cols-[2.25rem_1fr] items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3">
-      <span className="grid size-9 place-items-center rounded-full bg-zinc-100 text-zinc-700">
+    <div className="grid grid-cols-[2.25rem_1fr] items-center gap-3 rounded-2xl border border-line bg-white p-3">
+      <span className="grid size-9 place-items-center rounded-full bg-surface-2 text-ink-soft">
         {icon}
       </span>
       <span>
-        <span className="block text-[0.65rem] font-extrabold uppercase tracking-[0.12em] text-zinc-400">
+        <span className="block text-xs font-extrabold uppercase tracking-caps text-faint">
           {label}
         </span>
-        <span className="block text-sm font-extrabold text-zinc-950">
+        <span className="block text-sm font-extrabold text-ink">
           {value}
         </span>
       </span>

@@ -123,27 +123,27 @@ export default function InvitePicker({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-bold text-zinc-800">Invite people</p>
+        <p className="text-sm font-bold text-ink-soft">Invite people</p>
         {selectedProfiles.length > 0 ? (
-          <span className="text-xs font-bold text-zinc-400">
+          <span className="text-xs font-bold text-faint">
             {selectedProfiles.length} selected
           </span>
         ) : null}
       </div>
 
-      <label className="mt-2 flex min-h-12 items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3 transition focus-within:border-zinc-400">
+      <label className="mt-2 flex min-h-12 items-center gap-2 rounded-2xl border border-line bg-white px-3 transition focus-within:border-faint">
         <Search
           size={16}
           strokeWidth={2}
           aria-hidden="true"
-          className="shrink-0 text-zinc-400"
+          className="shrink-0 text-faint"
         />
         <input
           value={query}
           disabled={disabled}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search name or @handle"
-          className="min-w-0 flex-1 bg-transparent py-3 text-sm font-semibold text-zinc-950 outline-none placeholder:text-zinc-400 disabled:opacity-50"
+          className="min-w-0 flex-1 bg-transparent py-3 text-sm font-semibold text-ink outline-none placeholder:text-faint disabled:opacity-50"
         />
       </label>
 
@@ -152,7 +152,7 @@ export default function InvitePicker({
           {selectedProfiles.map((profile) => (
             <span
               key={profile.id}
-              className="glass-chip inline-flex max-w-full items-center gap-2 rounded-full border py-1 pl-1 pr-2 text-xs font-bold text-zinc-700"
+              className="glass-chip inline-flex max-w-full items-center gap-2 rounded-full border py-1 pl-1 pr-2 text-xs font-bold text-ink-soft"
             >
               <Avatar profile={profile} />
               <span className="min-w-0 truncate">@{profile.handle}</span>
@@ -160,7 +160,7 @@ export default function InvitePicker({
                 type="button"
                 disabled={disabled}
                 onClick={() => removeProfile(profile.id)}
-                className="grid size-6 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-white hover:text-zinc-700 disabled:opacity-50"
+                className="grid size-6 shrink-0 place-items-center rounded-full text-faint transition hover:bg-white hover:text-ink-soft disabled:opacity-50"
                 aria-label={`Remove ${profile.displayName}`}
               >
                 <X size={13} strokeWidth={2.2} aria-hidden="true" />
@@ -171,29 +171,29 @@ export default function InvitePicker({
       ) : null}
 
       {normalizedQuery.length < 2 && availableFriends.length > 0 ? (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-          <p className="border-b border-zinc-100 px-3 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-zinc-400">
+        <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-white">
+          <p className="border-b border-surface-2 px-3 py-2 text-xs font-extrabold uppercase tracking-caps text-faint">
             Friends
           </p>
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-surface-2">
             {availableFriends.map((profile) => (
               <button
                 key={profile.id}
                 type="button"
                 disabled={disabled}
                 onClick={() => addProfile(profile)}
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-zinc-50 disabled:opacity-50"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-surface-2 disabled:opacity-50"
               >
                 <Avatar profile={profile} />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold text-zinc-900">
+                  <span className="block truncate text-sm font-bold text-ink">
                     {profile.displayName}
                   </span>
-                  <span className="block truncate text-xs font-semibold text-zinc-400">
+                  <span className="block truncate text-xs font-semibold text-faint">
                     @{profile.handle}
                   </span>
                 </span>
-                <span className="ml-auto rounded-full bg-zinc-100 px-2 py-1 text-[0.65rem] font-extrabold text-zinc-500">
+                <span className="ml-auto rounded-full bg-surface-2 px-2 py-1 text-xs font-extrabold text-muted">
                   Friend
                 </span>
               </button>
@@ -203,9 +203,9 @@ export default function InvitePicker({
       ) : null}
 
       {normalizedQuery.length >= 2 ? (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-white">
           {searchState.isSearching ? (
-            <p className="p-3 text-sm font-semibold text-zinc-500">
+            <p className="p-3 text-sm font-semibold text-muted">
               Searching…
             </p>
           ) : searchState.error ? (
@@ -213,21 +213,21 @@ export default function InvitePicker({
               {searchState.error}
             </p>
           ) : searchState.results.length > 0 ? (
-            <div className="divide-y divide-zinc-100">
+            <div className="divide-y divide-surface-2">
               {searchState.results.map((profile) => (
                 <button
                   key={profile.id}
                   type="button"
                   disabled={disabled}
                   onClick={() => addProfile(profile)}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-zinc-50 disabled:opacity-50"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-surface-2 disabled:opacity-50"
                 >
                   <Avatar profile={profile} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold text-zinc-900">
+                    <span className="block truncate text-sm font-bold text-ink">
                       {profile.displayName}
                     </span>
-                    <span className="block truncate text-xs font-semibold text-zinc-400">
+                    <span className="block truncate text-xs font-semibold text-faint">
                       @{profile.handle}
                     </span>
                   </span>
@@ -235,7 +235,7 @@ export default function InvitePicker({
               ))}
             </div>
           ) : (
-            <p className="p-3 text-sm font-semibold text-zinc-500">
+            <p className="p-3 text-sm font-semibold text-muted">
               No matching people.
             </p>
           )}
@@ -262,7 +262,7 @@ function Avatar({ profile }: { profile: QuestInviteProfile }) {
   }
 
   return (
-    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-900 text-[11px] font-bold text-white">
+    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink text-xs font-bold text-white">
       {profile.avatarInitials}
     </span>
   );

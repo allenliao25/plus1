@@ -84,12 +84,12 @@ export default function QuestShareCard({ quest }: QuestShareCardProps) {
         : "Private preview links must be enabled by the host.";
 
   return (
-    <div className="glass-panel space-y-2 rounded-[1.35rem] border p-2">
+    <div className="glass-panel space-y-2 rounded-card border p-2">
       <button
         type="button"
         onClick={handleShare}
         disabled={shareState === "sharing"}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition hover:bg-ink-hover"
       >
         <Share2 size={16} strokeWidth={2.4} aria-hidden="true" />
         {shareState === "sharing"
@@ -98,7 +98,7 @@ export default function QuestShareCard({ quest }: QuestShareCardProps) {
             ? "Link copied"
             : "Share event"}
       </button>
-      <p className="px-2 text-center text-xs font-semibold leading-5 text-zinc-500">
+      <p className="px-2 text-center text-xs font-semibold leading-5 text-muted">
         {shareError || helperText}
       </p>
     </div>

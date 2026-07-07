@@ -93,7 +93,7 @@ export default function HomeScreen({
 
       {canPreviewGrid ? (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          <p className="text-xs font-bold uppercase tracking-caps text-faint">
             Preview
           </p>
           <div className="glass-panel grid grid-cols-2 rounded-full border p-1">
@@ -104,8 +104,8 @@ export default function HomeScreen({
               aria-pressed={activeLayoutMode === "hybrid"}
               className={`grid h-8 w-10 place-items-center rounded-full transition ${
                 activeLayoutMode === "hybrid"
-                  ? "bg-white text-zinc-950 shadow-sm"
-                  : "text-zinc-500"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted"
               }`}
             >
               <Rows3 size={17} strokeWidth={2.2} aria-hidden="true" />
@@ -117,8 +117,8 @@ export default function HomeScreen({
               aria-pressed={activeLayoutMode === "grid"}
               className={`grid h-8 w-10 place-items-center rounded-full transition ${
                 activeLayoutMode === "grid"
-                  ? "bg-white text-zinc-950 shadow-sm"
-                  : "text-zinc-500"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted"
               }`}
             >
               <Grid2X2 size={17} strokeWidth={2.2} aria-hidden="true" />
@@ -155,10 +155,10 @@ export default function HomeScreen({
           {feedModel.rowQuests.length > 0 ? (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-zinc-950">
+                <h3 className="text-sm font-bold text-ink">
                   More nearby
                 </h3>
-                <span className="text-xs font-bold text-zinc-400">
+                <span className="text-xs font-bold text-faint">
                   {feedModel.rowQuests.length}
                 </span>
               </div>
@@ -201,10 +201,10 @@ function HomeFilterRail({
             type="button"
             onClick={() => onSelect(filter)}
             aria-pressed={isActive}
-            className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[15px] font-extrabold transition active:scale-[0.98] ${
+            className={`pressable min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-md font-extrabold ${
               isActive
-                ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
-                : "glass-chip border text-zinc-700 hover:bg-white/80"
+                ? "border-ink bg-ink text-white shadow-sm"
+                : "glass-chip border text-ink-soft hover:bg-white/80"
             }`}
           >
             {filter}
