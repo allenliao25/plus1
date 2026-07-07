@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { canViewQuestForContext } from "@/lib/eventVisibility";
-import type { Quest } from "@/types/quest";
+import type { Quest, QuestVisibility } from "@/types/quest";
 
 const context = {
   currentUserId: "viewer",
@@ -75,7 +75,7 @@ function makeQuest(changes: Partial<Quest> & { area?: string } = {}) {
   return {
     id: "event-1",
     creatorId: "host",
-    visibility: "local",
+    visibility: "local" as QuestVisibility,
     area: "Demo Area",
     createdByCurrentUser: false,
     joinedByCurrentUser: false,

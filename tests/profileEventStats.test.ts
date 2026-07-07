@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getProfileEventStats } from "@/lib/profileEventStats";
-import type { Quest } from "@/types/quest";
+import type { Quest, QuestAttendee } from "@/types/quest";
 
 test("profile event stats separate hosted and attended visible events", () => {
   const stats = getProfileEventStats(
@@ -9,7 +9,7 @@ test("profile event stats separate hosted and attended visible events", () => {
       makeQuest({ id: "hosted", creatorId: "profile-1" }),
       makeQuest({
         id: "attended",
-        attendees: [{ id: "profile-1", isHost: false }],
+        attendees: [makeAttendee("profile-1", false)],
         creatorId: "profile-2",
       }),
       makeQuest({
@@ -19,7 +19,7 @@ test("profile event stats separate hosted and attended visible events", () => {
       }),
       makeQuest({
         id: "unrelated",
-        attendees: [{ id: "profile-3", isHost: false }],
+        attendees: [makeAttendee("profile-3", false)],
         creatorId: "profile-2",
       }),
     ],
@@ -42,7 +42,7 @@ test("profile event stats do not double-count host attendee rows as attended", (
     [
       makeQuest({
         id: "host-attendee",
-        attendees: [{ id: "profile-1", isHost: true }],
+        attendees: [makeAttendee("profile-1", true)],
         creatorId: "profile-1",
       }),
     ],
@@ -71,6 +71,16 @@ test("profile event stats only use current-user flags when requested", () => {
     1,
   );
 });
+
+function makeAttendee(id: string, isHost: boolean): QuestAttendee {
+  return {
+    id,
+    displayName: "Attendee",
+    avatarInitials: "AT",
+    avatarUrl: null,
+    isHost,
+  };
+}
 
 function makeQuest(changes: Partial<Quest> = {}): Quest {
   return {
