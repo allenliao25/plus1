@@ -10,6 +10,7 @@ type QuestListProps = {
   emptyActionLabel?: string;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
   onEmptyAction?: () => void;
   variant?: "immersive" | "compact";
 };
@@ -22,6 +23,7 @@ export default function QuestList({
   emptyActionLabel,
   onJoin,
   onOpen,
+  onOpenChat,
   onEmptyAction,
   variant = "compact",
 }: QuestListProps) {
@@ -45,6 +47,7 @@ export default function QuestList({
           quest={quest}
           onJoin={onJoin}
           onOpen={onOpen}
+          onOpenChat={onOpenChat}
           variant={variant}
         />
       ))}

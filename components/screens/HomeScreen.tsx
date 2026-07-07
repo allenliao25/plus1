@@ -19,6 +19,7 @@ type HomeScreenProps = {
   joiningQuestId: string | null;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat: (questId: string) => void;
   onCreate: () => void;
 };
 
@@ -28,6 +29,7 @@ export default function HomeScreen({
   joiningQuestId,
   onJoin,
   onOpen,
+  onOpenChat,
   onCreate,
 }: HomeScreenProps) {
   const [selectedFilter, setSelectedFilter] = useState<HomeFeedFilter | null>(
@@ -140,6 +142,7 @@ export default function HomeScreen({
           quests={feedModel.filteredQuests}
           onJoin={onJoin}
           onOpen={onOpen}
+          onOpenChat={onOpenChat}
         />
       ) : (
         <div className="space-y-3">
@@ -149,6 +152,7 @@ export default function HomeScreen({
               quest={feedModel.spotlightQuest}
               onJoin={onJoin}
               onOpen={onOpen}
+              onOpenChat={onOpenChat}
             />
           ) : null}
 
@@ -170,6 +174,7 @@ export default function HomeScreen({
                     quest={quest}
                     onJoin={onJoin}
                     onOpen={onOpen}
+                    onOpenChat={onOpenChat}
                   />
                 ))}
               </div>

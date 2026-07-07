@@ -15,6 +15,7 @@ type EventsScreenProps = {
   quests: Quest[];
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat: (questId: string) => void;
 };
 
 export default function EventsScreen({
@@ -22,6 +23,7 @@ export default function EventsScreen({
   joiningQuestId,
   onJoin,
   onOpen,
+  onOpenChat,
   profile,
   quests,
 }: EventsScreenProps) {
@@ -98,6 +100,7 @@ export default function EventsScreen({
               quest={quest}
               onJoin={onJoin}
               onOpen={onOpen}
+              onOpenChat={onOpenChat}
             />
           ))}
         </div>

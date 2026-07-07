@@ -123,6 +123,36 @@ import type {
   SmartQuestDraft,
 } from "@/types/quest";
 
+// Optimistic join: mark the current user as attending so the card flips to the
+// chat affordance instantly, before the network round-trip resolves.
+function optimisticallyJoinQuest(quest: Quest, profile: Profile): Quest {
+  if (quest.joinedByCurrentUser || quest.createdByCurrentUser) {
+    return quest;
+  }
+
+  const alreadyAttending = quest.attendees.some(
+    (attendee) => attendee.id === profile.id,
+  );
+
+  return {
+    ...quest,
+    joinedByCurrentUser: true,
+    goingCount: quest.goingCount + 1,
+    attendees: alreadyAttending
+      ? quest.attendees
+      : [
+          ...quest.attendees,
+          {
+            id: profile.id,
+            displayName: profile.displayName,
+            avatarInitials: profile.avatarInitials,
+            avatarUrl: profile.avatarUrl,
+            isHost: false,
+          },
+        ],
+  };
+}
+
 type AuthState = "loading" | "signed_out" | "signed_in";
 type RootPage = Exclude<AppTab, "create">;
 
@@ -1669,9 +1699,28 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
         return;
       }
 
-      await joinQuest(questId, currentProfile.id);
+      const feedSnapshot = feedQuests;
+      const mySnapshot = myQuests;
+      const applyOptimisticJoin = (quest: Quest) =>
+        quest.id === questId
+          ? optimisticallyJoinQuest(quest, currentProfile)
+          : quest;
+
+      setFeedQuests((quests) => quests.map(applyOptimisticJoin));
+      setMyQuests((quests) => quests.map(applyOptimisticJoin));
+
+      try {
+        await joinQuest(questId, currentProfile.id);
+      } catch (joinError) {
+        setFeedQuests(feedSnapshot);
+        setMyQuests(mySnapshot);
+        throw joinError;
+      }
+
       track("quest_joined", { quest_id: questId });
-      await Promise.all([refreshData(currentProfile), refreshMessages(currentProfile)]);
+      // Optimistic state already reflects the join; reconcile in the background.
+      void refreshData(currentProfile).catch(() => {});
+      void refreshMessages(currentProfile).catch(() => {});
     } catch (joinError) {
       setActionError(readErrorMessage(joinError));
     } finally {
@@ -1934,6 +1983,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
             onCreate={() => handleTabChange("create")}
             onJoin={handleJoinQuest}
             onOpen={handleOpenQuest}
+            onOpenChat={handleOpenEventChat}
           />
         ) : page === "events" ? (
           <EventsScreen
@@ -1943,6 +1993,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
             profile={currentProfile!}
             onJoin={handleJoinQuest}
             onOpen={handleOpenQuest}
+            onOpenChat={handleOpenEventChat}
           />
         ) : page === "people" ? (
           <PeopleScreen
@@ -2088,6 +2139,7 @@ function useAppShellContent({ initialAiAvailable }: AppShellProps) {
               friendProfiles={friendInviteProfiles}
               initialInvitees={createInitialInvitees}
               initialValues={createInitialValues ?? undefined}
+              wasDrafted={createInitialValues !== null}
               isSubmitting={isCreating}
               onCreateQuest={handleCreateQuest}
             />

@@ -9,7 +9,10 @@ import {
   Users,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { getQuestActionState } from "@/components/JoinButton";
+import {
+  getQuestActionState,
+  shouldShowChatAffordance,
+} from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
 import {
@@ -23,19 +26,24 @@ type EventDiscoveryCardProps = {
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function EventDiscoveryCard({
   isJoining,
   onJoin,
   onOpen,
+  onOpenChat,
   quest,
 }: EventDiscoveryCardProps) {
   const [didImageFail, setDidImageFail] = useState(false);
   const host = findHost(quest);
   const hasImage = Boolean(quest.cardImageUrl && !didImageFail);
   const when = quest.startTimeRelative ?? quest.startTime;
-  const actionState = getQuestActionState(quest, isJoining);
+  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const actionState = showChat
+    ? { label: "Chat", isDisabled: false, isPrimary: true }
+    : getQuestActionState(quest, isJoining);
   const reason = getReasonLabel(quest);
 
   return (
@@ -130,6 +138,10 @@ export default function EventDiscoveryCard({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              if (showChat) {
+                onOpenChat?.(quest.id);
+                return;
+              }
               onJoin(quest.id);
             }}
             disabled={actionState.isDisabled}

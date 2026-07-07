@@ -1,6 +1,7 @@
 "use client";
 
 import type { MouseEvent } from "react";
+import { isLocalDemoQuestId } from "@/data/localDemoQuests";
 import { isQuestFull } from "@/lib/questCapacity";
 import type { Quest } from "@/types/quest";
 
@@ -42,10 +43,30 @@ export function getQuestActionState(
   return { label: "Join", isDisabled: false, isPrimary: true };
 }
 
+// A joined/hosted attendee sees a "Chat" shortcut only when the event is still
+// open and a chat handler is wired through; otherwise it stays "You're in".
+// Local demo quests have no real chat thread, so they never get the shortcut.
+export function shouldShowChatAffordance(
+  quest: Quest,
+  hasOnOpenChat: boolean,
+): boolean {
+  const isJoined = Boolean(
+    quest.joinedByCurrentUser || quest.createdByCurrentUser,
+  );
+
+  return (
+    isJoined &&
+    hasOnOpenChat &&
+    quest.status === "open" &&
+    !isLocalDemoQuestId(quest.id)
+  );
+}
+
 type JoinButtonProps = {
   quest: Quest;
   isJoining: boolean;
   onJoin: (questId: string) => void | Promise<void>;
+  onOpenChat?: (questId: string) => void;
   variant: "solid" | "glass";
   size?: "compact" | "immersive";
   className?: string;
@@ -55,11 +76,15 @@ export default function JoinButton({
   quest,
   isJoining,
   onJoin,
+  onOpenChat,
   variant,
   size = "compact",
   className = "",
 }: JoinButtonProps) {
-  const { label, isDisabled, isPrimary } = getQuestActionState(quest, isJoining);
+  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const { label, isDisabled, isPrimary } = showChat
+    ? { label: "Chat", isDisabled: false, isPrimary: true }
+    : getQuestActionState(quest, isJoining);
 
   const sizeClasses =
     size === "immersive"
@@ -80,6 +105,10 @@ export default function JoinButton({
       type="button"
       onClick={(event: MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation();
+        if (showChat) {
+          onOpenChat?.(quest.id);
+          return;
+        }
         onJoin(quest.id);
       }}
       disabled={isDisabled}

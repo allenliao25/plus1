@@ -9,6 +9,7 @@ type HomeSpotlightCardProps = {
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function HomeSpotlightCard({
@@ -16,6 +17,7 @@ export default function HomeSpotlightCard({
   quest,
   onJoin,
   onOpen,
+  onOpenChat,
 }: HomeSpotlightCardProps) {
   const when = quest.startTimeRelative ?? quest.startTime;
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
@@ -68,6 +70,7 @@ export default function HomeSpotlightCard({
               quest={quest}
               isJoining={isJoining}
               onJoin={onJoin}
+              onOpenChat={onOpenChat}
               variant="glass"
               size="immersive"
               className="ml-auto"

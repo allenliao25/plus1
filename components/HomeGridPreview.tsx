@@ -1,4 +1,7 @@
-import { getQuestActionState } from "@/components/JoinButton";
+import {
+  getQuestActionState,
+  shouldShowChatAffordance,
+} from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
 import { formatCapacitySummary } from "@/lib/questCapacity";
@@ -9,6 +12,7 @@ type HomeGridPreviewProps = {
   quests: Quest[];
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function HomeGridPreview({
@@ -16,6 +20,7 @@ export default function HomeGridPreview({
   quests,
   onJoin,
   onOpen,
+  onOpenChat,
 }: HomeGridPreviewProps) {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -27,6 +32,7 @@ export default function HomeGridPreview({
           quest={quest}
           onJoin={onJoin}
           onOpen={onOpen}
+          onOpenChat={onOpenChat}
         />
       ))}
     </div>
@@ -39,14 +45,19 @@ function HomeGridTile({
   quest,
   onJoin,
   onOpen,
+  onOpenChat,
 }: {
   isJoining: boolean;
   isTall: boolean;
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 }) {
-  const actionState = getQuestActionState(quest, isJoining);
+  const showChat = shouldShowChatAffordance(quest, Boolean(onOpenChat));
+  const actionState = showChat
+    ? { label: "Chat", isDisabled: false, isPrimary: true }
+    : getQuestActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
   const socialProof = formatCapacitySummary(quest);
@@ -98,6 +109,10 @@ function HomeGridTile({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              if (showChat) {
+                onOpenChat?.(quest.id);
+                return;
+              }
               onJoin(quest.id);
             }}
             disabled={actionState.isDisabled}

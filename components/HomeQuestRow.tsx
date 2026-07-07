@@ -9,6 +9,7 @@ type HomeQuestRowProps = {
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function HomeQuestRow({
@@ -16,6 +17,7 @@ export default function HomeQuestRow({
   quest,
   onJoin,
   onOpen,
+  onOpenChat,
 }: HomeQuestRowProps) {
   const when = quest.startTimeRelative ?? quest.startTime;
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
@@ -68,6 +70,7 @@ export default function HomeQuestRow({
             quest={quest}
             isJoining={isJoining}
             onJoin={onJoin}
+            onOpenChat={onOpenChat}
             variant="solid"
             size="compact"
           />

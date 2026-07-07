@@ -17,6 +17,7 @@ type HolographicQuestCardProps = {
   showActions?: boolean;
   onJoin?: (questId: string) => void | Promise<void>;
   onOpen?: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function HolographicQuestCard({
@@ -26,6 +27,7 @@ export default function HolographicQuestCard({
   showActions = true,
   onJoin,
   onOpen,
+  onOpenChat,
 }: HolographicQuestCardProps) {
   const isFull = isQuestFull(quest);
   const isImmersive = variant === "immersive";
@@ -102,6 +104,7 @@ export default function HolographicQuestCard({
               quest={quest}
               isJoining={isJoining}
               onJoin={onJoin}
+              onOpenChat={onOpenChat}
               variant="solid"
               size="compact"
             />
@@ -185,6 +188,7 @@ export default function HolographicQuestCard({
               quest={quest}
               isJoining={isJoining}
               onJoin={onJoin}
+              onOpenChat={onOpenChat}
               variant="glass"
               size="immersive"
             />

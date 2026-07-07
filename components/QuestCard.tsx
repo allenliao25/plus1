@@ -6,6 +6,7 @@ type QuestCardProps = {
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
   variant?: "immersive" | "compact";
 };
 
@@ -14,6 +15,7 @@ export default function QuestCard({
   quest,
   onJoin,
   onOpen,
+  onOpenChat,
   variant = "compact",
 }: QuestCardProps) {
   return (
@@ -23,6 +25,7 @@ export default function QuestCard({
       variant={variant}
       onJoin={onJoin}
       onOpen={onOpen}
+      onOpenChat={onOpenChat}
     />
   );
 }

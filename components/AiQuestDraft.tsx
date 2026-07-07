@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, Sparkles } from "lucide-react";
-import { ChangeEvent, useState } from "react";
+import { ImagePlus, Sparkles } from "lucide-react";
+import { ChangeEvent, useRef, useState } from "react";
 import { AI_TEXT_PROMPT_MAX_LENGTH } from "@/lib/aiLimits";
 import { searchProfilesForInvite } from "@/lib/friendService";
 import { getSupabaseClient } from "@/lib/supabaseClient";
@@ -15,22 +15,11 @@ type AiQuestDraftProps = {
   currentProfile: Profile;
   currentUserId: string;
   isAvailable: boolean | null;
-  /** Called when the user accepts a generated draft (e.g. to prefill the create form). */
+  /** Called when a draft is generated (prefills + reveals the create form). */
   onApplyDraft: (draft: SmartQuestDraft) => void;
 };
 
-type Mode = "text" | "flyer";
-
 const MAX_BYTES = 8 * 1024 * 1024;
-const draftDayFormatter = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-});
-const draftTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 function getDraftContext() {
   const now = new Date();
@@ -138,35 +127,6 @@ function normalizeInviteLookup(value: string) {
     .replace(/[^a-z0-9._]+/g, "");
 }
 
-function formatDraftStartTime(value: string) {
-  if (!value) {
-    return "ASAP";
-  }
-
-  const [datePart, timePart] = value.split("T");
-  const [year, month, day] = datePart.split("-").map(Number);
-  const [hours, minutes] = timePart.split(":").map(Number);
-  const date = new Date(year, month - 1, day, hours, minutes);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const now = new Date();
-  const isSameDay = date.toDateString() === now.toDateString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow = date.toDateString() === tomorrow.toDateString();
-  const dayLabel = isSameDay
-    ? "Today"
-    : isTomorrow
-      ? "Tomorrow"
-      : draftDayFormatter.format(date);
-  const timeLabel = draftTimeFormatter.format(date);
-
-  return `${dayLabel}, ${timeLabel}`;
-}
-
 async function getAuthHeader() {
   const supabase = getSupabaseClient();
   const {
@@ -191,12 +151,10 @@ function useAiQuestDraftContent({
   isAvailable,
   onApplyDraft,
 }: AiQuestDraftProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [draft, setDraft] = useState<SmartQuestDraft | null>(null);
+  const flyerInputRef = useRef<HTMLInputElement>(null);
 
   async function applyResolvedDraft(nextDraft: SmartQuestDraft) {
     const { profiles, selfHints, unresolvedHints } = await resolveInviteProfiles(
@@ -205,7 +163,7 @@ function useAiQuestDraftContent({
       nextDraft.inviteHints,
     );
 
-    setDraft({
+    onApplyDraft({
       ...nextDraft,
       inviteeProfiles: profiles,
       selfInviteHints: selfHints,
@@ -220,7 +178,6 @@ function useAiQuestDraftContent({
 
     setIsLoading(true);
     setError("");
-    setDraft(null);
 
     try {
       const authorization = await getAuthHeader();
@@ -236,6 +193,7 @@ function useAiQuestDraftContent({
         }),
       });
       await applyResolvedDraft(await readDraft(response));
+      setPrompt("");
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not draft an event.",
@@ -259,7 +217,6 @@ function useAiQuestDraftContent({
 
     setIsLoading(true);
     setError("");
-    setDraft(null);
 
     try {
       const authorization = await getAuthHeader();
@@ -280,159 +237,95 @@ function useAiQuestDraftContent({
     }
   }
 
-  return (
-    <section className="glass-panel overflow-hidden rounded-2xl border">
-      <button
-        type="button"
-        onClick={() => setIsExpanded((current) => !current)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
-        aria-expanded={isExpanded}
-      >
-        <span className="glass-action grid size-9 shrink-0 place-items-center rounded-full border text-zinc-700">
+  if (isAvailable === false) {
+    return (
+      <section className="glass-panel flex items-center gap-3 rounded-card border px-4 py-3">
+        <span className="glass-action grid size-9 shrink-0 place-items-center rounded-full border text-faint">
           <Sparkles size={17} strokeWidth={1.9} aria-hidden="true" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-zinc-900">
-            Smart Draft
-          </span>
-          <span className="block truncate text-xs font-medium text-zinc-500">
-            Describe your plan. We will fill the basics.
-          </span>
-        </span>
-        <ChevronDown
-          size={18}
-          strokeWidth={2}
-          aria-hidden="true"
-          className={`shrink-0 text-zinc-400 transition ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+        <p className="min-w-0 flex-1 text-xs font-semibold leading-5 text-muted">
+          Smart Draft needs OPENAI_API_KEY in this environment. Fill your event
+          in below.
+        </p>
+      </section>
+    );
+  }
 
-      {isExpanded ? (
-        <div className="space-y-3 border-t border-zinc-200/70 p-4">
-          {isAvailable === false ? (
-            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">
-              Smart Draft needs OPENAI_API_KEY in this environment.
+  return (
+    <section className="glass-panel glass-ignite overflow-hidden rounded-hero border shadow-glow">
+      <div className="space-y-4 p-5">
+        <div className="flex items-center gap-3">
+          <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-ink-soft">
+            <Sparkles size={19} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-bold text-white">Smart Draft</h2>
+            <p className="text-xs font-medium text-white/70">
+              Describe the plan — we fill in the details.
             </p>
-          ) : null}
-
-          <div className="glass-chip grid grid-cols-2 gap-2 rounded-full border p-1">
-            {(["text", "flyer"] as Mode[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setMode(value);
-                  setError("");
-                }}
-                className={`min-h-10 rounded-full px-3 py-2 text-sm font-bold transition ${
-                  mode === value
-                    ? "bg-zinc-950 text-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-800"
-                }`}
-              >
-                {value === "text" ? "Text" : "Flyer"}
-              </button>
-            ))}
           </div>
-
-          {mode === "text" ? (
-            <div className="space-y-3">
-              <textarea
-                aria-label="Smart draft prompt"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="study at green tonight around 8, need 3 people"
-                maxLength={AI_TEXT_PROMPT_MAX_LENGTH}
-                rows={3}
-                className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
-              />
-              <button
-                type="button"
-                onClick={handleTextSubmit}
-                disabled={isLoading || !prompt.trim() || isAvailable === false}
-                className="glass-action min-h-11 w-full rounded-full border px-5 py-3 text-sm font-bold text-zinc-950 transition hover:bg-zinc-950 hover:text-white disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
-              >
-                {isAvailable === false
-                  ? "Unavailable"
-                  : isLoading
-                    ? "Filling..."
-                    : "Fill details"}
-              </button>
-            </div>
-          ) : (
-            <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-6 text-sm font-bold text-zinc-600 transition hover:border-zinc-400">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFlyerChange}
-                disabled={isLoading || isAvailable === false}
-                className="hidden"
-              />
-              {isAvailable === false
-                ? "Unavailable"
-                : isLoading
-                  ? "Reading flyer..."
-                  : "Upload a flyer"}
-            </label>
-          )}
-
-          {error ? (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {error}
-            </p>
-          ) : null}
-
-          {draft ? (
-            <div className="glass-chip space-y-3 rounded-2xl border p-4">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm text-zinc-700">
-                <dt className="font-bold text-zinc-500">Title</dt>
-                <dd className="font-semibold">{draft.title || "—"}</dd>
-                <dt className="font-bold text-zinc-500">Category</dt>
-                <dd className="font-semibold">{draft.category}</dd>
-                <dt className="font-bold text-zinc-500">Location</dt>
-                <dd className="font-semibold">{draft.location || "—"}</dd>
-                <dt className="font-bold text-zinc-500">Start</dt>
-                <dd className="font-semibold">
-                  {formatDraftStartTime(draft.startTime)}
-                </dd>
-                <dt className="font-bold text-zinc-500">Max</dt>
-                <dd className="font-semibold">
-                  {draft.maxPeople === null ? "No max" : draft.maxPeople}
-                </dd>
-                {draft.inviteeProfiles?.length ||
-                draft.selfInviteHints?.length ||
-                draft.unresolvedInviteHints?.length ? (
-                  <>
-                    <dt className="font-bold text-zinc-500">Invites</dt>
-                    <dd className="font-semibold">
-                      {[
-                        ...(draft.inviteeProfiles ?? []).map(
-                          (profile) => `@${profile.handle}`,
-                        ),
-                        ...(draft.selfInviteHints ?? []).map(
-                          (hint) => `${hint} is you`,
-                        ),
-                        ...(draft.unresolvedInviteHints ?? []).map(
-                          (hint) => `${hint} not found`,
-                        ),
-                      ].join(", ")}
-                    </dd>
-                  </>
-                ) : null}
-              </dl>
-              <button
-                type="button"
-                onClick={() => onApplyDraft(draft)}
-                className="min-h-11 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800"
-              >
-                Use these details
-              </button>
-            </div>
-          ) : null}
         </div>
-      ) : null}
+
+        <textarea
+          aria-label="Smart draft prompt"
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder="What's the plan? Try: dinner at 7 at Coupa"
+          maxLength={AI_TEXT_PROMPT_MAX_LENGTH}
+          rows={3}
+          disabled={isLoading}
+          className="w-full resize-none rounded-card border border-white/15 bg-white/95 px-4 py-3 text-base text-ink outline-none transition placeholder:text-faint focus:border-white/60 focus:bg-white disabled:opacity-70"
+        />
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleTextSubmit}
+            disabled={isLoading || !prompt.trim()}
+            className="pressable flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-white/60"
+          >
+            {isLoading ? (
+              <>
+                <Sparkles
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="animate-pulse"
+                />
+                Drafting…
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
+                Draft it
+              </>
+            )}
+          </button>
+          <label
+            className={`glass-action pressable grid min-h-12 w-12 shrink-0 place-items-center rounded-full border text-ink-soft ${
+              isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+            }`}
+            aria-label="Draft from a flyer photo"
+            title="Draft from a flyer photo"
+          >
+            <input
+              ref={flyerInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFlyerChange}
+              disabled={isLoading}
+              className="sr-only"
+            />
+            <ImagePlus size={19} strokeWidth={1.9} aria-hidden="true" />
+          </label>
+        </div>
+
+        {error ? (
+          <p className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {error}
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }
