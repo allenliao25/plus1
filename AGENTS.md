@@ -8,6 +8,15 @@ General hangout app (user-facing "events", legacy internal "quests"): phone OTP 
 
 ---
 
+## Product direction (read before any UI/UX work)
+
+- **iOS-only now.** The Capacitor iOS app is the product; don't design or optimize for desktop web. This has startup ambitions — treat it as a real monetizable app, not a class project.
+- Keep the **glassmorphic visual identity**.
+- Visual quality bar: **Partiful / BeReal** (NOT Instagram). UX friction bar: **Kalshi / Cal AI**.
+- Sacred actions: **join a plan** and **post a plan**. They must take seconds, not forms — any change that adds friction to these needs strong justification.
+
+---
+
 <!-- BEGIN:nextjs-agent-rules -->
 ## This is NOT the Next.js you know
 
@@ -106,6 +115,14 @@ npm run test
 `npm test` runs unit tests (`tests/**/*.test.ts`) plus RLS tests (skipped if Supabase test env missing).
 
 Manual demo checklist: `README.md`. Submission evidence plan: `docs/evaluation.md`, `docs/demo-script.md`.
+
+---
+
+## Deploys & git identity
+
+- Vercel auto-deploys on push to `main` (Hobby plan, team `allenliao25s-projects`). Production: `https://plus1-livid.vercel.app` — the Capacitor shell loads this URL, so a broken `main` deploy breaks the iOS app too.
+- **Commit-author gotcha:** the owner has two GitHub accounts. `allenliao25@gmail.com` is attributed by GitHub to `allenliao8`, and Vercel Hobby **blocks deploys whose commit author isn't a team member** ("Blocked — commit author did not have contributing access"). Author commits as `116464203+allenliao25@users.noreply.github.com` (set repo-local via `git config user.email`; verify before committing). To repair an already-pushed blocked commit: `git commit --amend --reset-author --no-edit && git push --force-with-lease`. Never work around it by upgrading to Pro.
+- Landing branches: verified-green, rebase-clean branches may be opened as PRs and merged without asking (merge-commit style) — see the user-level `ship-pr` skill.
 
 ---
 
