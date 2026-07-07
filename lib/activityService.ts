@@ -22,6 +22,7 @@ const validTypes: ActivityEventType[] = [
   "invite",
   "friend_request",
   "friend_accept",
+  "friend_free",
 ];
 
 export async function fetchActivityEvents(userId: string) {

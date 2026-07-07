@@ -189,6 +189,18 @@ struct ActivityRow: Codable, Identifiable, Hashable {
     var isRead: Bool { readAt != nil }
 }
 
+struct AvailabilityRow: Codable, Identifiable, Hashable {
+    let userId: UUID
+    let expiresAt: String
+
+    var id: UUID { userId }
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case expiresAt = "expires_at"
+    }
+}
+
 struct ThreadRow: Codable, Identifiable, Hashable {
     let id: UUID
     let kind: String
@@ -275,6 +287,12 @@ struct Quest: Identifiable, Hashable {
     var goingCount: Int { attendees.count }
     var spotsLeft: Int? { row.maxPeople.map { max(0, $0 - goingCount) } }
     var isFull: Bool { (spotsLeft ?? 1) == 0 }
+}
+
+/// A friend who is currently marked free tonight (availability joined to profile).
+struct FreeFriend: Identifiable, Hashable {
+    let profile: ProfileRow
+    var id: UUID { profile.id }
 }
 
 struct ThreadSummary: Identifiable, Hashable {

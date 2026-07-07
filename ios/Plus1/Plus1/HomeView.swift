@@ -17,6 +17,11 @@ struct HomeView: View {
     @State private var filter: HomeFilter = .all
     @State private var loaded = false
     @State private var errorMessage: String?
+    // Free-tonight availability signal.
+    @State private var freeFriends: [FreeFriend] = []
+    @State private var myFreeUntil: Date?
+    @State private var busyFree = false
+    @State private var confirmClearFree = false
 
     // MARK: Derived feed slices
 
@@ -92,9 +97,11 @@ struct HomeView: View {
                 if !loaded {
                     ForEach(0..<3, id: \.self) { _ in SkeletonCard(height: 92) }
                 } else if showsEmptyFriends {
+                    freeTonightSection
                     if showsTonight { tonightRail }
                     emptyFriendsSections
                 } else {
+                    freeTonightSection
                     if showsTonight { tonightRail }
                     feedSections
                 }
@@ -114,6 +121,12 @@ struct HomeView: View {
         .alert("Something went wrong", isPresented: .init(
             get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } }
         )) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
+        .confirmationDialog(
+            "No longer free?", isPresented: $confirmClearFree, titleVisibility: .visible
+        ) {
+            Button("No longer free", role: .destructive) { Task { await clearFree() } }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     // MARK: Header
@@ -175,6 +188,194 @@ struct HomeView: View {
                 .background(selected ? Theme.accent : Theme.chip, in: Capsule())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: Free tonight
+
+    private var amFree: Bool { myFreeUntil != nil }
+
+    /// End of tonight = the next occurrence of 4am local. If it's already past
+    /// 4am we mean tomorrow's 4am; between midnight and 4am, today's 4am.
+    private func endOfTonight() -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        var next = calendar.nextDate(
+            after: now,
+            matching: DateComponents(hour: 4, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        ) ?? now.addingTimeInterval(6 * 60 * 60)
+        // nextDate never returns `now` itself; if the computed 4am is somehow in
+        // the past, roll forward a day.
+        if next <= now { next = calendar.date(byAdding: .day, value: 1, to: next) ?? next }
+        return next
+    }
+
+    /// Section is only fully shown when there's something to show: you're free,
+    /// or friends are free. Otherwise it collapses to the compact pill.
+    @ViewBuilder private var freeTonightSection: some View {
+        if filter == .all {
+            VStack(alignment: .leading, spacing: 10) {
+                if !freeFriends.isEmpty {
+                    SectionHeader(title: "Free tonight", caption: "\(freeFriends.count)")
+                }
+                freePill
+                if !freeFriends.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(freeFriends) { friend in
+                            freeFriendRow(friend)
+                            if friend.id != freeFriends.last?.id {
+                                Rectangle().fill(Theme.hair).frame(height: 0.5)
+                            }
+                        }
+                    }
+                    .card()
+                }
+                if amFree && !freeFriends.isEmpty { makePlanPrompt }
+            }
+        }
+    }
+
+    /// Prominent one-tap state: "I'm free tonight" or the active confirmation.
+    private var freePill: some View {
+        Button {
+            if amFree {
+                confirmClearFree = true
+            } else {
+                Task { await setFree() }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if amFree {
+                    Text("You're free tonight ✓")
+                        .font(.system(size: 15, weight: .bold))
+                    Text("(until 4am)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.accentInk.opacity(0.75))
+                } else {
+                    Text("I'm free tonight 🙋")
+                        .font(.system(size: 15, weight: .bold))
+                }
+            }
+            .foregroundStyle(Theme.accentInk)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(Theme.accent)
+            .clipShape(Capsule())
+            .opacity(busyFree ? 0.6 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(busyFree)
+        .accessibilityLabel(amFree ? "You're free tonight, tap to undo" : "Mark yourself free tonight")
+    }
+
+    private func freeFriendRow(_ friend: FreeFriend) -> some View {
+        HStack(spacing: 10) {
+            NavigationLink {
+                PublicProfileView(profileId: friend.profile.id)
+            } label: {
+                HStack(spacing: 10) {
+                    AvatarView(
+                        initials: friend.profile.initials,
+                        url: friend.profile.avatarUrl.flatMap(URL.init),
+                        size: 36
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(friend.profile.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.foreground)
+                            .lineLimit(1)
+                        Text("free tonight")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.sub)
+                    }
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            // "me too" just fires the same set RPC (unless you're already free).
+            if !amFree {
+                Button {
+                    Task { await meToo() }
+                } label: {
+                    Text("me too")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.accentInk)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(busyFree)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    /// Subtle nudge when you AND friends are free: spin up a plan.
+    private var makePlanPrompt: some View {
+        Button {
+            Analytics.track("free_tonight_make_plan", ["free_friends": freeFriends.count])
+            Haptics.tap()
+            app.requestedTab = .create
+        } label: {
+            HStack(spacing: 6) {
+                Text("\(freeFriends.count + 1) of you are free — make the plan")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.accentText)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.accentText)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func setFree() async {
+        busyFree = true
+        defer { busyFree = false }
+        Haptics.success()
+        do {
+            try await Repo.setFreeTonight(until: endOfTonight())
+            Analytics.track("free_tonight_set")
+            await loadFree()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func meToo() async {
+        busyFree = true
+        defer { busyFree = false }
+        Haptics.success()
+        do {
+            try await Repo.setFreeTonight(until: endOfTonight())
+            Analytics.track("free_tonight_me_too")
+            await loadFree()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func clearFree() async {
+        busyFree = true
+        defer { busyFree = false }
+        Haptics.tap()
+        do {
+            try await Repo.clearFreeTonight()
+            Analytics.track("free_tonight_cleared")
+            await loadFree()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadFree() async {
+        async let friendsTask = Repo.fetchFreeFriends()
+        async let mineTask = Repo.myAvailabilityExpiry()
+        freeFriends = (try? await friendsTask) ?? []
+        myFreeUntil = (try? await mineTask) ?? nil
     }
 
     // MARK: Feed
@@ -292,7 +493,8 @@ struct HomeView: View {
         do {
             async let questsTask = Repo.feedQuests()
             async let friendshipsTask = Repo.friendships()
-            let (feed, friendships) = try await (questsTask, friendshipsTask)
+            async let freeTask: Void = loadFree()
+            let (feed, friendships, _) = try await (questsTask, friendshipsTask, freeTask)
             quests = feed
             if let me = Repo.currentUserId {
                 friendIds = Set(
