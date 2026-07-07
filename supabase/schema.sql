@@ -1876,5 +1876,137 @@ revoke all on function public.send_event_reminders() from authenticated;
 -- Dashboard → Database → Extensions, then run:
 --   cron.schedule('send-event-reminders', '*/5 * * * *', 'select public.send_event_reminders();');
 
+-- "Free tonight" availability signal. One row per user (pk = user_id); friends
+-- (accepted, non-blocked) can read it. set_free_tonight() fans a 'friend_free'
+-- activity_event to each friend, which rides the notify_push pipeline.
+create table if not exists availability (
+  user_id uuid primary key references profiles(id) on delete cascade,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists availability_expires_at_idx
+  on availability (expires_at);
+
+alter table availability enable row level security;
+
+drop policy if exists "users read own and friends availability" on availability;
+create policy "users read own and friends availability"
+  on availability for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or (
+      public.are_friends(auth.uid(), user_id)
+      and not public.are_blocked(auth.uid(), user_id)
+    )
+  );
+
+drop policy if exists "users insert own availability" on availability;
+create policy "users insert own availability"
+  on availability for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+drop policy if exists "users update own availability" on availability;
+create policy "users update own availability"
+  on availability for update
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+drop policy if exists "users delete own availability" on availability;
+create policy "users delete own availability"
+  on availability for delete
+  to authenticated
+  using (user_id = auth.uid());
+
+-- Upsert caller availability; clamp `until` to [now()+30min, now()+18h]; on a
+-- fresh go-free notify every friend once (dedup on any prior unexpired row).
+create or replace function public.set_free_tonight(until timestamptz)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caller uuid := auth.uid();
+  clamped_expires timestamptz;
+  had_active boolean;
+  caller_name text;
+begin
+  if caller is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  clamped_expires := least(
+    greatest(until, now() + interval '30 minutes'),
+    now() + interval '18 hours'
+  );
+
+  select exists (
+    select 1 from availability
+    where user_id = caller and expires_at > now()
+  ) into had_active;
+
+  insert into availability (user_id, expires_at)
+  values (caller, clamped_expires)
+  on conflict (user_id)
+  do update set expires_at = excluded.expires_at, created_at = now();
+
+  if had_active then
+    return;
+  end if;
+
+  begin
+    select coalesce(display_name, 'Someone') into caller_name
+    from profiles where id = caller;
+
+    insert into activity_events (user_id, actor_id, quest_id, type, title, body)
+    select
+      f.friend_id,
+      caller,
+      null,
+      'friend_free',
+      caller_name || ' is free tonight',
+      'Tap to say you''re free too'
+    from (
+      select
+        case when requester_id = caller then addressee_id else requester_id end
+          as friend_id
+      from friendships
+      where status = 'accepted'
+        and (requester_id = caller or addressee_id = caller)
+    ) f
+    where not public.are_blocked(caller, f.friend_id);
+  exception
+    when others then
+      null;
+  end;
+end;
+$$;
+
+revoke all on function public.set_free_tonight(timestamptz) from public;
+revoke all on function public.set_free_tonight(timestamptz) from anon;
+grant execute on function public.set_free_tonight(timestamptz) to authenticated;
+
+create or replace function public.clear_free_tonight()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+  delete from availability where user_id = auth.uid();
+end;
+$$;
+
+revoke all on function public.clear_free_tonight() from public;
+revoke all on function public.clear_free_tonight() from anon;
+grant execute on function public.clear_free_tonight() to authenticated;
+
 -- No static seed rows after auth migration.
 -- Profiles are created on first sign-in via app logic.

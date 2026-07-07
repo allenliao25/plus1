@@ -106,7 +106,8 @@ export type ActivityEventType =
   | "reminder"
   | "invite"
   | "friend_request"
-  | "friend_accept";
+  | "friend_accept"
+  | "friend_free";
 
 export type ActivityActor = QuestInviteProfile;
 

@@ -768,3 +768,51 @@ struct ProfileStats: Decodable {
     let joined: Int
     let friends: Int
 }
+
+// MARK: - Free tonight (availability signal)
+
+extension Repo {
+    /// Friends currently marked free tonight, hydrated with their profiles.
+    /// RLS on `availability` already limits SELECT to the caller's own row plus
+    /// accepted, non-blocked friends, so this reads friends' rows only — we drop
+    /// the caller's own row (that state comes from `myAvailability()`) and any
+    /// remaining blocked users defensively.
+    static func fetchFreeFriends() async throws -> [FreeFriend] {
+        guard let me = currentUserId else { return [] }
+        let rows: [AvailabilityRow] = try await db.from("availability")
+            .select()
+            .gt("expires_at", value: Fmt.pg.string(from: Date()))
+            .execute().value
+        let friendIds = rows.map(\.userId).filter { $0 != me }
+        guard !friendIds.isEmpty else { return [] }
+        let blocked = (try? await blockedUserIds()) ?? []
+        let visibleIds = friendIds.filter { !blocked.contains($0) }
+        guard !visibleIds.isEmpty else { return [] }
+        let people = try await profiles(ids: visibleIds)
+        return people.map { FreeFriend(profile: $0) }
+    }
+
+    /// The caller's own availability expiry, if currently free (nil otherwise).
+    static func myAvailabilityExpiry() async throws -> Date? {
+        guard let me = currentUserId else { return nil }
+        let rows: [AvailabilityRow] = try await db.from("availability")
+            .select()
+            .eq("user_id", value: me)
+            .gt("expires_at", value: Fmt.pg.string(from: Date()))
+            .execute().value
+        return rows.first.flatMap { Fmt.parse($0.expiresAt) }
+    }
+
+    /// Mark the caller free tonight until `until`. The RPC clamps the window
+    /// server-side and notifies friends on a fresh go-free.
+    static func setFreeTonight(until: Date) async throws {
+        struct Params: Encodable { let until: String }
+        try await db.rpc("set_free_tonight", params: Params(until: Fmt.pg.string(from: until)))
+            .execute()
+    }
+
+    /// Clear the caller's own availability row.
+    static func clearFreeTonight() async throws {
+        try await db.rpc("clear_free_tonight").execute()
+    }
+}
