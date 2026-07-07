@@ -15,6 +15,59 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * plus1 design tokens.
+ *
+ * Spacing: Tailwind's native 4px grid (2px half-steps allowed). No arbitrary
+ * spacing values outside safe-area calc() offsets of +8px, +12px, or +20px.
+ */
+@theme {
+  /* Type scale (semantic steps; never use text-[...] sizes) */
+  --text-2xs: 0.625rem; /* micro badges, counters */
+  --text-2xs--line-height: 0.875rem;
+  --text-md: 0.9375rem; /* iOS-ish body between sm and base */
+  --text-md--line-height: 1.375rem;
+
+  /* Uppercase eyebrow/label letter-spacing */
+  --tracking-caps: 0.12em;
+
+  /* Border radius scale (cards use these three; smaller chrome uses the
+     standard rounded-lg/xl/2xl/full steps) */
+  --radius-card-sm: 1.125rem; /* inner decks, thumbnails, list cards */
+  --radius-card: 1.375rem; /* standard card */
+  --radius-hero: 1.75rem; /* immersive cards, sheets, nav bar */
+
+  /* Elevation scale */
+  --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-raised: 0 12px 30px rgba(15, 23, 42, 0.12);
+  --shadow-overlay: 0 18px 48px rgba(15, 23, 42, 0.18);
+  --shadow-modal: 0 24px 70px rgba(15, 23, 42, 0.22);
+  --shadow-glow: 0 14px 28px rgba(244, 114, 182, 0.2);
+
+  /* Semantic color roles (zinc-based; use these instead of raw zinc) */
+  --color-ink: #09090b; /* primary text + primary action surface (zinc-950) */
+  --color-ink-hover: #27272a; /* primary action hover/pressed (zinc-800) */
+  --color-ink-soft: #3f3f46; /* secondary text (zinc-700) */
+  --color-muted: #71717a; /* tertiary/meta text (zinc-500) */
+  --color-faint: #a1a1aa; /* placeholder/disabled text (zinc-400) */
+  --color-line: #e4e4e7; /* hairline borders (zinc-200) */
+  --color-surface: #ffffff; /* base surface */
+  --color-surface-2: #f4f4f5; /* recessed surface (zinc-100) */
+}
+
+/* Standard tap feedback for every tappable element */
+@utility pressable {
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
