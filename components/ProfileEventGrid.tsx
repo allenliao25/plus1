@@ -30,7 +30,7 @@ export function ProfileAvatar({ profile }: ProfileAvatarProps) {
 
   if (profile.avatarUrl && !didImageFail) {
     return (
-      <span className="block aspect-square size-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-200">
+      <span className="block aspect-square size-20 shrink-0 overflow-hidden rounded-full bg-surface-2 shadow-sm ring-1 ring-line">
         <SafeImage
           src={profile.avatarUrl}
           alt=""
@@ -44,7 +44,7 @@ export function ProfileAvatar({ profile }: ProfileAvatarProps) {
   }
 
   return (
-    <span className="grid aspect-square size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-950 text-2xl font-bold text-white shadow-sm">
+    <span className="grid aspect-square size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-ink text-2xl font-bold text-white shadow-sm">
       {profile.avatarInitials}
     </span>
   );
@@ -53,10 +53,10 @@ export function ProfileAvatar({ profile }: ProfileAvatarProps) {
 export function ProfileStat({ label, onClick, value }: ProfileStatProps) {
   const content = (
     <>
-      <span className="block text-lg font-extrabold leading-none text-zinc-950">
+      <span className="block text-lg font-extrabold leading-none text-ink">
         {value}
       </span>
-      <span className="mt-1 block text-xs font-semibold text-zinc-500">
+      <span className="mt-1 block text-xs font-semibold text-muted">
         {label}
       </span>
     </>
@@ -68,7 +68,7 @@ export function ProfileStat({ label, onClick, value }: ProfileStatProps) {
         type="button"
         aria-label={`${value} ${label}`}
         onClick={onClick}
-        className="rounded-2xl py-1.5 transition hover:bg-zinc-100/70 active:scale-95"
+        className="rounded-2xl py-1.5 pressable hover:bg-surface-2/70"
       >
         {content}
       </button>
@@ -91,14 +91,14 @@ export function ProfileEventGrid({
   if (quests.length === 0) {
     return (
       <div className="px-5 py-14 text-center">
-        <p className="text-sm font-bold text-zinc-800">{emptyTitle}</p>
-        <p className="mt-1 text-sm text-zinc-400">{emptyBody}</p>
+        <p className="text-sm font-bold text-ink-soft">{emptyTitle}</p>
+        <p className="mt-1 text-sm text-faint">{emptyBody}</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-3 gap-[1px] bg-zinc-200">
+    <div className="grid grid-cols-3 gap-[1px] bg-line">
       {quests.map((quest) => (
         <QuestTile key={quest.id} quest={quest} onOpen={onOpen} />
       ))}
@@ -118,7 +118,7 @@ function QuestTile({
       type="button"
       onClick={() => onOpen(quest.id)}
       data-category={quest.category}
-      className="holo-thumb group relative aspect-square overflow-hidden bg-zinc-100 text-left transition active:scale-[0.98]"
+      className="holo-thumb group relative aspect-square overflow-hidden bg-surface-2 text-left pressable"
       aria-label={`Open ${quest.title}`}
     >
       {quest.cardImageUrl ? (
@@ -136,11 +136,11 @@ function QuestTile({
         />
       )}
       <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/55 to-transparent" />
-      <p className="absolute bottom-1.5 left-1.5 right-1.5 truncate text-[11px] font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
+      <p className="absolute bottom-1.5 left-1.5 right-1.5 truncate text-xs font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]">
         {quest.title}
       </p>
       {quest.status !== "open" ? (
-        <span className="glass-chip absolute right-1.5 top-1.5 rounded-full border px-2 py-0.5 text-[0.6rem] font-bold uppercase text-zinc-700">
+        <span className="glass-chip absolute right-1.5 top-1.5 rounded-full border px-2 py-0.5 text-2xs font-bold uppercase text-ink-soft">
           {quest.status}
         </span>
       ) : null}

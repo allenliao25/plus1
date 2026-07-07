@@ -30,11 +30,11 @@ export default function FriendActionControls({
   const isDisabled = disabled || isBusy;
   const isProfile = variant === "profile";
   const secondaryClass = isProfile
-    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-950 transition active:scale-[0.98] disabled:opacity-50"
-    : "min-h-9 rounded-full border border-zinc-200 bg-white px-3 text-xs font-extrabold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50";
+    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-surface-2 px-3 text-sm font-bold text-ink pressable disabled:opacity-50"
+    : "min-h-9 rounded-full border border-line bg-white px-3 text-xs font-extrabold text-ink-soft transition hover:bg-surface-2 disabled:opacity-50";
   const primaryClass = isProfile
-    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-950 px-3 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-    : "min-h-9 rounded-full bg-zinc-950 px-3 text-xs font-extrabold text-white transition hover:bg-zinc-800 disabled:opacity-50";
+    ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-ink px-3 text-sm font-bold text-white pressable disabled:opacity-50"
+    : "min-h-9 rounded-full bg-ink px-3 text-xs font-extrabold text-white transition hover:bg-ink-hover disabled:opacity-50";
 
   if (state === "self") {
     return <StatePill label="You" variant={variant} />;
@@ -112,8 +112,8 @@ function StatePill({
     <span
       className={
         variant === "profile"
-          ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-zinc-100 px-3 text-sm font-bold text-zinc-500"
-          : "inline-flex min-h-9 items-center rounded-full bg-zinc-100 px-3 text-xs font-extrabold text-zinc-500"
+          ? "inline-flex min-h-9 w-full items-center justify-center rounded-lg bg-surface-2 px-3 text-sm font-bold text-muted"
+          : "inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-xs font-extrabold text-muted"
       }
     >
       {label}

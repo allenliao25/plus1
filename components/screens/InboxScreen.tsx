@@ -53,24 +53,24 @@ export default function InboxScreen({
         />
       </div>
 
-      <label className="glass-panel flex min-h-12 items-center gap-2 rounded-full border px-4 text-zinc-500 transition focus-within:border-zinc-300 focus-within:bg-white/92">
+      <label className="glass-panel flex min-h-12 items-center gap-2 rounded-full border px-4 text-muted transition focus-within:border-faint focus-within:bg-white/90">
         <Search size={17} strokeWidth={2} aria-hidden="true" />
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={mode === "direct" ? "Search messages" : "Search event chats"}
-          className="min-w-0 flex-1 bg-transparent py-3 text-[15px] font-medium text-zinc-950 outline-none placeholder:text-zinc-500"
+          className="min-w-0 flex-1 bg-transparent py-3 text-md font-medium text-ink outline-none placeholder:text-muted"
         />
       </label>
 
       {isLoading ? (
         <div className="space-y-2">
-          <div className="glass-panel h-20 animate-pulse rounded-[1.35rem] border" />
-          <div className="glass-panel h-20 animate-pulse rounded-[1.35rem] border" />
+          <div className="glass-panel h-20 animate-pulse rounded-card border" />
+          <div className="glass-panel h-20 animate-pulse rounded-card border" />
         </div>
       ) : filteredThreads.length > 0 ? (
-        <div className="glass-panel divide-y divide-zinc-100 overflow-hidden rounded-[1.35rem] border">
+        <div className="glass-panel divide-y divide-line overflow-hidden rounded-card border">
           {filteredThreads.map((thread) => (
             <ThreadRow
               key={thread.id}
@@ -86,10 +86,10 @@ export default function InboxScreen({
 
       {mode === "direct" && friends.length > 0 ? (
         <section className="space-y-2">
-          <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-zinc-400">
+          <p className="text-xs font-extrabold uppercase tracking-caps text-faint">
             Start a chat
           </p>
-          <div className="glass-panel divide-y divide-zinc-100 overflow-hidden rounded-[1.35rem] border">
+          <div className="glass-panel divide-y divide-line overflow-hidden rounded-card border">
             {friends.slice(0, 8).map((friend) => (
               <div key={friend.id} className="flex items-center gap-3 p-3">
                 <ProfileAvatar
@@ -97,17 +97,17 @@ export default function InboxScreen({
                   avatarUrl={friend.profile.avatarUrl}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-extrabold text-zinc-950">
+                  <p className="truncate text-sm font-extrabold text-ink">
                     {friend.profile.displayName}
                   </p>
-                  <p className="truncate text-xs font-bold text-zinc-400">
+                  <p className="truncate text-xs font-bold text-faint">
                     @{friend.profile.handle}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onMessageFriend(friend.profile.id)}
-                  className="min-h-9 rounded-full bg-zinc-950 px-4 text-xs font-extrabold text-white transition active:scale-95"
+                  className="pressable min-h-9 rounded-full bg-ink px-4 text-xs font-extrabold text-white"
                 >
                   Message
                 </button>
@@ -135,7 +135,7 @@ function ThreadRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-zinc-50"
+      className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-surface-2"
     >
       {thread.kind === "event" ? (
         <EventAvatar thread={thread} />
@@ -147,21 +147,21 @@ function ThreadRow({
       )}
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-extrabold text-zinc-950">
+          <span className="truncate text-sm font-extrabold text-ink">
             {thread.title}
           </span>
           {lastMessageAtRelative ? (
-            <span className="shrink-0 text-xs font-bold text-zinc-400">
+            <span className="shrink-0 text-xs font-bold text-faint">
               {lastMessageAtRelative}
             </span>
           ) : null}
         </span>
         <span className="mt-0.5 flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-zinc-500">
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted">
             {thread.preview}
           </span>
           {thread.unreadCount > 0 ? (
-            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[0.65rem] font-extrabold text-white">
+            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-xs font-extrabold text-white">
               {thread.unreadCount > 9 ? "9+" : thread.unreadCount}
             </span>
           ) : null}
@@ -179,13 +179,13 @@ function EventAvatar({ thread }: { thread: MessageThread }) {
         alt=""
         width={52}
         height={52}
-        className="size-[52px] shrink-0 rounded-2xl object-cover ring-1 ring-zinc-200"
+        className="size-[52px] shrink-0 rounded-2xl object-cover ring-1 ring-line"
       />
     );
   }
 
   return (
-    <span className="relative size-[52px] shrink-0 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200">
+    <span className="relative size-[52px] shrink-0 overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-line">
       <QuestCategoryArtwork
         category={thread.quest?.category ?? "Other"}
         className="absolute inset-0 h-full w-full"
@@ -210,13 +210,13 @@ function ProfileAvatar({
         alt=""
         width={52}
         height={52}
-        className="size-[52px] shrink-0 rounded-full object-cover ring-1 ring-zinc-200"
+        className="size-[52px] shrink-0 rounded-full object-cover ring-1 ring-line"
       />
     );
   }
 
   return (
-    <span className="grid size-[52px] shrink-0 place-items-center rounded-full bg-zinc-950 text-sm font-extrabold text-white">
+    <span className="grid size-[52px] shrink-0 place-items-center rounded-full bg-ink text-sm font-extrabold text-white">
       {initials}
     </span>
   );
@@ -224,14 +224,14 @@ function ProfileAvatar({
 
 function EmptyInbox({ mode }: { mode: InboxMode }) {
   return (
-    <div className="glass-panel rounded-[1.35rem] border p-6 text-center">
-      <span className="mx-auto grid size-12 place-items-center rounded-full bg-zinc-100 text-zinc-500">
+    <div className="glass-panel rounded-card border p-6 text-center">
+      <span className="mx-auto grid size-12 place-items-center rounded-full bg-surface-2 text-muted">
         <MessageCircle size={22} strokeWidth={2.1} aria-hidden="true" />
       </span>
-      <p className="mt-3 text-sm font-extrabold text-zinc-950">
+      <p className="mt-3 text-sm font-extrabold text-ink">
         {mode === "direct" ? "No messages yet" : "No event chats yet"}
       </p>
-      <p className="mt-1 text-sm font-semibold leading-5 text-zinc-500">
+      <p className="mt-1 text-sm font-semibold leading-5 text-muted">
         {mode === "direct"
           ? "Friends you message will show up here."
           : "Join or host an event to start its group chat."}
@@ -255,7 +255,7 @@ function ModeButton({
       aria-pressed={isActive}
       onClick={onClick}
       className={`min-h-10 rounded-full text-sm font-extrabold transition ${
-        isActive ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500 hover:bg-white/48"
+        isActive ? "bg-ink text-white shadow-sm" : "text-muted hover:bg-white/50"
       }`}
     >
       {label}

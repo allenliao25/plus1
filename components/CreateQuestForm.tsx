@@ -1,4 +1,4 @@
-import { Camera, X } from "lucide-react";
+import { Camera, Sparkles, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import InvitePicker from "@/components/InvitePicker";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
@@ -24,6 +24,8 @@ type CreateQuestFormProps = {
    */
   initialValues?: NewQuestInput;
   initialInvitees?: QuestInviteProfile[];
+  /** True when this mount was seeded by a Smart Draft; drives the header + scroll. */
+  wasDrafted?: boolean;
   onCreateQuest: (
     event: NewQuestInput,
     cardImageFile?: File | null,
@@ -76,6 +78,7 @@ function useCreateQuestFormContent({
   submittingLabel = "Posting…",
   initialValues,
   initialInvitees,
+  wasDrafted = false,
   onCreateQuest,
 }: CreateQuestFormProps) {
   const [form, setForm] = useState<NewQuestInput>({
@@ -96,6 +99,7 @@ function useCreateQuestFormContent({
     initialInvitees ?? [],
   );
   const cardImageInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   function updateForm<Value extends keyof NewQuestInput>(
     key: Value,
@@ -204,29 +208,53 @@ function useCreateQuestFormContent({
     };
   }, [cardImagePreviewUrl]);
 
+  // When seeded by a Smart Draft, bring the prefilled form into view so the
+  // user can review and reach "Post event".
+  useEffect(() => {
+    if (wasDrafted) {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [wasDrafted]);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+      {wasDrafted ? (
+        <p className="glass-chip flex items-center gap-2 rounded-card border px-4 py-3 text-sm font-semibold text-ink-soft">
+          <Sparkles
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="shrink-0 text-muted"
+          />
+          Drafted for you — check the details and post.
+        </p>
+      ) : (
+        <p className="text-xs font-bold uppercase tracking-caps text-faint">
+          Or fill it in yourself
+        </p>
+      )}
+
       {error ? (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+        <p className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           {error}
         </p>
       ) : null}
 
       <label className="block">
         <span className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-zinc-800">Title</span>
+          <span className="text-sm font-bold text-ink-soft">Title</span>
           <RequiredBadge />
         </span>
         <input
           value={form.title}
           onChange={(event) => updateForm("title", event.target.value)}
           placeholder="Dinner at Wilbur"
-          className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+          className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition placeholder:text-faint focus:border-faint"
         />
       </label>
 
       <div>
-        <p className="text-sm font-bold text-zinc-800">Category</p>
+        <p className="text-sm font-bold text-ink-soft">Category</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {questCategories.map((category) => {
             const isSelected = form.category === category;
@@ -236,10 +264,10 @@ function useCreateQuestFormContent({
                 key={category}
                 type="button"
                 onClick={() => updateForm("category", category as QuestCategory)}
-                className={`min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold transition ${
+                className={`pressable min-h-11 rounded-full border px-3 py-2.5 text-sm font-bold ${
                   isSelected
-                    ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
-                    : "glass-chip border text-zinc-700 hover:bg-white/80"
+                    ? "border-ink bg-ink text-white shadow-sm"
+                    : "glass-chip border text-ink-soft hover:bg-white/80"
                 }`}
               >
                 {category}
@@ -250,20 +278,20 @@ function useCreateQuestFormContent({
       </div>
       <label className="block">
         <span className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-zinc-800">Location</span>
+          <span className="text-sm font-bold text-ink-soft">Location</span>
           <RequiredBadge />
         </span>
         <input
           value={form.location}
           onChange={(event) => updateForm("location", event.target.value)}
           placeholder="Green Library"
-          className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+          className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition placeholder:text-faint focus:border-faint"
         />
       </label>
 
       <div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-bold text-zinc-800">Time</p>
+          <p className="text-sm font-bold text-ink-soft">Time</p>
           <RequiredBadge />
         </div>
         <div className="glass-panel mt-2 grid grid-cols-2 gap-2 rounded-full border p-1">
@@ -272,10 +300,10 @@ function useCreateQuestFormContent({
               key={mode}
               type="button"
               onClick={() => setTimeMode(mode)}
-              className={`min-h-10 rounded-full px-3 py-2 text-sm font-bold transition ${
+              className={`pressable min-h-10 rounded-full px-3 py-2 text-sm font-bold ${
                 timeMode === mode
-                  ? "bg-zinc-950 text-white shadow-sm"
-                  : "text-zinc-500 hover:text-zinc-800"
+                  ? "bg-ink text-white shadow-sm"
+                  : "text-muted hover:text-ink-soft"
               }`}
             >
               {mode === "asap" ? "ASAP" : "Pick time"}
@@ -288,28 +316,28 @@ function useCreateQuestFormContent({
             type="datetime-local"
             value={form.startTime}
             onChange={(event) => updateForm("startTime", event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+            className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition placeholder:text-faint focus:border-faint"
           />
         ) : (
-          <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-600">
+          <p className="mt-2 rounded-card border border-line bg-surface-2 px-4 py-3 text-sm font-semibold text-muted">
             Shows as ASAP and stays open until you close it.
           </p>
         )}
       </div>
 
       <label className="block">
-        <span className="text-sm font-bold text-zinc-800">Description</span>
+        <span className="text-sm font-bold text-ink-soft">Description</span>
         <textarea
           value={form.description}
           onChange={(event) => updateForm("description", event.target.value)}
           placeholder="What should people know before joining?"
           rows={4}
-          className="mt-2 w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400"
+          className="mt-2 w-full resize-none rounded-card border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition placeholder:text-faint focus:border-faint"
         />
       </label>
 
       <label className="block">
-        <span className="text-sm font-bold text-zinc-800">Max people</span>
+        <span className="text-sm font-bold text-ink-soft">Max people</span>
         <input
           type="number"
           min={2}
@@ -322,12 +350,12 @@ function useCreateQuestFormContent({
               event.target.value ? Number(event.target.value) : null,
             )
           }
-          className="mt-2 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-base text-zinc-950 outline-none transition focus:border-zinc-400"
+          className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition focus:border-faint"
         />
       </label>
 
       <div>
-        <p className="text-sm font-bold text-zinc-800">Who can see this?</p>
+        <p className="text-sm font-bold text-ink-soft">Who can see this?</p>
         <div className="glass-panel mt-2 grid grid-cols-3 gap-1 rounded-full border p-1">
           {visibilityOptions.map((option) => {
             const isSelected = (form.visibility ?? "local") === option.value;
@@ -338,10 +366,10 @@ function useCreateQuestFormContent({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => updateForm("visibility", option.value)}
-                className={`min-h-10 rounded-full px-2 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                className={`pressable min-h-10 rounded-full px-2 py-2 text-sm font-bold disabled:opacity-50 ${
                   isSelected
-                    ? "bg-zinc-950 text-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-800"
+                    ? "bg-ink text-white shadow-sm"
+                    : "text-muted hover:text-ink-soft"
                 }`}
               >
                 {option.label}
@@ -349,7 +377,7 @@ function useCreateQuestFormContent({
             );
           })}
         </div>
-        <p className="mt-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold leading-6 text-zinc-600">
+        <p className="mt-2 rounded-card border border-line bg-surface-2 px-4 py-3 text-sm font-semibold leading-6 text-muted">
           {
             visibilityOptions.find(
               (option) => option.value === (form.visibility ?? "local"),
@@ -368,8 +396,8 @@ function useCreateQuestFormContent({
 
       <div>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-bold text-zinc-800">Card photo</p>
-          <span className="text-xs font-bold uppercase tracking-normal text-zinc-400">
+          <p className="text-sm font-bold text-ink-soft">Card photo</p>
+          <span className="text-xs font-bold uppercase tracking-caps text-faint">
             Optional
           </span>
           {cardImageFile ? (
@@ -380,7 +408,7 @@ function useCreateQuestFormContent({
                 clearCardImage();
                 setCardImageError("");
               }}
-              className="glass-chip inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-zinc-700 transition hover:bg-white/80 disabled:opacity-50"
+              className="glass-chip pressable inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-bold text-ink-soft hover:bg-white/80 disabled:opacity-50"
             >
               <X size={14} strokeWidth={2} aria-hidden="true" />
               Remove
@@ -392,7 +420,7 @@ function useCreateQuestFormContent({
           disabled={isSubmitting}
           onClick={() => cardImageInputRef.current?.click()}
           data-category={form.category}
-          className="holo-thumb mt-2 w-full overflow-hidden rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-left transition hover:border-zinc-400 hover:bg-white disabled:opacity-50"
+          className="holo-thumb mt-2 w-full overflow-hidden rounded-hero border border-dashed border-faint bg-surface-2 text-left transition hover:border-muted hover:bg-surface disabled:opacity-50"
         >
           {cardImagePreviewUrl ? (
             <SafeImage
@@ -409,7 +437,7 @@ function useCreateQuestFormContent({
                 className="absolute inset-0 h-full w-full"
               />
               <span className="absolute inset-0 bg-black/16" />
-              <span className="glass-overlay absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-2xl border p-3 text-white">
+              <span className="glass-overlay absolute inset-x-4 bottom-4 flex items-center justify-between gap-3 rounded-card border p-3 text-white">
                 <span>
                   <span className="block text-sm font-bold">
                     Using the {form.category} default
@@ -418,7 +446,7 @@ function useCreateQuestFormContent({
                     Upload a photo anytime.
                   </span>
                 </span>
-                <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-zinc-800">
+                <span className="glass-action grid size-10 shrink-0 place-items-center rounded-full border text-ink-soft">
                   <Camera size={17} strokeWidth={1.9} aria-hidden="true" />
                 </span>
               </span>
@@ -444,7 +472,7 @@ function useCreateQuestFormContent({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-12 w-full rounded-full bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        className="pressable min-h-12 w-full rounded-full bg-ink px-5 py-3 text-sm font-bold text-white hover:bg-ink-hover disabled:cursor-not-allowed disabled:bg-faint"
       >
         {isSubmitting ? submittingLabel : submitLabel}
       </button>
@@ -454,7 +482,7 @@ function useCreateQuestFormContent({
 
 function RequiredBadge() {
   return (
-    <span className="text-xs font-bold uppercase tracking-normal text-zinc-400">
+    <span className="text-xs font-bold uppercase tracking-caps text-faint">
       Required
     </span>
   );

@@ -71,12 +71,12 @@ export default function BottomNav({
   return (
     <nav
       aria-busy={isDisabled}
-      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-[1.65rem] border p-2"
+      className="bottom-nav-bar fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0px)] z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[456px] shrink-0 touch-none transform-gpu select-none items-stretch justify-between rounded-hero border p-2"
     >
       {shouldShowActiveMarker ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_8px_18px_rgba(15,23,42,0.09)] ring-1 ring-zinc-200/70 backdrop-blur-xl transition-transform duration-300 ease-out"
+          className="pointer-events-none absolute bottom-2 left-2 top-2 w-[calc((100%_-_1rem)/5)] rounded-2xl bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_8px_18px_rgba(15,23,42,0.09)] ring-1 ring-line/70 backdrop-blur-xl transition-transform duration-300 ease-out"
           style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
         />
       ) : null}
@@ -95,7 +95,7 @@ export default function BottomNav({
               aria-label="Create"
               className="relative z-10 flex flex-1 items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="bottom-nav-create grid size-10 place-items-center rounded-2xl text-white ring-1 ring-white/50 transition active:scale-95">
+              <span className="bottom-nav-create pressable grid size-10 place-items-center rounded-2xl text-white ring-1 ring-white/50">
                 <Icon
                   size={ICON_SIZE}
                   strokeWidth={2.2}
@@ -117,8 +117,8 @@ export default function BottomNav({
             aria-current={isActive ? "page" : undefined}
             className={`group relative z-10 flex min-h-11 flex-1 items-center justify-center rounded-2xl transition active:scale-90 disabled:cursor-not-allowed disabled:opacity-40 ${
               isActive
-                ? "text-zinc-950"
-                : "text-zinc-600 hover:bg-white/56 hover:text-zinc-950"
+                ? "text-ink"
+                : "text-muted hover:bg-white/56 hover:text-ink"
             }`}
           >
             <span className="relative">
@@ -138,7 +138,7 @@ export default function BottomNav({
                     aria-hidden="true"
                   />
                   {item.id === "home" && homeUnreadCount > 0 ? (
-                    <span className="absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[0.58rem] font-extrabold leading-none text-white ring-2 ring-white">
+                    <span className="absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-2xs font-extrabold leading-none text-white ring-2 ring-white">
                       {homeUnreadCount > 9 ? "9+" : homeUnreadCount}
                     </span>
                   ) : null}
@@ -168,11 +168,11 @@ function ProfileNavAvatar({
     <span
       className={`grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full border p-[2px] transition ${
         isActive
-          ? "border-zinc-950"
-          : "border-zinc-300/70 group-hover:border-zinc-500"
+          ? "border-ink"
+          : "border-faint/70 group-hover:border-muted"
       }`}
     >
-      <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-zinc-200">
+      <span className="block aspect-square h-full w-full overflow-hidden rounded-full bg-line">
         {avatarUrl && !didImageFail ? (
           <SafeImage
             src={avatarUrl}
@@ -184,8 +184,8 @@ function ProfileNavAvatar({
           />
         ) : (
           <span
-            className={`grid h-full w-full place-items-center text-[0.62rem] font-bold ${
-              isActive ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-700"
+            className={`grid h-full w-full place-items-center text-2xs font-bold ${
+              isActive ? "bg-ink text-white" : "bg-line text-ink-soft"
             }`}
           >
             {initials}

@@ -1,6 +1,7 @@
+import JoinButton from "@/components/JoinButton";
 import QuestCategoryArtwork from "@/components/QuestCategoryArtwork";
 import SafeImage from "@/components/SafeImage";
-import { formatCapacitySummary, isQuestFull } from "@/lib/questCapacity";
+import { formatCapacitySummary } from "@/lib/questCapacity";
 import type { Quest } from "@/types/quest";
 
 type HomeSpotlightCardProps = {
@@ -8,6 +9,7 @@ type HomeSpotlightCardProps = {
   quest: Quest;
   onJoin: (questId: string) => void | Promise<void>;
   onOpen: (questId: string) => void;
+  onOpenChat?: (questId: string) => void;
 };
 
 export default function HomeSpotlightCard({
@@ -15,8 +17,8 @@ export default function HomeSpotlightCard({
   quest,
   onJoin,
   onOpen,
+  onOpenChat,
 }: HomeSpotlightCardProps) {
-  const actionState = getActionState(quest, isJoining);
   const when = quest.startTimeRelative ?? quest.startTime;
   const context = `Hosted by ${quest.creator} · ${quest.location} · ${when}`;
   const socialProof = formatCapacitySummary(quest);
@@ -24,7 +26,7 @@ export default function HomeSpotlightCard({
   return (
     <article
       data-category={quest.category}
-      className="event-card relative overflow-hidden rounded-[1.65rem] border border-zinc-900 bg-[linear-gradient(135deg,#161617_0%,#26262b_48%,var(--holo-a)_170%)] p-3.5 text-white shadow-[0_18px_48px_rgba(15,23,42,0.18)]"
+      className="event-card relative overflow-hidden rounded-hero border border-zinc-900 bg-[linear-gradient(135deg,#161617_0%,#26262b_48%,var(--holo-a)_170%)] p-3.5 text-white shadow-overlay"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_84%_12%,rgba(255,255,255,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_36%)]" />
       <button
@@ -35,7 +37,7 @@ export default function HomeSpotlightCard({
       />
 
       <div className="pointer-events-none relative z-20 grid grid-cols-[6.35rem_1fr] gap-3.5">
-        <div className="holo-thumb relative aspect-[4/5] overflow-hidden rounded-[1.2rem] bg-zinc-900 shadow-[0_12px_34px_rgba(0,0,0,0.28)]">
+        <div className="holo-thumb relative aspect-[4/5] overflow-hidden rounded-card-sm bg-zinc-900 shadow-modal">
           {quest.cardImageUrl ? (
             <SafeImage
               src={quest.cardImageUrl}
@@ -52,64 +54,30 @@ export default function HomeSpotlightCard({
           )}
         </div>
 
-        <div className="glass-overlay flex min-w-0 flex-col rounded-[1.2rem] border p-3">
-          <h3 className="line-clamp-2 text-[1.35rem] font-bold leading-[1.02] tracking-normal text-white [text-shadow:0_3px_16px_rgba(0,0,0,0.42)]">
+        <div className="glass-overlay flex min-w-0 flex-col rounded-card-sm border p-3">
+          <h3 className="line-clamp-2 text-xl font-bold leading-none tracking-normal text-white [text-shadow:0_3px_16px_rgba(0,0,0,0.42)]">
             {quest.title}
           </h3>
-          <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-white/76">
+          <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-white/80">
             {context}
           </p>
-          <p className="mt-2 truncate text-[0.78rem] font-bold leading-5 text-white/86">
+          <p className="mt-2 truncate text-sm font-bold leading-5 text-white/90">
             {socialProof}
           </p>
 
           <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onJoin(quest.id);
-              }}
-              disabled={actionState.isDisabled}
-              className={`pointer-events-auto ml-auto min-h-10 min-w-[6.4rem] rounded-full px-4 py-2 text-sm font-bold transition active:scale-95 ${
-                actionState.isPrimary
-                  ? "glass-action border text-zinc-950 hover:bg-white/90"
-                  : "bg-white/12 text-white/58 ring-1 ring-white/12"
-              }`}
-            >
-              {actionState.label}
-            </button>
+            <JoinButton
+              quest={quest}
+              isJoining={isJoining}
+              onJoin={onJoin}
+              onOpenChat={onOpenChat}
+              variant="glass"
+              size="immersive"
+              className="ml-auto"
+            />
           </div>
         </div>
       </div>
     </article>
   );
-}
-
-function getActionState(quest: Quest, isJoining: boolean) {
-  const isFull = isQuestFull(quest);
-  const isJoined = Boolean(quest.joinedByCurrentUser || quest.createdByCurrentUser);
-  const isJoinable = quest.status === "open" && !isFull && !isJoined;
-
-  if (isJoined) {
-    return { isDisabled: true, isPrimary: false, label: "You're in" };
-  }
-
-  if (quest.status !== "open") {
-    return {
-      isDisabled: true,
-      isPrimary: false,
-      label: quest.status === "closed" ? "Closed" : "Past",
-    };
-  }
-
-  if (isFull) {
-    return { isDisabled: true, isPrimary: false, label: "Full" };
-  }
-
-  if (isJoining) {
-    return { isDisabled: true, isPrimary: false, label: "Joining..." };
-  }
-
-  return { isDisabled: !isJoinable, isPrimary: true, label: "Join" };
 }

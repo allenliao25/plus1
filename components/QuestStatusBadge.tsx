@@ -26,7 +26,7 @@ function getQuestBadgeConfig(quest: Quest): BadgeConfig | null {
   if (quest.createdByCurrentUser) {
     return {
       label: "Hosting",
-      className: "text-zinc-950",
+      className: "text-ink",
     };
   }
 
@@ -40,14 +40,14 @@ function getQuestBadgeConfig(quest: Quest): BadgeConfig | null {
   if (quest.status === "closed") {
     return {
       label: "Closed",
-      className: "text-zinc-700",
+      className: "text-ink-soft",
     };
   }
 
   if (quest.status === "past") {
     return {
       label: "Past",
-      className: "text-zinc-600",
+      className: "text-muted",
     };
   }
 

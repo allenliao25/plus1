@@ -7,10 +7,10 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-lvh overflow-y-auto bg-white px-5 py-10 text-zinc-950">
+    <main className="min-h-lvh overflow-y-auto bg-white px-5 py-10 text-ink">
       <article className="mx-auto max-w-[42rem] leading-relaxed">
         <h1 className="text-2xl font-extrabold tracking-tight">Privacy Policy</h1>
-        <p className="mt-1 text-sm text-zinc-500">Effective July 6, 2026</p>
+        <p className="mt-1 text-sm text-muted">Effective July 6, 2026</p>
 
         <p className="mt-6">
           plus1 is operated by Allen Liao. This policy explains what data the
