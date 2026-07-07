@@ -5,32 +5,32 @@ Monetization tags: `free-forever` | `future-premium-candidate` | `n/a` — label
 
 ---
 
-## P0 — Guest RSVP on shared event links
+## ✅ SHIPPED (July 7, 2026) — Guest RSVP on shared event links
 **Rationale:** The share link is our only acquisition channel and it currently dead-ends at a sign-up wall; letting a non-user RSVP turns every event into an invite engine.
 **Monetization:** free-forever (core viral loop — never paywall).
 **Scope:** Public share page (`/e/[token]`) gains an "I'm in" button asking for first name only; guest attendees stored (new `quest_guest_joins` table or nullable-user join rows + RLS/RPC), count toward capacity, visible to host as "Name (guest)"; post-RSVP soft prompt to download the app. Web page first; native event detail shows guests. ~2–4 days.
 
-## P0 — Real onboarding unblock (SMS + App Store)
+## P0 (code done; Allen: Twilio A2P + APNs key + TestFlight remain) — Real onboarding unblock (SMS + App Store)
 **Rationale:** Guest RSVP converts guests into signups only if OTP actually delivers and the app is installable; both are currently blocked.
 **Monetization:** n/a (infrastructure).
 **Scope:** Twilio A2P 10DLC registration for production SMS; add `PrivacyInfo.xcprivacy`; flip `aps-environment` to production; set APNs env vars so the dormant push pipeline goes live; TestFlight build. Mostly ops/config, ~1–2 days of work + carrier registration wait.
 
-## P0 — Analytics + crash reporting
+## ✅ SHIPPED (July 7, 2026, keys pending) — Analytics + crash reporting
 **Rationale:** "Traction first" is unmeasurable today — zero telemetry anywhere; this is the instrument panel for every other bet.
 **Monetization:** n/a (internal).
 **Scope:** PostHog (events: signup funnel, event create/join, share-link visit → guest RSVP → install) + Sentry/crash reporting in web and native iOS. ~0.5–1 day, rides along with the next build wave.
 
-## P0 — SMS invites to non-users from the invite picker
+## ✅ SHIPPED (July 7, 2026) — SMS invites to non-users from the invite picker
 **Rationale:** Contact sync only matches contacts who already have Plus1 (≈nobody at launch); letting hosts text a guest-RSVP link to any contact makes the invite picker the growth engine. Composes with guest RSVP.
 **Monetization:** free-forever (core viral loop).
 **Scope:** Invite picker shows non-user contacts; tapping opens Messages pre-filled with the event's guest link. Share-sheet/MFMessageCompose only — no new backend. ~1 day, native iOS.
 
-## P1 — "Free tonight" availability signal
+## ✅ SHIPPED (July 7, 2026) — "Free tonight" availability signal
 **Rationale:** Launch audience is Allen's friend group — a "who's down" signal is useful at 5-friend density, unlike event discovery which needs a crowd; it's the demand-side half of the mission. (Confirmed for friends-first launch, July 2026.)
 **Monetization:** free-forever (core loop).
 **Scope:** One-tap status with auto-expiry (~end of night), visible to friends on Home/Tonight rail; "me too" tap groups the free people and prompts one to spin up a quick event; push on friend-goes-free. New `availability` table + RLS, Home surface, push trigger. ~1 week.
 
-## P1 — "Friends going" social proof on event cards
+## ✅ SHIPPED (July 7, 2026) — "Friends going" social proof on event cards
 **Rationale:** The #1 reason a student joins is who's already in; cards currently show a bare count ("3 going") instead of "Maya + 2 others" with avatars.
 **Monetization:** free-forever.
 **Scope:** Event feed cards (web + native) show up to 3 attendee avatars + first name, friends/mutuals ranked first. Data already fetched for detail views; mostly UI + a joined query. ~1–2 days.
@@ -55,17 +55,17 @@ Monetization tags: `free-forever` | `future-premium-candidate` | `n/a` — label
 # Scale readiness
 What 10k users would complain about, staged so we only build each tier when it's about to matter. Platform note (Allen, July 2026): **native iOS only for now — no web-app or Android investment** (the web share/guest-RSVP page is exempt; it's the acquisition funnel, not a platform).
 
-## P0 (rides with the launch wave) — Block enforcement
+## ✅ SHIPPED (July 7, 2026) — Block enforcement
 **Rationale:** `user_blocks` exists but no RLS checks it — blocked users can still see your events and message you; a block that doesn't block is a broken safety promise.
 **Monetization:** n/a (safety).
 **Scope:** Add block checks to `can_view_quest()`, `can_access_message_thread()`, people search, and friend suggestions; hide both directions. Migration + RLS predicate updates + native "blocked users" list in settings. ~1 day.
 
-## P0 (rides with the launch wave) — Report queue that reaches a human
+## ✅ SHIPPED (July 7, 2026) — Report queue that reaches a human
 **Rationale:** Reports insert into a table nobody watches, while App Store notes promise 24-hour review; unactioned reports are a liability and a churn story.
 **Monetization:** n/a (safety).
 **Scope:** Trigger on `reports` insert → push/email to Allen (reuse pg_net → edge function pattern); minimal admin action = close event / delete content via service role. No dashboard build. ~0.5–1 day.
 
-## P0 (rides with the launch wave) — Event reminders
+## ✅ SHIPPED (July 7, 2026) — Event reminders
 **Rationale:** The one push users actually want ("starting in 1 hour") doesn't exist — the `reminder` activity type is schema-only; reminders are retention, not noise.
 **Monetization:** free-forever.
 **Scope:** Scheduled job (Supabase cron/pg_cron) finds quests starting in ~60 min, inserts `reminder` activity_events for attendees → existing push pipeline delivers. ~1 day.
