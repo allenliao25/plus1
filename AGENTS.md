@@ -10,7 +10,9 @@ General hangout app (user-facing "events", legacy internal "quests"): phone OTP 
 
 ## Product direction (read before any UI/UX work)
 
-- **iOS-only now.** The Capacitor iOS app is the product; don't design or optimize for desktop web. This has startup ambitions — treat it as a real monetizable app, not a class project.
+**Current milestone: `MILESTONE.md`** — agent sessions work top-down from it.
+
+- **iOS-only now.** The **native SwiftUI app in `ios/Plus1/` is the product** (push, universal links, contacts sync, App Store kit all live there). The Capacitor shell in `ios/App/` is frozen — no new work; slated for deletion once the native TestFlight build ships. Don't design or optimize for desktop web. This has startup ambitions — treat it as a real monetizable app, not a class project.
 - Keep the **glassmorphic visual identity**.
 - Visual quality bar: **Partiful / BeReal** (NOT Instagram). UX friction bar: **Kalshi / Cal AI**.
 - Sacred actions: **join a plan** and **post a plan**. They must take seconds, not forms — any change that adds friction to these needs strong justification.
